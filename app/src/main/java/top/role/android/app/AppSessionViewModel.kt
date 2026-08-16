@@ -25,8 +25,29 @@ class AppSessionViewModel(
     val authState: StateFlow<AuthState> =
         _authState.asStateFlow()
 
+    private val _localOwnerUserId =
+        MutableStateFlow<String?>(
+            null
+        )
+
+    val localOwnerUserId:
+            StateFlow<String?> =
+        _localOwnerUserId.asStateFlow()
+
     init {
+        observeLocalOwner()
         observeSession()
+    }
+
+    private fun observeLocalOwner() {
+        viewModelScope.launch {
+            sessionStorage
+                .localOwnerUserId
+                .collectLatest { userId ->
+                    _localOwnerUserId.value =
+                        userId
+                }
+        }
     }
 
     private fun observeSession() {
@@ -42,7 +63,8 @@ class AppSessionViewModel(
                     }
 
                     if (session.isExpired) {
-                        sessionStorage.clearSession()
+                        sessionStorage
+                            .clearRemoteSession()
 
                         _authState.value =
                             AuthState.SignedOut
@@ -65,8 +87,6 @@ class AppSessionViewModel(
                                 )
                         }
                         .onFailure {
-                            sessionStorage.clearSession()
-
                             _authState.value =
                                 AuthState.SignedOut
                         }
@@ -76,7 +96,8 @@ class AppSessionViewModel(
 
     fun signOut() {
         viewModelScope.launch {
-            sessionStorage.clearSession()
+            sessionStorage
+                .clearSession()
         }
     }
 }

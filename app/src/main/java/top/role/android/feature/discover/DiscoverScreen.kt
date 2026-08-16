@@ -37,7 +37,7 @@ fun DiscoverScreen(
 
     onMoreEntities: (SpaceListMode) -> Unit = {},
     onMoreTopics: () -> Unit = {},
-    onMoreDocs: () -> Unit = {},
+    onMoreContent: () -> Unit = {},
 ) {
     when {
         state.isLoading -> {
@@ -69,8 +69,8 @@ fun DiscoverScreen(
                 onMoreTopics =
                     onMoreTopics,
 
-                onMoreDocs =
-                    onMoreDocs,
+                onMoreContent =
+                    onMoreContent,
             )
         }
 
@@ -99,7 +99,7 @@ private fun DiscoverContent(
     onMoreTopics:
         () -> Unit,
 
-    onMoreDocs:
+    onMoreContent:
         () -> Unit,
 ) {
 
@@ -290,7 +290,7 @@ private fun DiscoverContent(
                 DiscoverSectionHeader(
                     title = "最新内容",
                     onMoreClick =
-                        onMoreDocs,
+                        onMoreContent,
                 )
             }
 

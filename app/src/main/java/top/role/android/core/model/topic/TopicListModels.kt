@@ -2,6 +2,14 @@ package top.role.android.core.model.topic
 
 import kotlinx.serialization.Serializable
 
+enum class TopicListMode(
+    val value: String,
+) {
+    Featured("featured"),
+    Following("following"),
+    Latest("latest"),
+}
+
 @Serializable
 data class MobileTopicSpaceRef(
     val id: String,

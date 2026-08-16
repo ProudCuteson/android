@@ -1,4 +1,4 @@
-package top.role.android.core.model.doc
+package top.role.android.core.model.content
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

@@ -17,15 +17,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
-import top.role.android.core.model.doc.MobileListBlock
-import top.role.android.core.model.doc.MobileQuoteBlock
-import top.role.android.core.model.doc.MobileRenderBlock
-import top.role.android.core.model.doc.MobileTextBlock
+import top.role.android.core.model.content.MobileListBlock
+import top.role.android.core.model.content.MobileQuoteBlock
+import top.role.android.core.model.content.MobileRenderBlock
+import top.role.android.core.model.content.MobileTextBlock
 import androidx.compose.foundation.layout.height
-import top.role.android.core.model.doc.MobileImageBlock
-import top.role.android.core.model.doc.MobileCodeBlock
-import top.role.android.core.model.doc.MobileTableBlock
-import top.role.android.core.model.doc.MobileChartBlock
+import top.role.android.core.model.content.MobileImageBlock
+import top.role.android.core.model.content.MobileCodeBlock
+import top.role.android.core.model.content.MobileTableBlock
+import top.role.android.core.model.content.MobileChartBlock
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxHeight
 

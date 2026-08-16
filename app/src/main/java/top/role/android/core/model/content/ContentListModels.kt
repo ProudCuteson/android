@@ -1,48 +1,49 @@
 package top.role.android.core.model.content
 
-import kotlinx.serialization.Serializable
+enum class ContentListMode(
+    val value: String,
+) {
+    Featured("featured"),
+    Latest("latest");
 
-@Serializable
-data class MobileContentSpaceRef(
-    val id: String,
-    val number: Double? = null,
-    val name: String? = null,
-)
+    companion object {
+        fun fromValue(
+            value: String?,
+        ): ContentListMode {
+            return when (value) {
+                "featured" ->
+                    Featured
 
-@Serializable
-data class MobileContentCard(
-    val id: String,
-    val publishId: String,
+                "latest" ->
+                    Latest
 
-    val type: String,
+                else ->
+                    Latest
+            }
+        }
+    }
+}
 
-    val title: String,
-    val description: String,
+enum class MobileContentType(
+    val value: String,
+) {
+    Slide("slide"),
+    Doc("doc");
 
-    val cover: String? = null,
+    companion object {
+        fun fromValue(
+            value: String?,
+        ): MobileContentType {
+            return when (value) {
+                "slide" ->
+                    Slide
 
-    val space: MobileContentSpaceRef,
+                "doc" ->
+                    Doc
 
-    val ownerUserId: String,
-
-    val accessLevel: String,
-
-    val canOpen: Boolean,
-
-    val lockReason: String? = null,
-
-    val tags: List<String> = emptyList(),
-
-    val featured: Boolean = false,
-
-    val updatedAt: Double,
-)
-
-@Serializable
-data class MobileContentListPage(
-    val page: List<MobileContentCard> = emptyList(),
-
-    val isDone: Boolean,
-
-    val continueCursor: String,
-)
+                else ->
+                    Doc
+            }
+        }
+    }
+}

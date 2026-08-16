@@ -19,9 +19,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import top.role.android.core.model.doc.MobileDocInfo
-import top.role.android.core.model.doc.MobileDocSpaceRef
-import top.role.android.core.model.doc.MobileProfileRef
+import top.role.android.core.model.content.MobileDocInfo
+import top.role.android.core.model.content.MobileDocSpaceRef
+import top.role.android.core.model.content.MobileProfileRef
 
 @Composable
 fun ReadingHeader(

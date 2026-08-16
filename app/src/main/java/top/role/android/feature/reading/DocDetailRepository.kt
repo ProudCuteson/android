@@ -2,7 +2,7 @@ package top.role.android.feature.reading
 
 import kotlinx.coroutines.flow.Flow
 import top.role.android.core.convex.ConvexMobileClient
-import top.role.android.core.model.doc.MobileDocDetailResponse
+import top.role.android.core.model.content.MobileDocDetailResponse
 
 class DocDetailRepository(
     private val convexClient: ConvexMobileClient,

@@ -17,7 +17,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
-import top.role.android.core.model.doc.MobileInline
+import top.role.android.core.model.content.MobileInline
 import androidx.compose.ui.graphics.luminance
 import androidx.core.graphics.toColorInt
 import androidx.compose.ui.text.style.BaselineShift

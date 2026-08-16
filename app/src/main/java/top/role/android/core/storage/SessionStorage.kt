@@ -48,6 +48,20 @@ class SessionStorage(
             }
         }
 
+    val localOwnerUserId: Flow<String?> =
+        context.sessionDataStore.data.map { preferences ->
+            preferences[USER_ID]
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+        }
+
+    suspend fun clearRemoteSession() {
+        context.sessionDataStore.edit { preferences ->
+            preferences.remove(ACCESS_TOKEN)
+            preferences.remove(EXPIRES_AT)
+        }
+    }
+
     suspend fun saveSession(
         session: AppSession,
     ) {

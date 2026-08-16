@@ -17,8 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import top.role.android.core.model.doc.MobileTableBlock
-import top.role.android.core.model.doc.MobileTableCell
+import top.role.android.core.model.content.MobileTableBlock
+import top.role.android.core.model.content.MobileTableCell
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxHeight

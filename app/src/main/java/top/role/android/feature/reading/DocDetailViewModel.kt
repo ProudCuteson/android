@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import top.role.android.core.model.doc.MobileDocDetailResponse
+import top.role.android.core.model.content.MobileDocDetailResponse
 
 data class DocDetailUiState(
     val isLoading: Boolean = true,

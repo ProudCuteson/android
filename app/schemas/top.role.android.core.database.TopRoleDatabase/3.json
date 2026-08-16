@@ -1,0 +1,230 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 3,
+    "identityHash": "ee32d6571838370db1b7d58600d90bcc",
+    "entities": [
+      {
+        "tableName": "local_notes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`rowId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `localKey` TEXT NOT NULL, `ownerUserId` TEXT, `noteId` TEXT, `clientKey` TEXT NOT NULL, `dayKey` TEXT, `onlyDay` INTEGER NOT NULL, `title` TEXT NOT NULL, `text` TEXT NOT NULL, `pinned` INTEGER NOT NULL, `remoteStatus` TEXT NOT NULL, `pendingRemoteStatus` TEXT, `syncedDayKey` TEXT, `syncedOnlyDay` INTEGER NOT NULL, `syncedTitle` TEXT NOT NULL, `syncedText` TEXT NOT NULL, `syncedPinned` INTEGER NOT NULL, `remoteVersion` INTEGER, `remoteUpdatedAt` INTEGER, `pendingSnapshotJson` TEXT, `conflictSnapshotJson` TEXT, `localUpdatedAt` INTEGER NOT NULL, `syncState` TEXT NOT NULL, `lastSyncError` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "rowId",
+            "columnName": "rowId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "localKey",
+            "columnName": "localKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ownerUserId",
+            "columnName": "ownerUserId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "noteId",
+            "columnName": "noteId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "clientKey",
+            "columnName": "clientKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dayKey",
+            "columnName": "dayKey",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "onlyDay",
+            "columnName": "onlyDay",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "text",
+            "columnName": "text",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pinned",
+            "columnName": "pinned",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "remoteStatus",
+            "columnName": "remoteStatus",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pendingRemoteStatus",
+            "columnName": "pendingRemoteStatus",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "syncedDayKey",
+            "columnName": "syncedDayKey",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "syncedOnlyDay",
+            "columnName": "syncedOnlyDay",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncedTitle",
+            "columnName": "syncedTitle",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncedText",
+            "columnName": "syncedText",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncedPinned",
+            "columnName": "syncedPinned",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "remoteVersion",
+            "columnName": "remoteVersion",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "remoteUpdatedAt",
+            "columnName": "remoteUpdatedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "pendingSnapshotJson",
+            "columnName": "pendingSnapshotJson",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "conflictSnapshotJson",
+            "columnName": "conflictSnapshotJson",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "localUpdatedAt",
+            "columnName": "localUpdatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncState",
+            "columnName": "syncState",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastSyncError",
+            "columnName": "lastSyncError",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "rowId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_local_notes_localKey",
+            "unique": true,
+            "columnNames": [
+              "localKey"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_local_notes_localKey` ON `${TABLE_NAME}` (`localKey`)"
+          },
+          {
+            "name": "index_local_notes_ownerUserId",
+            "unique": false,
+            "columnNames": [
+              "ownerUserId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_local_notes_ownerUserId` ON `${TABLE_NAME}` (`ownerUserId`)"
+          },
+          {
+            "name": "index_local_notes_ownerUserId_noteId",
+            "unique": false,
+            "columnNames": [
+              "ownerUserId",
+              "noteId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_local_notes_ownerUserId_noteId` ON `${TABLE_NAME}` (`ownerUserId`, `noteId`)"
+          },
+          {
+            "name": "index_local_notes_ownerUserId_clientKey",
+            "unique": false,
+            "columnNames": [
+              "ownerUserId",
+              "clientKey"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_local_notes_ownerUserId_clientKey` ON `${TABLE_NAME}` (`ownerUserId`, `clientKey`)"
+          },
+          {
+            "name": "index_local_notes_ownerUserId_dayKey",
+            "unique": false,
+            "columnNames": [
+              "ownerUserId",
+              "dayKey"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_local_notes_ownerUserId_dayKey` ON `${TABLE_NAME}` (`ownerUserId`, `dayKey`)"
+          },
+          {
+            "name": "index_local_notes_ownerUserId_onlyDay_dayKey",
+            "unique": false,
+            "columnNames": [
+              "ownerUserId",
+              "onlyDay",
+              "dayKey"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_local_notes_ownerUserId_onlyDay_dayKey` ON `${TABLE_NAME}` (`ownerUserId`, `onlyDay`, `dayKey`)"
+          },
+          {
+            "name": "index_local_notes_ownerUserId_syncState",
+            "unique": false,
+            "columnNames": [
+              "ownerUserId",
+              "syncState"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_local_notes_ownerUserId_syncState` ON `${TABLE_NAME}` (`ownerUserId`, `syncState`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'ee32d6571838370db1b7d58600d90bcc')"
+    ]
+  }
+}

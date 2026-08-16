@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.compose.SubcomposeAsyncImage
 import coil3.compose.SubcomposeAsyncImageContent
-import top.role.android.core.model.doc.MobileImageBlock
+import top.role.android.core.model.content.MobileImageBlock
 
 @Composable
 fun MobileImageBlockView(
