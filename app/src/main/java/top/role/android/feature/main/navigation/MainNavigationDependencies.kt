@@ -9,11 +9,13 @@ import top.role.android.feature.reading.DocDetailRepository
 import top.role.android.feature.slide.SlideDetailRepository
 import top.role.android.feature.topic.TopicDetailRepository
 import top.role.android.core.data.note.NoteLocalRepository
+import top.role.android.core.data.image.NoteImageService
 
 data class MainNavigationDependencies(
     val localOwnerUserId: String,
     val remoteAuthenticated: Boolean,
     val noteLocalRepository: NoteLocalRepository,
+    val noteImageService: NoteImageService,
     val discoverRepository: DiscoverRepository,
     val spaceListRepository: SpaceListRepository,
     val topicListRepository: TopicListRepository,

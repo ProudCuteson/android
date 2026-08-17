@@ -2,12 +2,17 @@ package top.role.android.feature.note.editor
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import top.role.android.core.data.image.NoteImageService
 import top.role.android.core.data.note.NoteLocalRepository
 
 class NoteEditorViewModelFactory(
     private val ownerUserId: String,
+
     private val noteLocalRepository:
     NoteLocalRepository,
+
+    private val noteImageService:
+    NoteImageService,
 
     private val initialLocalKey: String? = null,
     private val initialDayKey: String? = null,
@@ -32,6 +37,9 @@ class NoteEditorViewModelFactory(
                 noteLocalRepository =
                     noteLocalRepository,
 
+                noteImageService =
+                    noteImageService,
+
                 initialLocalKey =
                     initialLocalKey,
 
@@ -46,7 +54,6 @@ class NoteEditorViewModelFactory(
 
                 createAsDated =
                     createAsDated,
-
             ) as T
         }
 

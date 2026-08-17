@@ -221,6 +221,10 @@ fun AppRoot(
             appContainer
                 .noteLocalRepository,
 
+        noteImageService =
+            appContainer
+                .noteImageService,
+
         discoverRepository =
             appContainer
                 .discoverRepository,

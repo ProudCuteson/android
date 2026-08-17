@@ -1,5 +1,6 @@
 package top.role.android.feature.note.editor
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
@@ -13,11 +14,12 @@ import kotlin.time.Duration.Companion.milliseconds
 import top.role.android.core.data.note.NoteLocalRepository
 import top.role.android.core.database.note.LocalNoteEntity
 import top.role.android.core.model.note.NoteSyncState
+import top.role.android.core.data.image.NoteImageService
 
 class NoteEditorViewModel(
     private val ownerUserId: String,
-    private val noteLocalRepository:
-    NoteLocalRepository,
+    private val noteLocalRepository: NoteLocalRepository,
+    private val noteImageService: NoteImageService,
 
     private val initialLocalKey: String? = null,
     private val initialDayKey: String? = null,
@@ -41,18 +43,16 @@ class NoteEditorViewModel(
     private var saveJob:
             Job? = null
 
-    /*
-     * 当前 Editor 对 Room 中这条 Note 的实时观察。
-     *
-     * Editor 不能只在 load() 时读一次：
-     *
-     * Push / Pull / Conflict / lifecycle
-     * 都可能在页面打开期间修改 Room。
-     */
     private var observeNoteJob:
             Job? = null
 
     private var observedLocalKey:
+            String? = null
+
+    private var observeImagesJob:
+            Job? = null
+
+    private var observedImageNoteLocalKey:
             String? = null
 
     init {
@@ -131,6 +131,11 @@ class NoteEditorViewModel(
                  */
                 observeCurrentNote(
                     localKey =
+                        note.localKey,
+                )
+
+                observeCurrentNoteImages(
+                    noteLocalKey =
                         note.localKey,
                 )
 
@@ -403,6 +408,18 @@ class NoteEditorViewModel(
             return
         }
 
+        noteImageService
+            .rebindNote(
+                ownerUserId =
+                    ownerUserId,
+
+                oldNoteLocalKey =
+                    previousLocalKey,
+
+                newNoteLocalKey =
+                    recovered.localKey,
+            )
+
         applyObservedNote(
             note =
                 recovered,
@@ -412,25 +429,14 @@ class NoteEditorViewModel(
             localKey =
                 recovered.localKey,
         )
+
+        observeCurrentNoteImages(
+            noteLocalKey =
+                recovered.localKey,
+        )
+
     }
 
-    /**
-     * Room → Editor UI。
-     *
-     * Reading：
-     * Room 是完整 source of truth。
-     *
-     * Editing：
-     * title / text 正在由 TextFieldState 管理，
-     * Room emission 不能反向覆盖输入会话。
-     *
-     * Conflict：
-     * 立即停止继续编辑，
-     * 但保留当前 UI draft 的 title/text。
-     *
-     * 如果用户选择“保留本机版本”，
-     * resolver 会把这份 UI draft 一起作为本地版本处理。
-     */
     private fun applyObservedNote(
         note: LocalNoteEntity,
     ) {
@@ -488,6 +494,9 @@ class NoteEditorViewModel(
                     text =
                         previousState.text,
 
+                    images =
+                        previousState.images,
+
                     mode =
                         NoteEditorMode.Reading,
 
@@ -524,6 +533,9 @@ class NoteEditorViewModel(
                     text =
                         previousState.text,
 
+                    images =
+                        previousState.images,
+
                     mode =
                         NoteEditorMode.Editing,
 
@@ -543,6 +555,10 @@ class NoteEditorViewModel(
          */
         _uiState.value =
             baseState.copy(
+
+                images =
+                    previousState.images,
+
                 mode =
                     NoteEditorMode.Reading,
 
@@ -609,12 +625,13 @@ class NoteEditorViewModel(
          */
         if (
             state.title.isBlank() &&
-            state.text.isBlank()
+            state.text.isBlank() &&
+            state.images.isEmpty()
         ) {
             _uiState.value =
                 state.copy(
                     errorMessage =
-                        "标题和正文不能同时为空，如需放弃这条记录请直接返回。",
+                        "标题、正文和图片不能同时为空，如需放弃这条记录请直接返回。",
                 )
 
             return
@@ -768,9 +785,30 @@ class NoteEditorViewModel(
         }
     }
 
-    private fun adoptResolvedNote(
+    private suspend fun adoptResolvedNote(
         note: LocalNoteEntity,
     ) {
+        val previousLocalKey =
+            currentNote
+                ?.localKey
+
+        if (
+            previousLocalKey != null &&
+            previousLocalKey != note.localKey
+        ) {
+            noteImageService
+                .rebindNote(
+                    ownerUserId =
+                        ownerUserId,
+
+                    oldNoteLocalKey =
+                        previousLocalKey,
+
+                    newNoteLocalKey =
+                        note.localKey,
+                )
+        }
+
         currentNote =
             note
 
@@ -782,6 +820,9 @@ class NoteEditorViewModel(
 
         _uiState.value =
             baseState.copy(
+                images =
+                    _uiState.value.images,
+
                 mode =
                     NoteEditorMode.Reading,
 
@@ -794,14 +835,13 @@ class NoteEditorViewModel(
                     null,
             )
 
-        /*
-         * Remote Deleted + Keep Local
-         * 会产生全新的 localKey。
-         *
-         * 普通 identity 收敛也可能改变 localKey。
-         */
         observeCurrentNote(
             localKey =
+                note.localKey,
+        )
+
+        observeCurrentNoteImages(
+            noteLocalKey =
                 note.localKey,
         )
     }
@@ -1033,12 +1073,6 @@ class NoteEditorViewModel(
 
     // MARK: - Delete
 
-    /*
-     * Editor UI 不暴露 Delete。
-     *
-     * 方法继续保留，
-     * Library 是主要 lifecycle 管理入口。
-     */
     fun deleteNote(
         onDeleted: () -> Unit,
     ) {
@@ -1109,21 +1143,6 @@ class NoteEditorViewModel(
         saveCurrentContent()
     }
 
-    /**
-     * 离开页面前最终处理。
-     *
-     * Reading：
-     * → 不保存、不 cleanup
-     *
-     * Conflict：
-     * → 不产生新的 mutation
-     *
-     * Editing：
-     * → 保存当前内容
-     * → 空新 Note 删除本地
-     * → 空已有 Note soft-delete
-     * → 正常 Note requestSync
-     */
     suspend fun flushAndCleanup() {
         saveJob
             ?.cancel()
@@ -1157,6 +1176,15 @@ class NoteEditorViewModel(
                 note.noteId == null &&
                 note.remoteVersion == null
             ) {
+                noteImageService
+                    .removeAllImagesForNote(
+                        ownerUserId =
+                            ownerUserId,
+
+                        noteLocalKey =
+                            note.localKey,
+                    )
+
                 noteLocalRepository
                     .deleteLocal(
                         note =
@@ -1246,11 +1274,6 @@ class NoteEditorViewModel(
             }
     }
 
-    /**
-     * Editing title/text → Room。
-     *
-     * Reading 不写 content。
-     */
     private suspend fun saveCurrentContent():
             LocalNoteEntity? {
 
@@ -1349,11 +1372,27 @@ class NoteEditorViewModel(
                 NoteSyncState.Conflict
     }
 
-    private fun isEmptyNote(
+    private suspend fun isEmptyNote(
         note: LocalNoteEntity,
     ): Boolean {
-        return note.title.isBlank() &&
-                note.text.isBlank()
+        if (
+            note.title.isNotBlank() ||
+            note.text.isNotBlank()
+        ) {
+            return false
+        }
+
+        val images =
+            noteImageService
+                .listImages(
+                    ownerUserId =
+                        ownerUserId,
+
+                    noteLocalKey =
+                        note.localKey,
+                )
+
+        return images.isEmpty()
     }
 
     override fun onCleared() {
@@ -1363,6 +1402,9 @@ class NoteEditorViewModel(
         observeNoteJob
             ?.cancel()
 
+        observeImagesJob
+            ?.cancel()
+
         super.onCleared()
     }
 
@@ -1370,4 +1412,165 @@ class NoteEditorViewModel(
         val note: LocalNoteEntity?,
         val startEditing: Boolean,
     )
+
+    // MARK: - Note Image
+
+    private fun observeCurrentNoteImages(
+        noteLocalKey: String,
+    ) {
+        if (
+            observedImageNoteLocalKey ==
+            noteLocalKey &&
+            observeImagesJob?.isActive ==
+            true
+        ) {
+            return
+        }
+
+        observeImagesJob
+            ?.cancel()
+
+        observedImageNoteLocalKey =
+            noteLocalKey
+
+        observeImagesJob =
+            viewModelScope.launch {
+                noteImageService
+                    .observeImages(
+                        ownerUserId =
+                            ownerUserId,
+
+                        noteLocalKey =
+                            noteLocalKey,
+                    )
+                    .collectLatest { images ->
+                        _uiState.value =
+                            _uiState.value.copy(
+                                images =
+                                    images,
+                            )
+                    }
+            }
+    }
+
+    fun addImage(
+        sourceUri: Uri,
+    ) {
+        val state =
+            _uiState.value
+
+        if (
+            !state.canEdit ||
+            state.syncState ==
+            NoteSyncState.Conflict
+        ) {
+            return
+        }
+
+        val note =
+            currentNote
+                ?: return
+
+        viewModelScope.launch {
+            try {
+                noteImageService
+                    .addImage(
+                        ownerUserId =
+                            ownerUserId,
+
+                        noteLocalKey =
+                            note.localKey,
+
+                        sourceUri =
+                            sourceUri,
+                    )
+
+                _uiState.value =
+                    _uiState.value.copy(
+                        errorMessage =
+                            null,
+                    )
+            } catch (
+                error: Throwable,
+            ) {
+                _uiState.value =
+                    _uiState.value.copy(
+                        errorMessage =
+                            error.message
+                                ?: "添加图片失败",
+                    )
+            }
+        }
+    }
+
+    fun retryImageUpload(
+        localImageKey: String,
+    ) {
+        viewModelScope.launch {
+            try {
+                noteImageService
+                    .retryUpload(
+                        ownerUserId =
+                            ownerUserId,
+
+                        localImageKey =
+                            localImageKey,
+                    )
+            } catch (
+                error: Throwable,
+            ) {
+                _uiState.value =
+                    _uiState.value.copy(
+                        errorMessage =
+                            error.message
+                                ?: "图片上传失败",
+                    )
+            }
+        }
+    }
+
+    fun removeImage(
+        localImageKey: String,
+    ) {
+        val state =
+            _uiState.value
+
+        if (
+            !state.canEdit ||
+            state.syncState ==
+            NoteSyncState.Conflict
+        ) {
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                noteImageService
+                    .removeImage(
+                        ownerUserId =
+                            ownerUserId,
+
+                        localImageKey =
+                            localImageKey,
+                    )
+
+                _uiState.value =
+                    _uiState.value.copy(
+                        errorMessage =
+                            null,
+                    )
+            } catch (
+                error: Throwable,
+            ) {
+                _uiState.value =
+                    _uiState.value.copy(
+                        errorMessage =
+                            error.message
+                                ?: "删除图片失败",
+                    )
+            }
+        }
+    }
+
+
 }

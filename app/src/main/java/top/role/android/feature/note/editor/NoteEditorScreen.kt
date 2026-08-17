@@ -52,11 +52,14 @@ import kotlinx.coroutines.launch
 import top.role.android.core.data.note.NoteLocalRepository
 import top.role.android.core.model.note.NoteRemoteStatus
 import top.role.android.core.model.note.NoteSyncState
+import android.net.Uri
+import top.role.android.core.data.image.NoteImageService
 
 @Composable
 fun NoteEditorRoute(
     ownerUserId: String,
     noteLocalRepository: NoteLocalRepository,
+    noteImageService: NoteImageService,
 
     initialLocalKey: String? = null,
     initialDayKey: String? = null,
@@ -75,6 +78,9 @@ fun NoteEditorRoute(
 
                     noteLocalRepository =
                         noteLocalRepository,
+
+                    noteImageService =
+                        noteImageService,
 
                     initialLocalKey =
                         initialLocalKey,
@@ -100,12 +106,6 @@ fun NoteEditorRoute(
     val lifecycleOwner =
         LocalLifecycleOwner.current
 
-    /*
-     * App 进入后台：
-     *
-     * Editing → 尽快落盘。
-     * Reading / Conflict → ViewModel guard 不产生写入。
-     */
     DisposableEffect(
         lifecycleOwner,
         viewModel,
@@ -155,6 +155,15 @@ fun NoteEditorRoute(
         onFinishEditing =
             viewModel::finishEditing,
 
+        onAddImage =
+            viewModel::addImage,
+
+        onRetryImageUpload =
+            viewModel::retryImageUpload,
+
+        onRemoveImage =
+            viewModel::removeImage,
+
         onUseRemoteConflict = {
             viewModel
                 .resolveConflictUsingRemote(
@@ -188,6 +197,11 @@ fun NoteEditorScreen(
     onPinnedChange: (Boolean) -> Unit,
     onStartEditing: () -> Unit,
     onFinishEditing: () -> Unit,
+
+    onAddImage: (Uri) -> Unit,
+    onRetryImageUpload: (String) -> Unit,
+    onRemoveImage: (String) -> Unit,
+
     onUseRemoteConflict: () -> Unit,
     onKeepLocalConflict: () -> Unit,
     onBack: () -> Unit,
@@ -436,6 +450,15 @@ fun NoteEditorScreen(
 
                     onTextChange =
                         onTextChange,
+
+                    onAddImage =
+                        onAddImage,
+
+                    onRetryImageUpload =
+                        onRetryImageUpload,
+
+                    onRemoveImage =
+                        onRemoveImage,
 
                     modifier =
                         Modifier
@@ -690,22 +713,14 @@ private fun NoteReadingContent(
     }
 }
 
-/**
- * Editing
- *
- * TextFieldState 继续负责：
- *
- * - selection
- * - IME composition
- * - cursor
- *
- * ViewModel 只接 String。
- */
 @Composable
 private fun NoteEditingContent(
     state: NoteEditorUiState,
     onTitleChange: (String) -> Unit,
     onTextChange: (String) -> Unit,
+    onAddImage: (Uri) -> Unit,
+    onRetryImageUpload: (String) -> Unit,
+    onRemoveImage: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val titleState =
@@ -936,6 +951,20 @@ private fun NoteEditingContent(
          *
          * 本轮只保留结构。
          */
+        NoteImageEditor(
+            images =
+                state.images,
+
+            onAddImage =
+                onAddImage,
+
+            onRetryUpload =
+                onRetryImageUpload,
+
+            onRemoveImage =
+                onRemoveImage,
+        )
+
     }
 }
 

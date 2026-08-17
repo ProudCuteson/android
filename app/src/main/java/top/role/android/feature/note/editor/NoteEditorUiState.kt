@@ -1,5 +1,6 @@
 package top.role.android.feature.note.editor
 
+import top.role.android.core.database.entity.LocalNoteImageEntity
 import top.role.android.core.database.note.LocalNoteEntity
 import top.role.android.core.database.note.effectiveRemoteStatus
 import top.role.android.core.model.note.NoteEditorPlacement
@@ -14,14 +15,22 @@ data class NoteEditorUiState(
     val dayKey: String? = null,
     val onlyDay: Boolean = false,
     val pinned: Boolean = false,
+
+    val images: List<LocalNoteImageEntity> =
+        emptyList(),
+
     val remoteStatus: NoteRemoteStatus =
         NoteRemoteStatus.Active,
+
     val mode: NoteEditorMode =
         NoteEditorMode.Reading,
+
     val syncState: NoteSyncState =
         NoteSyncState.Pending,
+
     val conflict: NoteConflictUiModel? =
         null,
+
     val errorMessage: String? = null,
 ) {
 
@@ -67,6 +76,16 @@ data class NoteEditorUiState(
                     NoteSyncState.Conflict &&
                     conflict != null
 
+    val hasImages: Boolean
+        get() =
+            images.isNotEmpty()
+
+    val isContentEmpty: Boolean
+        get() =
+            title.isBlank() &&
+                    text.isBlank() &&
+                    images.isEmpty()
+
     companion object {
 
         fun fromNote(
@@ -93,6 +112,9 @@ data class NoteEditorUiState(
 
                 pinned =
                     note.pinned,
+
+                images =
+                    emptyList(),
 
                 remoteStatus =
                     note.effectiveRemoteStatus,

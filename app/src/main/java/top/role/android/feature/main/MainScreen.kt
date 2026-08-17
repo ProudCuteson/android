@@ -24,12 +24,14 @@ import androidx.compose.runtime.remember
 import top.role.android.feature.main.navigation.MainNavigationDependencies
 import top.role.android.core.data.note.NoteLocalRepository
 import top.role.android.app.navigation.NoteLibraryRoute
+import top.role.android.core.data.image.NoteImageService
 
 @Composable
 fun MainScreen(
     localOwnerUserId: String,
     remoteAuthenticated: Boolean,
     noteLocalRepository: NoteLocalRepository,
+    noteImageService: NoteImageService,
     discoverRepository: DiscoverRepository,
     spaceListRepository: SpaceListRepository,
     topicListRepository: TopicListRepository,
@@ -133,6 +135,7 @@ fun MainScreen(
                 localOwnerUserId,
                 remoteAuthenticated,
                 noteLocalRepository,
+                noteImageService,
                 discoverRepository,
                 spaceListRepository,
                 topicListRepository,
@@ -151,6 +154,9 @@ fun MainScreen(
 
                     noteLocalRepository =
                         noteLocalRepository,
+
+                    noteImageService =
+                        noteImageService,
 
                     discoverRepository =
                         discoverRepository,
