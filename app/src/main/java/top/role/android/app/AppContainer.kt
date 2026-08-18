@@ -32,6 +32,11 @@ import top.role.android.feature.entity.EntityDetailRepository
 import top.role.android.feature.reading.DocDetailRepository
 import top.role.android.feature.slide.SlideDetailRepository
 import top.role.android.feature.topic.TopicDetailRepository
+import top.role.android.core.data.image.note.ConvexNoteMediaRemoteDataSource
+import top.role.android.core.data.image.note.NoteMediaLocalRepository
+import top.role.android.core.data.image.note.NoteMediaRefreshService
+import top.role.android.core.data.image.note.NoteMediaPushService
+import top.role.android.core.data.note.ai.NoteAiRemoteDataSource
 
 class AppContainer(
     context: Context,
@@ -72,6 +77,9 @@ class AppContainer(
             context =
                 appContext,
         )
+
+    private val httpClient =
+        OkHttpClient()
 
     /*
      * Note local-first
@@ -119,19 +127,11 @@ class AppContainer(
                 noteRemoteDataSource,
         )
 
-    val noteSyncCoordinator =
-        NoteSyncCoordinator(
-            noteRefreshService =
-                noteRefreshService,
 
-            notePushService =
-                notePushService,
-
-            noteLocalRepository =
-                noteLocalRepository,
-
-            checkpointStorage =
-                noteSyncCheckpointStorage,
+    val noteAiRemoteDataSource =
+        NoteAiRemoteDataSource(
+            httpClient =
+                httpClient,
         )
 
     /*
@@ -190,9 +190,6 @@ class AppContainer(
      * Image infrastructure
      */
 
-    private val httpClient =
-        OkHttpClient()
-
     private val imageSourceInspector =
         AndroidImageSourceInspector(
             contentResolver =
@@ -203,6 +200,18 @@ class AppContainer(
         ConvexImageRemoteDataSource(
             convexClient =
                 convexClient,
+        )
+
+    private val noteMediaRemoteDataSource =
+        ConvexNoteMediaRemoteDataSource(
+            convexClient
+        )
+
+    private val noteMediaLocalRepository =
+        NoteMediaLocalRepository(
+            dao =
+                database
+                    .localNoteMediaSyncDao(),
         )
 
     private val imageObjectUploader =
@@ -258,5 +267,60 @@ class AppContainer(
 
             imageRepository =
                 imageRepository,
+
+            noteMediaLocalRepository =
+                noteMediaLocalRepository,
         )
+
+    private val noteMediaPushService =
+        NoteMediaPushService(
+            imageLocalRepository =
+                noteImageLocalRepository,
+
+            mediaLocalRepository =
+                noteMediaLocalRepository,
+
+            mediaRemoteDataSource =
+                noteMediaRemoteDataSource,
+        )
+
+    private val noteMediaRefreshService =
+        NoteMediaRefreshService(
+            imageLocalRepository =
+                noteImageLocalRepository,
+
+            mediaLocalRepository =
+                noteMediaLocalRepository,
+
+            mediaRemoteDataSource =
+                noteMediaRemoteDataSource,
+
+            fileStore =
+                localImageFileStore,
+        )
+
+    val noteSyncCoordinator =
+        NoteSyncCoordinator(
+            noteRefreshService =
+                noteRefreshService,
+
+            notePushService =
+                notePushService,
+
+            noteLocalRepository =
+                noteLocalRepository,
+
+            noteImageService =
+                noteImageService,
+
+            noteMediaRefreshService =
+                noteMediaRefreshService,
+
+            noteMediaPushService =
+                noteMediaPushService,
+
+            checkpointStorage =
+                noteSyncCheckpointStorage,
+        )
+
 }

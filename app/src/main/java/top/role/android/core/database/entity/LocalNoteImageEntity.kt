@@ -26,21 +26,33 @@ import androidx.room.PrimaryKey
         ),
     ],
 )
-
 data class LocalNoteImageEntity(
     @PrimaryKey
     val localImageKey: String,
+
     val ownerUserId: String,
+
     val noteLocalKey: String,
+
     val imageId: String?,
-    val localPath: String,
-    val mime: String,
+
+    val localPath: String?,
+
+    val mime: String?,
+
     val width: Int?,
+
     val height: Int?,
-    val bytes: Long,
+
+    val bytes: Long?,
+
     val uploadState: String,
+
     val uploadError: String?,
+
     val position: Int,
+
     val createdAt: Long,
+
     val updatedAt: Long,
 )

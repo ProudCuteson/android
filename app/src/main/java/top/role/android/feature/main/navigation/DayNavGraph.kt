@@ -74,6 +74,12 @@ fun NavGraphBuilder.dayNavGraph(
                 noteLocalRepository =
                     dependencies.noteLocalRepository,
 
+                noteAiRemoteDataSource =
+                    dependencies.noteAiRemoteDataSource,
+
+                imageRepository =
+                    dependencies.imageRepository,
+
                 noteImageService =
                     dependencies.noteImageService,
 
@@ -111,8 +117,14 @@ fun NavGraphBuilder.dayNavGraph(
                 noteLocalRepository =
                     dependencies.noteLocalRepository,
 
+                noteAiRemoteDataSource =
+                    dependencies.noteAiRemoteDataSource,
+
                 noteImageService =
                     dependencies.noteImageService,
+
+                imageRepository =
+                    dependencies.imageRepository,
 
                 initialLocalKey =
                     localKey,
@@ -184,8 +196,14 @@ fun NavGraphBuilder.dayNavGraph(
                 noteLocalRepository =
                     dependencies.noteLocalRepository,
 
+                noteAiRemoteDataSource =
+                    dependencies.noteAiRemoteDataSource,
+
                 noteImageService =
                     dependencies.noteImageService,
+
+                imageRepository =
+                    dependencies.imageRepository,
 
                 initialDayKey =
                     dayKey,
@@ -212,8 +230,14 @@ fun NavGraphBuilder.dayNavGraph(
             noteLocalRepository =
                 dependencies.noteLocalRepository,
 
+            noteAiRemoteDataSource =
+                dependencies.noteAiRemoteDataSource,
+
             noteImageService =
                 dependencies.noteImageService,
+
+            imageRepository =
+                dependencies.imageRepository,
 
             createAsNormal =
                 true,

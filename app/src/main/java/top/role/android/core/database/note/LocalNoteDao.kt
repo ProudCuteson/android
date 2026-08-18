@@ -248,6 +248,18 @@ interface LocalNoteDao {
         """
         SELECT * FROM local_notes
         WHERE ownerUserId = :ownerUserId
+          AND noteId IS NOT NULL
+        ORDER BY localUpdatedAt ASC
+        """
+    )
+    suspend fun findRemoteBackedNotes(
+        ownerUserId: String,
+    ): List<LocalNoteEntity>
+
+    @Query(
+        """
+        SELECT * FROM local_notes
+        WHERE ownerUserId = :ownerUserId
           AND syncState = :syncState
         ORDER BY localUpdatedAt ASC
         """

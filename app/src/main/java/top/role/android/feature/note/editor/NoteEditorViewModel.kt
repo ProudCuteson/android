@@ -1,6 +1,8 @@
 package top.role.android.feature.note.editor
 
+import java.io.File
 import android.net.Uri
+import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
@@ -15,11 +17,17 @@ import top.role.android.core.data.note.NoteLocalRepository
 import top.role.android.core.database.note.LocalNoteEntity
 import top.role.android.core.model.note.NoteSyncState
 import top.role.android.core.data.image.NoteImageService
+import top.role.android.core.data.image.ImageRepository
+import top.role.android.core.database.entity.LocalNoteImageEntity
+import top.role.android.core.data.note.ai.NoteAiMode
+import top.role.android.core.data.note.ai.NoteAiRemoteDataSource
 
 class NoteEditorViewModel(
     private val ownerUserId: String,
     private val noteLocalRepository: NoteLocalRepository,
+    private val noteAiRemoteDataSource: NoteAiRemoteDataSource,
     private val noteImageService: NoteImageService,
+    private val imageRepository: ImageRepository,
 
     private val initialLocalKey: String? = null,
     private val initialDayKey: String? = null,
@@ -39,6 +47,20 @@ class NoteEditorViewModel(
 
     private var currentNote:
             LocalNoteEntity? = null
+
+    private var lastAiRunAt:
+            Long =
+        0L
+
+    private var currentImageEntities:
+            List<LocalNoteImageEntity> =
+        emptyList()
+
+    private val remotePreviewUrls =
+        mutableMapOf<String, String>()
+
+    private val resolvingPreviewImageIds =
+        mutableSetOf<String>()
 
     private var saveJob:
             Job? = null
@@ -364,13 +386,31 @@ class NoteEditorViewModel(
         /*
          * currentNote 已经被其他路径更新了 localKey，
          * 直接重新绑定即可。
+         * 也需要观察图片，因为现在是独立的路线
          */
         if (
             previous.localKey !=
             previousLocalKey
         ) {
+            noteImageService
+                .rebindNote(
+                    ownerUserId =
+                        ownerUserId,
+
+                    oldNoteLocalKey =
+                        previousLocalKey,
+
+                    newNoteLocalKey =
+                        previous.localKey,
+                )
+
             observeCurrentNote(
                 localKey =
+                    previous.localKey,
+            )
+
+            observeCurrentNoteImages(
+                noteLocalKey =
                     previous.localKey,
             )
 
@@ -464,17 +504,6 @@ class NoteEditorViewModel(
                     note,
                 )
 
-        /*
-         * Conflict 出现在 Editing 期间。
-         *
-         * 停止 debounce，
-         * 切回 Reading，
-         * 冻结进一步输入。
-         *
-         * 注意这里保留 UI 当前 title/text，
-         * 防止最后一小段尚未经过 debounce 的输入
-         * 在视觉上立刻丢失。
-         */
         if (
             previousState.isEditing &&
             note.syncState ==
@@ -511,17 +540,6 @@ class NoteEditorViewModel(
             return
         }
 
-        /*
-         * 正在正常 Editing：
-         *
-         * Room 可以更新：
-         * - identity
-         * - syncState
-         * - lifecycle
-         * - pinned
-         *
-         * 但不能覆盖 title/text 输入会话。
-         */
         if (
             previousState.isEditing
         ) {
@@ -666,6 +684,277 @@ class NoteEditorViewModel(
                         )
                 }
         }
+    }
+
+    fun runAi(
+        mode: NoteAiMode,
+    ) {
+        val current =
+            _uiState.value
+
+        /*
+         * AI 只允许 Editing。
+         */
+        if (
+            !current.isEditing ||
+            !current.canEdit
+        ) {
+            return
+        }
+
+        if (
+            current.aiRunning
+        ) {
+            return
+        }
+
+        /*
+         * 简单防止连续点击。
+         */
+        val now =
+            System.currentTimeMillis()
+
+        if (
+            now - lastAiRunAt <
+            1_000L
+        ) {
+            return
+        }
+
+        val title =
+            current.title
+                .trim()
+
+        val text =
+            current.text
+                .trim()
+
+        /*
+         * 与 iOS 保持相同 input contract：
+         *
+         * title
+         *
+         * text
+         */
+        val input =
+            when {
+                title.isEmpty() ->
+                    text
+
+                text.isEmpty() ->
+                    title
+
+                else ->
+                    "$title\n\n$text"
+            }
+
+        if (
+            input.isBlank()
+        ) {
+            _uiState.value =
+                current.copy(
+                    aiErrorMessage =
+                        "请先输入一些内容",
+
+                    aiSuggestion =
+                        null,
+
+                    aiSuggestionMode =
+                        null,
+                )
+
+            return
+        }
+
+        lastAiRunAt =
+            now
+
+        _uiState.value =
+            current.copy(
+                aiRunning =
+                    true,
+
+                aiErrorMessage =
+                    null,
+
+                aiSuggestion =
+                    null,
+
+                aiSuggestionMode =
+                    null,
+            )
+
+        viewModelScope.launch {
+            try {
+                val response =
+                    noteAiRemoteDataSource
+                        .generate(
+                            input =
+                                input,
+
+                            mode =
+                                mode,
+                        )
+
+                val output =
+                    response.output
+                        ?.trim()
+                        .orEmpty()
+
+                if (
+                    output.isBlank()
+                ) {
+                    _uiState.value =
+                        _uiState.value.copy(
+                            aiRunning =
+                                false,
+
+                            aiErrorMessage =
+                                "AI 没有返回内容",
+                        )
+
+                    return@launch
+                }
+
+                _uiState.value =
+                    _uiState.value.copy(
+                        aiRunning =
+                            false,
+
+                        aiSuggestion =
+                            output,
+
+                        aiSuggestionMode =
+                            mode,
+
+                        aiErrorMessage =
+                            null,
+                    )
+
+            } catch (
+                error: Throwable,
+            ) {
+                _uiState.value =
+                    _uiState.value.copy(
+                        aiRunning =
+                            false,
+
+                        aiSuggestion =
+                            null,
+
+                        aiSuggestionMode =
+                            null,
+
+                        aiErrorMessage =
+                            error.message
+                                ?.takeIf {
+                                    it.isNotBlank()
+                                }
+                                ?: "AI 处理失败",
+                    )
+            }
+        }
+    }
+
+    fun replaceTextWithAiSuggestion() {
+        val current =
+            _uiState.value
+
+        val suggestion =
+            current.aiSuggestion
+                ?.takeIf {
+                    it.isNotBlank()
+                }
+                ?: return
+
+        if (
+            current.aiSuggestionMode ==
+            NoteAiMode.Title
+        ) {
+            return
+        }
+
+        updateText(
+            suggestion,
+        )
+
+        clearAiSuggestion()
+    }
+
+    fun appendAiSuggestionToText() {
+        val current =
+            _uiState.value
+
+        val suggestion =
+            current.aiSuggestion
+                ?.takeIf {
+                    it.isNotBlank()
+                }
+                ?: return
+
+        if (
+            current.aiSuggestionMode ==
+            NoteAiMode.Title
+        ) {
+            return
+        }
+
+        val nextText =
+            if (
+                current.text.isBlank()
+            ) {
+                suggestion
+            } else {
+                current.text
+                    .trimEnd() +
+                        "\n\n" +
+                        suggestion
+            }
+
+        updateText(
+            nextText,
+        )
+
+        clearAiSuggestion()
+    }
+
+    fun useAiSuggestionAsTitle() {
+        val current =
+            _uiState.value
+
+        val suggestion =
+            current.aiSuggestion
+                ?.takeIf {
+                    it.isNotBlank()
+                }
+                ?: return
+
+        if (
+            current.aiSuggestionMode !=
+            NoteAiMode.Title
+        ) {
+            return
+        }
+
+        updateTitle(
+            suggestion,
+        )
+
+        clearAiSuggestion()
+    }
+
+    fun clearAiSuggestion() {
+        _uiState.value =
+            _uiState.value.copy(
+                aiSuggestion =
+                    null,
+
+                aiSuggestionMode =
+                    null,
+
+                aiErrorMessage =
+                    null,
+            )
     }
 
     // MARK: - Conflict
@@ -1415,6 +1704,179 @@ class NoteEditorViewModel(
 
     // MARK: - Note Image
 
+    private fun LocalNoteImageEntity.toEditorImageUi():
+            NoteEditorImageUi {
+
+        val localUrl =
+            localPath
+                ?.takeIf {
+                    it.isNotBlank()
+                }
+                ?.let { path ->
+                    File(
+                        path,
+                    )
+                        .toUri()
+                        .toString()
+                }
+
+        val remoteUrl =
+            imageId
+                ?.takeIf {
+                    it.isNotBlank()
+                }
+                ?.let { remoteImageId ->
+                    remotePreviewUrls[
+                        remoteImageId
+                    ]
+                }
+
+        return NoteEditorImageUi(
+            localImageKey =
+                localImageKey,
+
+            imageId =
+                imageId,
+
+            displayUrl =
+                localUrl
+                    ?: remoteUrl,
+
+            uploadState =
+                uploadState,
+
+            uploadError =
+                uploadError,
+        )
+    }
+
+    private fun resolveMissingRemotePreviews(
+        images: List<LocalNoteImageEntity>,
+    ) {
+        val imageIds =
+            images
+                .asSequence()
+
+                /*
+                 * 本地文件存在时，
+                 * Editor 直接走 file://，
+                 * 不需要 remote preview。
+                 */
+                .filter { image ->
+                    image.localPath
+                        .isNullOrBlank()
+                }
+
+                .mapNotNull { image ->
+                    image.imageId
+                        ?.takeIf {
+                            it.isNotBlank()
+                        }
+                }
+
+                .distinct()
+
+                /*
+                 * 已有缓存的不重复请求。
+                 */
+                .filter { imageId ->
+                    imageId !in
+                            remotePreviewUrls
+                }
+
+                /*
+                 * 当前已经正在获取的也不重复请求。
+                 */
+                .filter { imageId ->
+                    imageId !in
+                            resolvingPreviewImageIds
+                }
+
+                .toList()
+
+        imageIds.forEach { imageId ->
+            resolvingPreviewImageIds +=
+                imageId
+
+            viewModelScope.launch {
+                try {
+                    val preview =
+                        imageRepository
+                            .getPreviewUrl(
+                                imageId =
+                                    imageId,
+                            )
+
+                    val previewUrl =
+                        preview.url
+                            .takeIf {
+                                it.isNotBlank()
+                            }
+
+                    if (
+                        previewUrl != null
+                    ) {
+                        remotePreviewUrls[
+                            imageId
+                        ] =
+                            previewUrl
+                    }
+
+                } catch (
+                    _: Throwable,
+                ) {
+                    /*
+                     * Preview 获取失败不影响 Note。
+                     *
+                     * 不缓存失败状态。
+                     *
+                     * 后续：
+                     * - Room 再次 emission
+                     * - 重新打开 Editor
+                     *
+                     * 都还能继续尝试。
+                     */
+                } finally {
+                    resolvingPreviewImageIds -=
+                        imageId
+
+                    /*
+                     * URL cache 变化以后重新映射。
+                     */
+                    updateImageUiState()
+                }
+            }
+        }
+    }
+
+    private fun updateImageUiState() {
+        val imageUiItems =
+            currentImageEntities
+                .map { image ->
+                    image.toEditorImageUi()
+                }
+
+        _uiState.value =
+            _uiState.value.copy(
+                images =
+                    imageUiItems,
+            )
+    }
+
+    private fun applyObservedImages(
+        images: List<LocalNoteImageEntity>,
+    ) {
+        currentImageEntities =
+            images
+
+        updateImageUiState()
+
+        resolveMissingRemotePreviews(
+            images =
+                images,
+        )
+    }
+
     private fun observeCurrentNoteImages(
         noteLocalKey: String,
     ) {
@@ -1444,11 +1906,10 @@ class NoteEditorViewModel(
                             noteLocalKey,
                     )
                     .collectLatest { images ->
-                        _uiState.value =
-                            _uiState.value.copy(
-                                images =
-                                    images,
-                            )
+                        applyObservedImages(
+                            images =
+                                images,
+                        )
                     }
             }
     }
@@ -1490,6 +1951,7 @@ class NoteEditorViewModel(
                         errorMessage =
                             null,
                     )
+
             } catch (
                 error: Throwable,
             ) {
@@ -1516,6 +1978,7 @@ class NoteEditorViewModel(
                         localImageKey =
                             localImageKey,
                     )
+
             } catch (
                 error: Throwable,
             ) {
@@ -1559,6 +2022,7 @@ class NoteEditorViewModel(
                         errorMessage =
                             null,
                     )
+
             } catch (
                 error: Throwable,
             ) {

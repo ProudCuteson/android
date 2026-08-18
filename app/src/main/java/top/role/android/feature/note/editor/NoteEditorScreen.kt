@@ -53,13 +53,18 @@ import top.role.android.core.data.note.NoteLocalRepository
 import top.role.android.core.model.note.NoteRemoteStatus
 import top.role.android.core.model.note.NoteSyncState
 import android.net.Uri
+import top.role.android.core.data.image.ImageRepository
 import top.role.android.core.data.image.NoteImageService
+import top.role.android.core.data.note.ai.NoteAiRemoteDataSource
+import top.role.android.core.data.note.ai.NoteAiMode
 
 @Composable
 fun NoteEditorRoute(
     ownerUserId: String,
     noteLocalRepository: NoteLocalRepository,
+    noteAiRemoteDataSource: NoteAiRemoteDataSource,
     noteImageService: NoteImageService,
+    imageRepository: ImageRepository,
 
     initialLocalKey: String? = null,
     initialDayKey: String? = null,
@@ -79,8 +84,14 @@ fun NoteEditorRoute(
                     noteLocalRepository =
                         noteLocalRepository,
 
+                    noteAiRemoteDataSource =
+                        noteAiRemoteDataSource,
+
                     noteImageService =
                         noteImageService,
+
+                    imageRepository =
+                        imageRepository,
 
                     initialLocalKey =
                         initialLocalKey,
@@ -155,6 +166,21 @@ fun NoteEditorRoute(
         onFinishEditing =
             viewModel::finishEditing,
 
+        onRunAi =
+            viewModel::runAi,
+
+        onReplaceTextWithAi =
+            viewModel::replaceTextWithAiSuggestion,
+
+        onAppendAiToText =
+            viewModel::appendAiSuggestionToText,
+
+        onUseAiAsTitle =
+            viewModel::useAiSuggestionAsTitle,
+
+        onDismissAiSuggestion =
+            viewModel::clearAiSuggestion,
+
         onAddImage =
             viewModel::addImage,
 
@@ -197,6 +223,12 @@ fun NoteEditorScreen(
     onPinnedChange: (Boolean) -> Unit,
     onStartEditing: () -> Unit,
     onFinishEditing: () -> Unit,
+
+    onRunAi: (NoteAiMode) -> Unit,
+    onReplaceTextWithAi: () -> Unit,
+    onAppendAiToText: () -> Unit,
+    onUseAiAsTitle: () -> Unit,
+    onDismissAiSuggestion: () -> Unit,
 
     onAddImage: (Uri) -> Unit,
     onRetryImageUpload: (String) -> Unit,
@@ -442,23 +474,19 @@ fun NoteEditorScreen(
 
             state.isEditing -> {
                 NoteEditingContent(
-                    state =
-                        state,
+                    state = state,
+                    onTitleChange = onTitleChange,
+                    onTextChange = onTextChange,
 
-                    onTitleChange =
-                        onTitleChange,
+                    onRunAi = onRunAi,
+                    onReplaceTextWithAi = onReplaceTextWithAi,
+                    onAppendAiToText= onAppendAiToText,
+                    onUseAiAsTitle = onUseAiAsTitle,
+                    onDismissAiSuggestion = onDismissAiSuggestion,
 
-                    onTextChange =
-                        onTextChange,
-
-                    onAddImage =
-                        onAddImage,
-
-                    onRetryImageUpload =
-                        onRetryImageUpload,
-
-                    onRemoveImage =
-                        onRemoveImage,
+                    onAddImage = onAddImage,
+                    onRetryImageUpload = onRetryImageUpload,
+                    onRemoveImage = onRemoveImage,
 
                     modifier =
                         Modifier
@@ -670,16 +698,32 @@ private fun NoteReadingContent(
                     .onSurface,
         )
 
-        Spacer(
-            modifier =
-                Modifier.height(
-                    18.dp,
-                ),
-        )
+        if (
+            state.images.isNotEmpty()
+        ) {
+            Spacer(
+                modifier =
+                    Modifier.height(
+                        20.dp,
+                    ),
+            )
+
+            NoteImageReading(
+                images =
+                    state.images,
+            )
+        }
 
         if (
             state.text.isNotBlank()
         ) {
+            Spacer(
+                modifier =
+                    Modifier.height(
+                        18.dp,
+                    ),
+            )
+
             Text(
                 text =
                     state.text,
@@ -710,6 +754,7 @@ private fun NoteReadingContent(
                         .onSurfaceVariant,
             )
         }
+
     }
 }
 
@@ -718,6 +763,13 @@ private fun NoteEditingContent(
     state: NoteEditorUiState,
     onTitleChange: (String) -> Unit,
     onTextChange: (String) -> Unit,
+
+    onRunAi: (NoteAiMode) -> Unit,
+    onReplaceTextWithAi: () -> Unit,
+    onAppendAiToText: () -> Unit,
+    onUseAiAsTitle: () -> Unit,
+    onDismissAiSuggestion: () -> Unit,
+
     onAddImage: (Uri) -> Unit,
     onRetryImageUpload: (String) -> Unit,
     onRemoveImage: (String) -> Unit,
@@ -940,6 +992,49 @@ private fun NoteEditingContent(
                     innerTextField()
                 }
             },
+        )
+
+        Spacer(
+            modifier =
+                Modifier.height(
+                    16.dp,
+                ),
+        )
+
+        NoteAiToolbar(
+            running =
+                state.aiRunning,
+
+            suggestion =
+                state.aiSuggestion,
+
+            suggestionMode =
+                state.aiSuggestionMode,
+
+            errorMessage =
+                state.aiErrorMessage,
+
+            onRunAi =
+                onRunAi,
+
+            onReplaceText =
+                onReplaceTextWithAi,
+
+            onAppendText =
+                onAppendAiToText,
+
+            onUseAsTitle =
+                onUseAiAsTitle,
+
+            onDismissSuggestion =
+                onDismissAiSuggestion,
+        )
+
+        Spacer(
+            modifier =
+                Modifier.height(
+                    12.dp,
+                ),
         )
 
         /*

@@ -17,6 +17,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.filter
+import kotlin.time.Duration.Companion.milliseconds
 import top.role.android.core.auth.AuthState
 import top.role.android.feature.auth.SignInScreen
 import top.role.android.feature.auth.SignInViewModel
@@ -105,7 +106,7 @@ fun AppRoot(
                 it == ownerUserId
             }
             .debounce(
-                1_500L
+                1_500.milliseconds
             )
             .collect {
                 appContainer
@@ -221,9 +222,17 @@ fun AppRoot(
             appContainer
                 .noteLocalRepository,
 
+        noteAiRemoteDataSource =
+            appContainer
+                .noteAiRemoteDataSource,
+
         noteImageService =
             appContainer
                 .noteImageService,
+
+        imageRepository =
+            appContainer
+                .imageRepository,
 
         discoverRepository =
             appContainer

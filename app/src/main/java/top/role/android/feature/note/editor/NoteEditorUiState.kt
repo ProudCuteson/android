@@ -1,11 +1,11 @@
 package top.role.android.feature.note.editor
 
-import top.role.android.core.database.entity.LocalNoteImageEntity
 import top.role.android.core.database.note.LocalNoteEntity
 import top.role.android.core.database.note.effectiveRemoteStatus
 import top.role.android.core.model.note.NoteEditorPlacement
 import top.role.android.core.model.note.NoteRemoteStatus
 import top.role.android.core.model.note.NoteSyncState
+import top.role.android.core.data.note.ai.NoteAiMode
 
 data class NoteEditorUiState(
     val loading: Boolean = true,
@@ -16,7 +16,19 @@ data class NoteEditorUiState(
     val onlyDay: Boolean = false,
     val pinned: Boolean = false,
 
-    val images: List<LocalNoteImageEntity> =
+    val aiRunning: Boolean =
+        false,
+
+    val aiSuggestion: String? =
+        null,
+
+    val aiSuggestionMode: NoteAiMode? =
+        null,
+
+    val aiErrorMessage: String? =
+        null,
+
+    val images: List<NoteEditorImageUi> =
         emptyList(),
 
     val remoteStatus: NoteRemoteStatus =

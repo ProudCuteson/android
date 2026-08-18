@@ -184,6 +184,21 @@ class NoteLocalRepository(
         )
     }
 
+    suspend fun findRemoteBackedNotes(
+        ownerUserId: String,
+    ): List<LocalNoteEntity> {
+        require(
+            ownerUserId.isNotBlank(),
+        ) {
+            "OWNER_USER_ID_REQUIRED"
+        }
+
+        return dao.findRemoteBackedNotes(
+            ownerUserId =
+                ownerUserId,
+        )
+    }
+
     // MARK: - Create
 
     suspend fun createNormalNote(
@@ -538,20 +553,6 @@ class NoteLocalRepository(
             "Deleted Note cannot change lifecycle state"
         }
 
-        /*
-         * 用户要求的目标状态，
-         * 本来就是服务器当前确认状态。
-         *
-         * 典型例子：
-         *
-         * remoteStatus = Active
-         * pendingRemoteStatus = Archived
-         *
-         * 用户又点“取消归档”
-         *
-         * → 其实不需要发送 restore，
-         *   只需要取消尚未执行的 archive intent。
-         */
         if (
             note.remoteStatus ==
             targetStatus
@@ -568,16 +569,6 @@ class NoteLocalRepository(
             )
         }
 
-        /*
-         * Archive 与 Restore 不能丢掉
-         * 已冻结的 content snapshot。
-         *
-         * 尤其 Archive：
-         *
-         * Pending content
-         * → upsert
-         * → archive
-         */
         val updated =
             note.copy(
                 pendingRemoteStatus =
@@ -643,11 +634,7 @@ class NoteLocalRepository(
         ownerUserId: String,
         localKey: String,
     ): PreparedNotePush? {
-        /*
-         * 一定重新从 Room 读取最新 Note。
-         *
-         * 不使用 UI / ViewModel 手里可能已经过期的 entity。
-         */
+
         val note =
             findByLocalKey(
                 ownerUserId =
@@ -657,18 +644,6 @@ class NoteLocalRepository(
             )
                 ?: return null
 
-        /*
-         * Delete 是终止性 lifecycle：
-         * 不再上传 content。
-         *
-         * Restore 针对 archived Note，
-         * 也不能通过普通 upsert 修改内容。
-         *
-         * Archive 则不同：
-         * 如果本地还有内容变化，
-         * 必须先完成 content upsert，
-         * 然后才能 archive。
-         */
         if (
             note.pendingRemoteStatus ==
             NoteRemoteStatus.Deleted ||
@@ -678,15 +653,6 @@ class NoteLocalRepository(
             return null
         }
 
-        /*
-         * 如果已经冻结过 pending snapshot，
-         * 就必须复用。
-         *
-         * 这样网络重试仍然使用：
-         * - 同一个 requestId
-         * - 同一个 baseVersion
-         * - 同一份发送内容
-         */
         val existingSnapshot =
             decodePendingSnapshot(
                 note.pendingSnapshotJson,
@@ -721,11 +687,6 @@ class NoteLocalRepository(
             )
         }
 
-        /*
-         * 第一次准备这一轮 push。
-         *
-         * 把当前 Note 状态冻结下来。
-         */
         val snapshot =
             PersistedNoteSyncSnapshot(
                 requestId =
@@ -739,15 +700,6 @@ class NoteLocalRepository(
                 clientKey =
                     note.clientKey,
 
-                /*
-                 * 新 Note：
-                 * remoteVersion == null
-                 * → baseVersion = null
-                 *
-                 * 已同步过的 Note：
-                 * remoteVersion = N
-                 * → baseVersion = N
-                 */
                 baseVersion =
                     note.remoteVersion,
 
@@ -804,12 +756,7 @@ class NoteLocalRepository(
         outcome: String,
         remote: RemoteNoteSnapshot,
     ) {
-        /*
-         * 请求回来以后必须重新读取 Room。
-         *
-         * 因为在网络请求期间，
-         * 用户完全可能继续编辑这条 Note。
-         */
+
         val current =
             findByLocalKey(
                 ownerUserId =
@@ -824,15 +771,6 @@ class NoteLocalRepository(
                 current.pendingSnapshotJson,
             )
 
-        /*
-         * 旧请求晚到。
-         *
-         * 如果 Room 中保存的 pending requestId
-         * 已经不是这次发出去的 requestId，
-         * 说明本地状态已经进入另一轮同步。
-         *
-         * 旧响应不能再修改它。
-         */
         if (
             currentPending?.requestId !=
             sentSnapshot.requestId
@@ -846,14 +784,6 @@ class NoteLocalRepository(
         val remoteUpdatedAt =
             remote.updatedAt.toLong()
 
-        /*
-         * 判断用户在这一轮 push 期间
-         * 有没有继续改变真正的 Note 内容。
-         *
-         * 注意：
-         * noteId / clientKey 不参与这个判断，
-         * 它们是 identity，不是用户内容。
-         */
         val unchangedSinceSend =
             contentMatchesSnapshot(
                 note =
@@ -865,12 +795,6 @@ class NoteLocalRepository(
         val requestWasApplied =
             outcome != "identity_resolved"
 
-        /*
-         * 一旦服务端返回正式 noteId，
-         * 本地 identity 就收敛到正式 identity。
-         *
-         * rowId 不变。
-         */
         val officialLocalKey =
             remoteLocalKey(
                 ownerUserId =
@@ -890,16 +814,7 @@ class NoteLocalRepository(
             unchangedSinceSend &&
             requestWasApplied
         ) {
-            /*
-             * -------------------------------
-             * Case A
-             *
-             * 发出去的是 A
-             * 当前本地还是 A
-             *
-             * → 整条 Note 可以进入 Synced
-             * -------------------------------
-             */
+
             val synced =
                 current.copy(
                     localKey =
@@ -995,26 +910,6 @@ class NoteLocalRepository(
             return
         }
 
-        /*
-         * -------------------------------
-         * Case B
-         *
-         * 发出去的是 A
-         * 用户期间已经编辑成 B
-         *
-         * 服务端只确认了 A。
-         *
-         * 所以：
-         *
-         * current 内容 B 保留
-         * baseline 更新为远端 A
-         * remoteVersion 更新
-         * 旧 pending snapshot A 清掉
-         * 状态重新 Pending
-         *
-         * 下一轮再冻结 B。
-         * -------------------------------
-         */
         val stillPending =
             current.copy(
                 localKey =
@@ -1721,22 +1616,7 @@ class NoteLocalRepository(
         note: LocalNoteEntity,
         conflict: PersistedNoteConflictSnapshot,
     ): LocalNoteEntity {
-        /*
-         * 当前 title/text/dayKey/pinned
-         * 全部保留。
-         *
-         * 但 synced baseline 必须推进到
-         * 最新 remote snapshot。
-         *
-         * 这样下一轮：
-         *
-         * current local B
-         * baseline remote C
-         *
-         * → hasUnsyncedChanges = true
-         * → baseVersion = conflict.version
-         * → 正常 push。
-         */
+
         val updated =
             note.copy(
                 noteId =
@@ -1776,10 +1656,6 @@ class NoteLocalRepository(
                 remoteUpdatedAt =
                     conflict.updatedAt,
 
-                /*
-                 * 原来的 frozen request 基于旧 version，
-                 * 已经不能再用。
-                 */
                 pendingSnapshotJson =
                     null,
 
@@ -1816,16 +1692,7 @@ class NoteLocalRepository(
         note: LocalNoteEntity,
         conflict: PersistedNoteConflictSnapshot,
     ): LocalNoteEntity {
-        /*
-         * 当前本地内容继续保留。
-         *
-         * 服务器真实状态先收敛为 Archived，
-         * 然后留下：
-         *
-         * pendingRemoteStatus = Active
-         *
-         * 表示先恢复。
-         */
+
         val updated =
             note.copy(
                 noteId =
@@ -1914,12 +1781,6 @@ class NoteLocalRepository(
                 "ownerUserId is required"
             }
 
-        /*
-         * Deleted remote identity 是终态。
-         *
-         * “保留本地”不是复活旧 Note，
-         * 而是把当前本地内容转成一条全新的 Note。
-         */
         val newLocalKey =
             LocalNoteKeys.new(
                 ownerUserId =

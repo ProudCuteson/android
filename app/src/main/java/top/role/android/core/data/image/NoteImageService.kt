@@ -1,21 +1,20 @@
 package top.role.android.core.data.image
 
+import java.io.File
+import java.util.UUID
 import android.net.Uri
 import androidx.core.net.toUri
 import kotlinx.coroutines.flow.Flow
 import top.role.android.core.database.entity.LocalNoteImageEntity
 import top.role.android.core.model.image.MobileImageScene
-import java.io.File
-import java.util.UUID
+import top.role.android.core.data.image.note.NoteMediaLocalRepository
 
 class NoteImageService(
     private val localRepository: NoteImageLocalRepository,
-
     private val fileStore: LocalImageFileStore,
-
     private val sourceInspector: ImageSourceInspector,
-
     private val imageRepository: ImageRepository,
+    private val noteMediaLocalRepository: NoteMediaLocalRepository,
 ) {
 
     fun observeImages(
@@ -146,6 +145,24 @@ class NoteImageService(
                     image =
                         localImage,
                 )
+
+            /*
+             * 本地 Note media 已经发生变化。
+             *
+             * 即使图片 asset 还没上传，
+             * desired local media 已经包含这张图片。
+             *
+             * Media Push 会在后续独立同步阶段处理。
+             */
+            noteMediaLocalRepository
+                .markPending(
+                    ownerUserId =
+                        ownerUserId,
+
+                    noteLocalKey =
+                        noteLocalKey,
+                )
+
         } catch (
             error: Throwable,
         ) {
@@ -227,8 +244,11 @@ class NoteImageService(
         }
 
         /*
-         * 已经完成上传并登记远端 imageId，
-         * 不重复上传。
+         * Remote hydrated image
+         * 或已经完成 Asset Upload 的本地图片。
+         *
+         * 已经有正式 imageId，
+         * 不需要再次上传。
          */
         if (
             local.uploadState ==
@@ -238,18 +258,36 @@ class NoteImageService(
             return
         }
 
+        /*
+         * 真正需要执行 Asset Upload 的记录
+         * 必须具有本地文件。
+         */
+        val localPath =
+            local.localPath
+                ?.takeIf {
+                    it.isNotBlank()
+                }
+
+        if (
+            localPath == null
+        ) {
+            localRepository
+                .markUploadFailed(
+                    localImageKey =
+                        local.localImageKey,
+
+                    errorMessage =
+                        "LOCAL_IMAGE_PATH_MISSING",
+                )
+
+            return
+        }
+
         val localFile =
             File(
-                local.localPath,
+                localPath,
             )
 
-        /*
-         * Room 记录还在，
-         * 但文件已经不存在。
-         *
-         * 不删除记录，
-         * 保留 failed 状态让 UI 可以显示错误。
-         */
         if (
             !localFile.exists() ||
             !localFile.isFile
@@ -266,8 +304,17 @@ class NoteImageService(
             return
         }
 
+        /*
+         * Remote hydration 允许 bytes == null，
+         * 但真正执行 Asset Upload 的本地图片
+         * 必须有合法 bytes。
+         */
+        val bytes =
+            local.bytes
+
         if (
-            local.bytes <= 0L
+            bytes == null ||
+            bytes <= 0L
         ) {
             localRepository
                 .markUploadFailed(
@@ -281,6 +328,32 @@ class NoteImageService(
             return
         }
 
+        /*
+         * 同理：
+         * Remote hydrated image 可以不知道 mime，
+         * 真正 Asset Upload 时必须存在。
+         */
+        val mime =
+            local.mime
+                ?.takeIf {
+                    it.isNotBlank()
+                }
+
+        if (
+            mime == null
+        ) {
+            localRepository
+                .markUploadFailed(
+                    localImageKey =
+                        local.localImageKey,
+
+                    errorMessage =
+                        "IMAGE_MIME_MISSING",
+                )
+
+            return
+        }
+
         localRepository
             .markUploading(
                 localImageKey =
@@ -288,19 +361,13 @@ class NoteImageService(
             )
 
         try {
-            /*
-             * metadata 已经在用户选图时 inspect 并存入 Room。
-             *
-             * 延迟上传时直接复用，
-             * 不重新 inspect 私有本地文件。
-             */
             val sourceInfo =
                 ImageSourceInfo(
                     mime =
-                        local.mime,
+                        mime,
 
                     bytes =
-                        local.bytes,
+                        bytes,
 
                     fileName =
                         localFile.name,
@@ -333,6 +400,21 @@ class NoteImageService(
                     imageId =
                         asset.id,
                 )
+
+            /*
+             * Asset 已获得正式 imageId。
+             *
+             * Media relation 需要进入下一轮同步。
+             */
+            noteMediaLocalRepository
+                .markPending(
+                    ownerUserId =
+                        ownerUserId,
+
+                    noteLocalKey =
+                        local.noteLocalKey,
+                )
+
         } catch (
             error: Throwable,
         ) {
@@ -369,6 +451,7 @@ class NoteImageService(
         ownerUserId: String,
         oldNoteLocalKey: String,
         newNoteLocalKey: String,
+        noteId: String? = null,
     ) {
         require(
             ownerUserId.isNotBlank(),
@@ -392,9 +475,31 @@ class NoteImageService(
             oldNoteLocalKey ==
             newNoteLocalKey
         ) {
+            /*
+             * localKey 没变，
+             * 但 Note 可能刚刚获得正式 noteId。
+             */
+            noteMediaLocalRepository
+                .rebindNote(
+                    ownerUserId =
+                        ownerUserId,
+
+                    oldNoteLocalKey =
+                        oldNoteLocalKey,
+
+                    newNoteLocalKey =
+                        newNoteLocalKey,
+
+                    noteId =
+                        noteId,
+                )
+
             return
         }
 
+        /*
+         * 先迁移真正的本地附件。
+         */
         localRepository
             .rebindNoteLocalKey(
                 ownerUserId =
@@ -405,6 +510,24 @@ class NoteImageService(
 
                 newNoteLocalKey =
                     newNoteLocalKey,
+            )
+
+        /*
+         * 再迁移对应 Media Sync State。
+         */
+        noteMediaLocalRepository
+            .rebindNote(
+                ownerUserId =
+                    ownerUserId,
+
+                oldNoteLocalKey =
+                    oldNoteLocalKey,
+
+                newNoteLocalKey =
+                    newNoteLocalKey,
+
+                noteId =
+                    noteId,
             )
     }
 
@@ -458,17 +581,6 @@ class NoteImageService(
         }
     }
 
-    /**
-     * 删除单张 Note 图片附件。
-     *
-     * 当前阶段删除：
-     *
-     * 1. LocalNoteImageEntity
-     * 2. App 私有本地文件
-     *
-     * 如果已经存在远端 imageId，
-     * 第一阶段暂不主动删除远端 Image Asset。
-     */
     suspend fun removeImage(
         ownerUserId: String,
         localImageKey: String,
@@ -501,10 +613,7 @@ class NoteImageService(
         }
 
         /*
-         * 先删除数据库关系。
-         *
-         * 即使磁盘文件删除失败，
-         * UI 也不会继续把它当作 Note 附件。
+         * 先修改本地 authoritative media。
          */
         localRepository
             .delete(
@@ -512,22 +621,36 @@ class NoteImageService(
                     local.localImageKey,
             )
 
-        fileStore
-            .delete(
-                localPath =
-                    local.localPath,
+        /*
+         * 即使删除后已经没有任何图片，
+         * Media Sync State 仍然保留 Pending。
+         *
+         * 这样后续可以明确发送：
+         *
+         * media = []
+         */
+        noteMediaLocalRepository
+            .markPending(
+                ownerUserId =
+                    ownerUserId,
+
+                noteLocalKey =
+                    local.noteLocalKey,
             )
+
+        local.localPath
+            ?.takeIf {
+                it.isNotBlank()
+            }
+            ?.let { localPath ->
+                fileStore
+                    .delete(
+                        localPath =
+                            localPath,
+                    )
+            }
     }
 
-    /**
-     * 删除某条 Note 的全部本地图片附件。
-     *
-     * 后面处理：
-     * - 新建空 Note 被自动删除
-     * - Note 本地彻底清理
-     *
-     * 时可以直接使用。
-     */
     suspend fun removeAllImagesForNote(
         ownerUserId: String,
         noteLocalKey: String,
@@ -554,10 +677,6 @@ class NoteImageService(
                         noteLocalKey,
                 )
 
-        /*
-         * 先删除数据库关系，
-         * 再清理实际文件。
-         */
         localRepository
             .deleteForNote(
                 ownerUserId =
@@ -567,12 +686,33 @@ class NoteImageService(
                     noteLocalKey,
             )
 
+        /*
+         * 这是本地 Note 整体 cleanup，
+         * 不是“用户把远端 Note 的所有图片删掉”。
+         *
+         * Media Sync State 一并清理。
+         */
+        noteMediaLocalRepository
+            .deleteForNote(
+                ownerUserId =
+                    ownerUserId,
+
+                noteLocalKey =
+                    noteLocalKey,
+            )
+
         images.forEach { image ->
-            fileStore
-                .delete(
-                    localPath =
-                        image.localPath,
-                )
+            image.localPath
+                ?.takeIf {
+                    it.isNotBlank()
+                }
+                ?.let { localPath ->
+                    fileStore
+                        .delete(
+                            localPath =
+                                localPath,
+                        )
+                }
         }
     }
 
@@ -604,4 +744,5 @@ class NoteImageService(
                 .javaClass
                 .simpleName
     }
+
 }

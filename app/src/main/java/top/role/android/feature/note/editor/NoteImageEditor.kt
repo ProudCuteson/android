@@ -26,21 +26,25 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
-import top.role.android.core.database.entity.LocalNoteImageEntity
 import top.role.android.core.ui.imageviewer.PreviewableImage
-import java.io.File
+
+data class NoteEditorImageUi(
+    val localImageKey: String,
+    val imageId: String?,
+    val displayUrl: String?,
+    val uploadState: String,
+    val uploadError: String?,
+)
 
 @Composable
 fun NoteImageEditor(
-    images: List<LocalNoteImageEntity>,
+    images: List<NoteEditorImageUi>,
     onAddImage: (Uri) -> Unit,
     onRetryUpload: (String) -> Unit,
     onRemoveImage: (String) -> Unit,
@@ -146,21 +150,10 @@ fun NoteImageEditor(
 
 @Composable
 private fun NoteImageEditorItem(
-    image: LocalNoteImageEntity,
+    image: NoteEditorImageUi,
     onRetryUpload: () -> Unit,
     onRemoveImage: () -> Unit,
 ) {
-    val localUrl =
-        remember(
-            image.localPath,
-        ) {
-            File(
-                image.localPath,
-            )
-                .toUri()
-                .toString()
-        }
-
     Column(
         verticalArrangement =
             Arrangement.spacedBy(
@@ -173,25 +166,74 @@ private fun NoteImageEditorItem(
                     104.dp,
                 ),
         ) {
-            PreviewableImage(
-                imageUrl =
-                    localUrl,
+            val displayUrl =
+                image.displayUrl
 
-                contentDescription =
-                    "记录图片",
+            if (
+                !displayUrl.isNullOrBlank()
+            ) {
+                PreviewableImage(
+                    imageUrl =
+                        displayUrl,
 
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .clip(
+                    contentDescription =
+                        "记录图片",
+
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .clip(
+                                MaterialTheme
+                                    .shapes
+                                    .medium,
+                            ),
+
+                    contentScale =
+                        ContentScale.Crop,
+                )
+            } else {
+                /*
+                 * 极端状态：
+                 *
+                 * - localPath 不存在
+                 * - preview URL 尚未准备好
+                 *
+                 * 不崩溃，先显示占位。
+                 */
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .clip(
+                                MaterialTheme
+                                    .shapes
+                                    .medium,
+                            )
+                            .background(
+                                MaterialTheme
+                                    .colorScheme
+                                    .surfaceVariant,
+                            ),
+
+                    contentAlignment =
+                        Alignment.Center,
+                ) {
+                    Text(
+                        text =
+                            "图片加载中",
+
+                        style =
                             MaterialTheme
-                                .shapes
-                                .medium,
-                        ),
+                                .typography
+                                .labelSmall,
 
-                contentScale =
-                    ContentScale.Crop,
-            )
+                        color =
+                            MaterialTheme
+                                .colorScheme
+                                .onSurfaceVariant,
+                    )
+                }
+            }
 
             if (
                 image.uploadState ==
@@ -284,22 +326,50 @@ private fun NoteImageEditorItem(
             }
 
             "failed" -> {
-                TextButton(
-                    onClick =
-                        onRetryUpload,
+                Column(
+                    verticalArrangement =
+                        Arrangement.spacedBy(
+                            2.dp,
+                        ),
                 ) {
-                    Icon(
-                        imageVector =
-                            Icons.Default.Refresh,
+                    TextButton(
+                        onClick =
+                            onRetryUpload,
+                    ) {
+                        Icon(
+                            imageVector =
+                                Icons.Default.Refresh,
 
-                        contentDescription =
-                            null,
-                    )
+                            contentDescription =
+                                null,
+                        )
 
-                    Text(
-                        text =
-                            "重试",
-                    )
+                        Text(
+                            text =
+                                "重试",
+                        )
+                    }
+
+                    image.uploadError
+                        ?.takeIf {
+                            it.isNotBlank()
+                        }
+                        ?.let { error ->
+                            Text(
+                                text =
+                                    error,
+
+                                style =
+                                    MaterialTheme
+                                        .typography
+                                        .labelSmall,
+
+                                color =
+                                    MaterialTheme
+                                        .colorScheme
+                                        .error,
+                            )
+                        }
                 }
             }
 
@@ -319,6 +389,56 @@ private fun NoteImageEditorItem(
                             .onSurfaceVariant,
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun NoteImageReading(
+    images: List<NoteEditorImageUi>,
+    modifier: Modifier = Modifier,
+) {
+    val visibleImages =
+        images.filter { image ->
+            !image.displayUrl
+                .isNullOrBlank()
+        }
+
+    if (
+        visibleImages.isEmpty()
+    ) {
+        return
+    }
+
+    Column(
+        modifier =
+            modifier.fillMaxWidth(),
+
+        verticalArrangement =
+            Arrangement.spacedBy(
+                12.dp,
+            ),
+    ) {
+        visibleImages.forEach { image ->
+            PreviewableImage(
+                imageUrl =
+                    image.displayUrl,
+
+                contentDescription =
+                    "记录图片",
+
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(
+                            MaterialTheme
+                                .shapes
+                                .medium,
+                        ),
+
+                contentScale =
+                    ContentScale.FillWidth,
+            )
         }
     }
 }
