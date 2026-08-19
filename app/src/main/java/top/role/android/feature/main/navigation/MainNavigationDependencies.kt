@@ -12,6 +12,10 @@ import top.role.android.feature.topic.TopicDetailRepository
 import top.role.android.core.data.note.NoteLocalRepository
 import top.role.android.core.data.image.NoteImageService
 import top.role.android.core.data.note.ai.NoteAiRemoteDataSource
+import top.role.android.feature.chat.conversationlist.ChatConversationListRepository
+import top.role.android.feature.chat.conversation.ChatConversationRepository
+import top.role.android.feature.chat.friends.ChatFriendsRepository
+import top.role.android.feature.chat.group.ChatGroupRepository
 
 data class MainNavigationDependencies(
     val localOwnerUserId: String,
@@ -28,4 +32,8 @@ data class MainNavigationDependencies(
     val topicDetailRepository: TopicDetailRepository,
     val docDetailRepository: DocDetailRepository,
     val slideDetailRepository: SlideDetailRepository,
+    val chatConversationListRepository: ChatConversationListRepository,
+    val chatConversationRepository: ChatConversationRepository,
+    val chatFriendsRepository: ChatFriendsRepository,
+    val chatGroupRepository: ChatGroupRepository,
 )

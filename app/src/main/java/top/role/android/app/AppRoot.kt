@@ -266,6 +266,22 @@ fun AppRoot(
             appContainer
                 .slideDetailRepository,
 
+        chatConversationListRepository =
+            appContainer
+                .chatConversationListRepository,
+
+        chatConversationRepository =
+            appContainer
+                .chatConversationRepository,
+
+        chatFriendsRepository =
+            appContainer
+                .chatFriendsRepository,
+
+        chatGroupRepository =
+            appContainer
+                .chatGroupRepository,
+
         onSignOut =
             sessionViewModel::signOut,
     )

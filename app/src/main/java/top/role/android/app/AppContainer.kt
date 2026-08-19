@@ -37,6 +37,10 @@ import top.role.android.core.data.image.note.NoteMediaLocalRepository
 import top.role.android.core.data.image.note.NoteMediaRefreshService
 import top.role.android.core.data.image.note.NoteMediaPushService
 import top.role.android.core.data.note.ai.NoteAiRemoteDataSource
+import top.role.android.feature.chat.conversationlist.ChatConversationListRepository
+import top.role.android.feature.chat.conversation.ChatConversationRepository
+import top.role.android.feature.chat.friends.ChatFriendsRepository
+import top.role.android.feature.chat.group.ChatGroupRepository
 
 class AppContainer(
     context: Context,
@@ -321,6 +325,30 @@ class AppContainer(
 
             checkpointStorage =
                 noteSyncCheckpointStorage,
+        )
+
+    val chatConversationListRepository =
+        ChatConversationListRepository(
+            convexClient =
+                convexClient,
+        )
+
+    val chatConversationRepository =
+        ChatConversationRepository(
+            convexClient =
+                convexClient,
+        )
+
+    val chatFriendsRepository =
+        ChatFriendsRepository(
+            convexClient =
+                convexClient,
+        )
+
+    val chatGroupRepository =
+        ChatGroupRepository(
+            convexClient =
+                convexClient,
         )
 
 }

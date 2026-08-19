@@ -1,5 +1,10 @@
 package top.role.android.feature.main
 
+import top.role.android.app.navigation.ChatConversationRoute
+import top.role.android.app.navigation.ChatFriendLookupRoute
+import top.role.android.app.navigation.ChatFriendsRoute
+import top.role.android.app.navigation.ChatGroupCreateRoute
+import top.role.android.app.navigation.ChatGroupSettingsRoute
 import top.role.android.app.navigation.ContentListRoute
 import top.role.android.app.navigation.DocDetailRoute
 import top.role.android.app.navigation.EntityDetailRoute
@@ -13,6 +18,7 @@ import top.role.android.app.navigation.SlideDetailRoute
 import top.role.android.app.navigation.SpaceListRoute
 import top.role.android.app.navigation.TopicDetailRoute
 import top.role.android.app.navigation.TopicListRoute
+
 import top.role.android.core.model.space.SpaceListMode
 
 const val ACCOUNT_ROUTE =
@@ -33,6 +39,15 @@ data class MainShellState(
     val showAccount: Boolean =
         false,
 
+    val showFriends: Boolean =
+        false,
+
+    val showAddFriend: Boolean =
+        false,
+
+    val showCreateGroup: Boolean =
+        false,
+
     val showBottomBar: Boolean =
         false,
 )
@@ -42,9 +57,21 @@ fun resolveMainShellState(
     spaceListMode: SpaceListMode?,
 ): MainShellState {
 
+    if (
+        route == null
+    ) {
+        return pageOwnedShell()
+    }
+
     return when (
         route
     ) {
+
+        /*
+         * ------------------------------------------------
+         * Main tabs
+         * ------------------------------------------------
+         */
 
         MainDestination.Day.route ->
             MainShellState(
@@ -53,9 +80,6 @@ fun resolveMainShellState(
 
                 showTopBar =
                     true,
-
-                showBack =
-                    false,
 
                 showLibrary =
                     true,
@@ -87,6 +111,12 @@ fun resolveMainShellState(
                 showTopBar =
                     true,
 
+                showFriends =
+                    true,
+
+                showCreateGroup =
+                    true,
+
                 showBottomBar =
                     true,
             )
@@ -103,6 +133,91 @@ fun resolveMainShellState(
                     true,
             )
 
+        /*
+         * ------------------------------------------------
+         * Chat
+         * ------------------------------------------------
+         */
+
+        ChatFriendsRoute.route ->
+            MainShellState(
+                title =
+                    "好友",
+
+                showTopBar =
+                    true,
+
+                showBack =
+                    true,
+
+                showAddFriend =
+                    true,
+
+                showBottomBar =
+                    false,
+            )
+
+        ChatFriendLookupRoute.route ->
+            MainShellState(
+                title =
+                    "添加好友",
+
+                showTopBar =
+                    true,
+
+                showBack =
+                    true,
+
+                showBottomBar =
+                    false,
+            )
+
+        ChatGroupCreateRoute.route ->
+            MainShellState(
+                title =
+                    "创建群聊",
+
+                showTopBar =
+                    true,
+
+                showBack =
+                    true,
+
+                showBottomBar =
+                    false,
+            )
+
+        /*
+         * Conversation 自己拥有 TopAppBar：
+         *
+         * - 显示真实 conversation title
+         * - direct / group 自己决定工具
+         * - group settings 入口也在页面内部
+         */
+        ChatConversationRoute.route ->
+            pageOwnedShell()
+
+        ChatGroupSettingsRoute.route ->
+            MainShellState(
+                title =
+                    "群聊设置",
+
+                showTopBar =
+                    true,
+
+                showBack =
+                    true,
+
+                showBottomBar =
+                    false,
+            )
+
+        /*
+         * ------------------------------------------------
+         * Account
+         * ------------------------------------------------
+         */
+
         ACCOUNT_ROUTE ->
             MainShellState(
                 title =
@@ -117,6 +232,12 @@ fun resolveMainShellState(
                 showBottomBar =
                     false,
             )
+
+        /*
+         * ------------------------------------------------
+         * Discover
+         * ------------------------------------------------
+         */
 
         SpaceListRoute.route ->
             MainShellState(
@@ -185,14 +306,12 @@ fun resolveMainShellState(
 
         /*
          * ------------------------------------------------
-         * Note module
+         * Note
          * ------------------------------------------------
          *
-         * Note 页面自己拥有 Scaffold / TopAppBar。
-         *
-         * Main shell 不再重复提供顶部栏，
-         * 避免双抬头。
+         * Note 页面拥有自己的 Scaffold / TopAppBar。
          */
+
         NoteDayRoute.route,
         NoteEditorRoute.route,
         NoteLibraryRoute.route,
@@ -200,16 +319,22 @@ fun resolveMainShellState(
         NoteNewDatedRoute.route ->
             pageOwnedShell()
 
+        /*
+         * ------------------------------------------------
+         * Fallback
+         * ------------------------------------------------
+         */
+
         else ->
             MainShellState(
                 title =
                     "TopRole",
 
                 showTopBar =
-                    true,
+                    false,
 
                 showBack =
-                    true,
+                    false,
 
                 showBottomBar =
                     false,
@@ -220,6 +345,7 @@ fun resolveMainShellState(
 private fun detailShell(
     title: String,
 ): MainShellState {
+
     return MainShellState(
         title =
             title,
@@ -234,6 +360,15 @@ private fun detailShell(
             false,
 
         showAccount =
+            false,
+
+        showFriends =
+            false,
+
+        showAddFriend =
+            false,
+
+        showCreateGroup =
             false,
 
         showBottomBar =
@@ -258,6 +393,15 @@ private fun pageOwnedShell():
             false,
 
         showAccount =
+            false,
+
+        showFriends =
+            false,
+
+        showAddFriend =
+            false,
+
+        showCreateGroup =
             false,
 
         showBottomBar =

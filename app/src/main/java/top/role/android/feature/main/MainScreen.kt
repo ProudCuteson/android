@@ -1,41 +1,60 @@
 package top.role.android.feature.main
 
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
+
 import androidx.compose.material3.Scaffold
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+
 import androidx.compose.ui.Modifier
+
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 
+import top.role.android.app.navigation.ChatFriendLookupRoute
+import top.role.android.app.navigation.ChatFriendsRoute
+import top.role.android.app.navigation.ChatGroupCreateRoute
+import top.role.android.app.navigation.NoteLibraryRoute
 import top.role.android.app.navigation.SpaceListRoute
+
+import top.role.android.core.data.image.ImageRepository
+import top.role.android.core.data.image.NoteImageService
+import top.role.android.core.data.note.NoteLocalRepository
+import top.role.android.core.data.note.ai.NoteAiRemoteDataSource
 import top.role.android.core.model.space.SpaceListMode
+
+import top.role.android.feature.chat.conversation.ChatConversationRepository
+import top.role.android.feature.chat.conversationlist.ChatConversationListRepository
+import top.role.android.feature.chat.friends.ChatFriendsRepository
+import top.role.android.feature.chat.group.ChatGroupRepository
 
 import top.role.android.feature.discover.DiscoverRepository
 import top.role.android.feature.discover.content.ContentListRepository
 import top.role.android.feature.discover.space.SpaceListRepository
 import top.role.android.feature.discover.topic.TopicListRepository
+
 import top.role.android.feature.entity.EntityDetailRepository
+
+import top.role.android.feature.main.navigation.MainNavGraph
+import top.role.android.feature.main.navigation.MainNavigationDependencies
+
 import top.role.android.feature.reading.DocDetailRepository
 import top.role.android.feature.slide.SlideDetailRepository
 import top.role.android.feature.topic.TopicDetailRepository
-import top.role.android.feature.main.navigation.MainNavGraph
-import androidx.compose.runtime.remember
-import top.role.android.feature.main.navigation.MainNavigationDependencies
-import top.role.android.core.data.note.NoteLocalRepository
-import top.role.android.app.navigation.NoteLibraryRoute
-import top.role.android.core.data.image.ImageRepository
-import top.role.android.core.data.image.NoteImageService
-import top.role.android.core.data.note.ai.NoteAiRemoteDataSource
 
 @Composable
 fun MainScreen(
     localOwnerUserId: String,
     remoteAuthenticated: Boolean,
+
     noteLocalRepository: NoteLocalRepository,
     noteAiRemoteDataSource: NoteAiRemoteDataSource,
     noteImageService: NoteImageService,
     imageRepository: ImageRepository,
+
     discoverRepository: DiscoverRepository,
     spaceListRepository: SpaceListRepository,
     topicListRepository: TopicListRepository,
@@ -44,6 +63,19 @@ fun MainScreen(
     topicDetailRepository: TopicDetailRepository,
     docDetailRepository: DocDetailRepository,
     slideDetailRepository: SlideDetailRepository,
+
+    chatConversationListRepository:
+    ChatConversationListRepository,
+
+    chatConversationRepository:
+    ChatConversationRepository,
+
+    chatFriendsRepository:
+    ChatFriendsRepository,
+
+    chatGroupRepository:
+    ChatGroupRepository,
+
     onSignOut: () -> Unit,
 ) {
     val navController =
@@ -83,7 +115,103 @@ fun MainScreen(
                 currentSpaceListMode,
         )
 
+    val navigationDependencies =
+        remember(
+            localOwnerUserId,
+            remoteAuthenticated,
+
+            noteLocalRepository,
+            noteAiRemoteDataSource,
+            noteImageService,
+            imageRepository,
+
+            discoverRepository,
+            spaceListRepository,
+            topicListRepository,
+            contentListRepository,
+            entityDetailRepository,
+            topicDetailRepository,
+            docDetailRepository,
+            slideDetailRepository,
+
+            chatConversationListRepository,
+            chatConversationRepository,
+            chatFriendsRepository,
+            chatGroupRepository,
+        ) {
+            MainNavigationDependencies(
+                localOwnerUserId =
+                    localOwnerUserId,
+
+                remoteAuthenticated =
+                    remoteAuthenticated,
+
+                noteLocalRepository =
+                    noteLocalRepository,
+
+                noteAiRemoteDataSource =
+                    noteAiRemoteDataSource,
+
+                noteImageService =
+                    noteImageService,
+
+                imageRepository =
+                    imageRepository,
+
+                discoverRepository =
+                    discoverRepository,
+
+                spaceListRepository =
+                    spaceListRepository,
+
+                topicListRepository =
+                    topicListRepository,
+
+                contentListRepository =
+                    contentListRepository,
+
+                entityDetailRepository =
+                    entityDetailRepository,
+
+                topicDetailRepository =
+                    topicDetailRepository,
+
+                docDetailRepository =
+                    docDetailRepository,
+
+                slideDetailRepository =
+                    slideDetailRepository,
+
+                chatConversationListRepository =
+                    chatConversationListRepository,
+
+                chatConversationRepository =
+                    chatConversationRepository,
+
+                chatFriendsRepository =
+                    chatFriendsRepository,
+
+                chatGroupRepository =
+                    chatGroupRepository,
+            )
+        }
+
     Scaffold(
+        /*
+         * MainScreen 自己不统一消费 system insets。
+         *
+         * - MainTopBar / NavigationBar 自己处理系统区域
+         * - Conversation / Note 等 page-owned 页面
+         *   自己处理 TopAppBar / navigationBars / IME
+         */
+        contentWindowInsets =
+            WindowInsets(
+                left = 0,
+                top = 0,
+                right = 0,
+                bottom = 0,
+            ),
+
         topBar = {
             if (
                 shellState.showTopBar
@@ -114,14 +242,40 @@ fun MainScreen(
                                 true
                         }
                     },
+
+                    onFriends = {
+                        navController.navigate(
+                            ChatFriendsRoute.route
+                        ) {
+                            launchSingleTop =
+                                true
+                        }
+                    },
+
+                    onAddFriend = {
+                        navController.navigate(
+                            ChatFriendLookupRoute.route
+                        ) {
+                            launchSingleTop =
+                                true
+                        }
+                    },
+
+                    onCreateGroup = {
+                        navController.navigate(
+                            ChatGroupCreateRoute.route
+                        ) {
+                            launchSingleTop =
+                                true
+                        }
+                    },
                 )
             }
         },
 
         bottomBar = {
             if (
-                shellState
-                    .showBottomBar
+                shellState.showBottomBar
             ) {
                 MainBottomBar(
                     navController =
@@ -133,68 +287,6 @@ fun MainScreen(
             }
         },
     ) { innerPadding ->
-
-        val navigationDependencies =
-            remember(
-                localOwnerUserId,
-                remoteAuthenticated,
-                noteLocalRepository,
-                noteAiRemoteDataSource,
-                noteImageService,
-                imageRepository,
-                discoverRepository,
-                spaceListRepository,
-                topicListRepository,
-                contentListRepository,
-                entityDetailRepository,
-                topicDetailRepository,
-                docDetailRepository,
-                slideDetailRepository,
-            ) {
-                MainNavigationDependencies(
-                    localOwnerUserId =
-                        localOwnerUserId,
-
-                    remoteAuthenticated =
-                        remoteAuthenticated,
-
-                    noteLocalRepository =
-                        noteLocalRepository,
-
-                    noteAiRemoteDataSource =
-                        noteAiRemoteDataSource,
-
-                    noteImageService =
-                        noteImageService,
-
-                    imageRepository =
-                        imageRepository,
-
-                    discoverRepository =
-                        discoverRepository,
-
-                    spaceListRepository =
-                        spaceListRepository,
-
-                    topicListRepository =
-                        topicListRepository,
-
-                    contentListRepository =
-                        contentListRepository,
-
-                    entityDetailRepository =
-                        entityDetailRepository,
-
-                    topicDetailRepository =
-                        topicDetailRepository,
-
-                    docDetailRepository =
-                        docDetailRepository,
-
-                    slideDetailRepository =
-                        slideDetailRepository,
-                )
-            }
 
         MainNavGraph(
             navController =
@@ -211,6 +303,5 @@ fun MainScreen(
             onSignOut =
                 onSignOut,
         )
-
     }
 }
