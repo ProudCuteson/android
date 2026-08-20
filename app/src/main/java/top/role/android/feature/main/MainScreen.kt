@@ -45,6 +45,14 @@ import top.role.android.feature.reading.DocDetailRepository
 import top.role.android.feature.slide.SlideDetailRepository
 import top.role.android.feature.topic.TopicDetailRepository
 
+import top.role.android.feature.engage.EngageRepository
+import top.role.android.feature.survey.SurveyListRepository
+import top.role.android.feature.survey.detail.SurveyDetailRepository
+import top.role.android.feature.bounty.BountyListRepository
+import top.role.android.feature.bounty.detail.BountyDetailRepository
+import top.role.android.feature.market.MarketListRepository
+import top.role.android.feature.market.detail.MarketDetailRepository
+
 @Composable
 fun MainScreen(
     localOwnerUserId: String,
@@ -64,17 +72,18 @@ fun MainScreen(
     docDetailRepository: DocDetailRepository,
     slideDetailRepository: SlideDetailRepository,
 
-    chatConversationListRepository:
-    ChatConversationListRepository,
+    chatConversationListRepository: ChatConversationListRepository,
+    chatConversationRepository: ChatConversationRepository,
+    chatFriendsRepository: ChatFriendsRepository,
+    chatGroupRepository: ChatGroupRepository,
 
-    chatConversationRepository:
-    ChatConversationRepository,
-
-    chatFriendsRepository:
-    ChatFriendsRepository,
-
-    chatGroupRepository:
-    ChatGroupRepository,
+    engageRepository: EngageRepository,
+    surveyListRepository: SurveyListRepository,
+    surveyDetailRepository: SurveyDetailRepository,
+    bountyListRepository: BountyListRepository,
+    bountyDetailRepository: BountyDetailRepository,
+    marketListRepository: MarketListRepository,
+    marketDetailRepository: MarketDetailRepository,
 
     onSignOut: () -> Unit,
 ) {
@@ -138,61 +147,46 @@ fun MainScreen(
             chatConversationRepository,
             chatFriendsRepository,
             chatGroupRepository,
+
+            engageRepository,
+            surveyListRepository,
+            surveyDetailRepository,
+            bountyListRepository,
+            bountyDetailRepository,
+            marketListRepository,
+            marketDetailRepository,
+
         ) {
             MainNavigationDependencies(
-                localOwnerUserId =
-                    localOwnerUserId,
+                localOwnerUserId = localOwnerUserId,
+                remoteAuthenticated = remoteAuthenticated,
 
-                remoteAuthenticated =
-                    remoteAuthenticated,
+                noteLocalRepository = noteLocalRepository,
+                noteAiRemoteDataSource = noteAiRemoteDataSource,
+                noteImageService = noteImageService,
+                imageRepository = imageRepository,
 
-                noteLocalRepository =
-                    noteLocalRepository,
+                discoverRepository = discoverRepository,
+                spaceListRepository = spaceListRepository,
+                topicListRepository = topicListRepository,
+                contentListRepository = contentListRepository,
+                entityDetailRepository = entityDetailRepository,
+                topicDetailRepository = topicDetailRepository,
+                docDetailRepository = docDetailRepository,
+                slideDetailRepository = slideDetailRepository,
 
-                noteAiRemoteDataSource =
-                    noteAiRemoteDataSource,
+                chatConversationListRepository = chatConversationListRepository,
+                chatConversationRepository = chatConversationRepository,
+                chatFriendsRepository = chatFriendsRepository,
+                chatGroupRepository = chatGroupRepository,
 
-                noteImageService =
-                    noteImageService,
-
-                imageRepository =
-                    imageRepository,
-
-                discoverRepository =
-                    discoverRepository,
-
-                spaceListRepository =
-                    spaceListRepository,
-
-                topicListRepository =
-                    topicListRepository,
-
-                contentListRepository =
-                    contentListRepository,
-
-                entityDetailRepository =
-                    entityDetailRepository,
-
-                topicDetailRepository =
-                    topicDetailRepository,
-
-                docDetailRepository =
-                    docDetailRepository,
-
-                slideDetailRepository =
-                    slideDetailRepository,
-
-                chatConversationListRepository =
-                    chatConversationListRepository,
-
-                chatConversationRepository =
-                    chatConversationRepository,
-
-                chatFriendsRepository =
-                    chatFriendsRepository,
-
-                chatGroupRepository =
-                    chatGroupRepository,
+                engageRepository = engageRepository,
+                surveyListRepository = surveyListRepository,
+                surveyDetailRepository = surveyDetailRepository,
+                bountyListRepository = bountyListRepository,
+                bountyDetailRepository = bountyDetailRepository,
+                marketListRepository = marketListRepository,
+                marketDetailRepository = marketDetailRepository,
             )
         }
 

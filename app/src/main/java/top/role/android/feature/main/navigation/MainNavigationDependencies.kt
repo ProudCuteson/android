@@ -16,6 +16,13 @@ import top.role.android.feature.chat.conversationlist.ChatConversationListReposi
 import top.role.android.feature.chat.conversation.ChatConversationRepository
 import top.role.android.feature.chat.friends.ChatFriendsRepository
 import top.role.android.feature.chat.group.ChatGroupRepository
+import top.role.android.feature.engage.EngageRepository
+import top.role.android.feature.survey.SurveyListRepository
+import top.role.android.feature.survey.detail.SurveyDetailRepository
+import top.role.android.feature.bounty.BountyListRepository
+import top.role.android.feature.bounty.detail.BountyDetailRepository
+import top.role.android.feature.market.MarketListRepository
+import top.role.android.feature.market.detail.MarketDetailRepository
 
 data class MainNavigationDependencies(
     val localOwnerUserId: String,
@@ -36,4 +43,11 @@ data class MainNavigationDependencies(
     val chatConversationRepository: ChatConversationRepository,
     val chatFriendsRepository: ChatFriendsRepository,
     val chatGroupRepository: ChatGroupRepository,
+    val engageRepository: EngageRepository,
+    val surveyListRepository: SurveyListRepository,
+    val surveyDetailRepository: SurveyDetailRepository,
+    val bountyListRepository: BountyListRepository,
+    val bountyDetailRepository: BountyDetailRepository,
+    val marketListRepository: MarketListRepository,
+    val marketDetailRepository: MarketDetailRepository,
 )

@@ -29,6 +29,7 @@ import androidx.navigation.NavHostController
 
 import top.role.android.app.navigation.MainDestination
 
+
 private data class MainNavigationItem(
     val destination:
     MainDestination,
@@ -36,6 +37,7 @@ private data class MainNavigationItem(
     val icon:
     ImageVector,
 )
+
 
 private val mainNavigationItems =
     listOf(
@@ -80,6 +82,7 @@ private val mainNavigationItems =
         ),
     )
 
+
 @OptIn(
     ExperimentalMaterial3Api::class
 )
@@ -108,7 +111,6 @@ fun MainTopBar(
 ) {
     TopAppBar(
         title = {
-
             Text(
                 text =
                     state.title,
@@ -116,16 +118,13 @@ fun MainTopBar(
         },
 
         navigationIcon = {
-
             if (
                 state.showBack
             ) {
-
                 IconButton(
                     onClick =
                         onBack,
                 ) {
-
                     Icon(
                         imageVector =
                             Icons
@@ -150,12 +149,10 @@ fun MainTopBar(
             if (
                 state.showLibrary
             ) {
-
                 IconButton(
                     onClick =
                         onLibrary,
                 ) {
-
                     Icon(
                         imageVector =
                             Icons
@@ -172,12 +169,10 @@ fun MainTopBar(
             if (
                 state.showAccount
             ) {
-
                 IconButton(
                     onClick =
                         onAccount,
                 ) {
-
                     Icon(
                         imageVector =
                             Icons
@@ -198,12 +193,10 @@ fun MainTopBar(
             if (
                 state.showFriends
             ) {
-
                 IconButton(
                     onClick =
                         onFriends,
                 ) {
-
                     Icon(
                         imageVector =
                             Icons
@@ -219,12 +212,10 @@ fun MainTopBar(
             if (
                 state.showCreateGroup
             ) {
-
                 IconButton(
                     onClick =
                         onCreateGroup,
                 ) {
-
                     Icon(
                         imageVector =
                             Icons
@@ -245,12 +236,10 @@ fun MainTopBar(
             if (
                 state.showAddFriend
             ) {
-
                 IconButton(
                     onClick =
                         onAddFriend,
                 ) {
-
                     Icon(
                         imageVector =
                             Icons
@@ -266,6 +255,7 @@ fun MainTopBar(
     )
 }
 
+
 @Composable
 fun MainBottomBar(
     navController:
@@ -275,7 +265,6 @@ fun MainBottomBar(
     String?,
 ) {
     NavigationBar {
-
         mainNavigationItems
             .forEach { item ->
 
@@ -291,18 +280,15 @@ fun MainBottomBar(
                         selected,
 
                     onClick = {
-
                         navController.navigate(
                             destination.route
                         ) {
-
                             popUpTo(
                                 navController
                                     .graph
                                     .findStartDestination()
                                     .id
                             ) {
-
                                 saveState =
                                     true
                             }
@@ -316,7 +302,6 @@ fun MainBottomBar(
                     },
 
                     icon = {
-
                         Icon(
                             imageVector =
                                 item.icon,
@@ -327,7 +312,6 @@ fun MainBottomBar(
                     },
 
                     label = {
-
                         Text(
                             text =
                                 destination.label,

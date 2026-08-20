@@ -24,7 +24,6 @@ import top.role.android.feature.auth.SignInViewModel
 import top.role.android.feature.auth.SignInViewModelFactory
 import top.role.android.feature.main.MainScreen
 
-
 @OptIn(FlowPreview::class)
 @Composable
 fun AppRoot(
@@ -211,79 +210,38 @@ fun AppRoot(
     }
 
     MainScreen(
-        localOwnerUserId =
-            localOwnerUserId!!,
+        localOwnerUserId = localOwnerUserId!!,
+        remoteAuthenticated = authState is AuthState.SignedIn,
 
-        remoteAuthenticated =
-            authState is
-                    AuthState.SignedIn,
+        noteLocalRepository = appContainer.noteLocalRepository,
+        noteAiRemoteDataSource = appContainer.noteAiRemoteDataSource,
+        noteImageService = appContainer.noteImageService,
+        imageRepository = appContainer.imageRepository,
 
-        noteLocalRepository =
-            appContainer
-                .noteLocalRepository,
+        discoverRepository = appContainer.discoverRepository,
+        spaceListRepository = appContainer.spaceListRepository,
+        topicListRepository = appContainer.topicListRepository,
+        contentListRepository = appContainer.contentListRepository,
+        entityDetailRepository = appContainer.entityDetailRepository,
 
-        noteAiRemoteDataSource =
-            appContainer
-                .noteAiRemoteDataSource,
+        topicDetailRepository = appContainer.topicDetailRepository,
+        docDetailRepository = appContainer.docDetailRepository,
+        slideDetailRepository = appContainer.slideDetailRepository,
 
-        noteImageService =
-            appContainer
-                .noteImageService,
+        chatConversationListRepository = appContainer.chatConversationListRepository,
+        chatConversationRepository = appContainer.chatConversationRepository,
+        chatFriendsRepository = appContainer.chatFriendsRepository,
+        chatGroupRepository = appContainer.chatGroupRepository,
 
-        imageRepository =
-            appContainer
-                .imageRepository,
+        engageRepository = appContainer.engageRepository,
+        surveyListRepository = appContainer.surveyListRepository,
+        surveyDetailRepository = appContainer.surveyDetailRepository,
+        bountyListRepository = appContainer.bountyListRepository,
+        bountyDetailRepository = appContainer.bountyDetailRepository,
+        marketListRepository = appContainer.marketListRepository,
+        marketDetailRepository = appContainer.marketDetailRepository,
 
-        discoverRepository =
-            appContainer
-                .discoverRepository,
-
-        spaceListRepository =
-            appContainer
-                .spaceListRepository,
-
-        topicListRepository =
-            appContainer
-                .topicListRepository,
-
-        contentListRepository =
-            appContainer
-                .contentListRepository,
-
-        entityDetailRepository =
-            appContainer
-                .entityDetailRepository,
-
-        topicDetailRepository =
-            appContainer
-                .topicDetailRepository,
-
-        docDetailRepository =
-            appContainer
-                .docDetailRepository,
-
-        slideDetailRepository =
-            appContainer
-                .slideDetailRepository,
-
-        chatConversationListRepository =
-            appContainer
-                .chatConversationListRepository,
-
-        chatConversationRepository =
-            appContainer
-                .chatConversationRepository,
-
-        chatFriendsRepository =
-            appContainer
-                .chatFriendsRepository,
-
-        chatGroupRepository =
-            appContainer
-                .chatGroupRepository,
-
-        onSignOut =
-            sessionViewModel::signOut,
+        onSignOut = sessionViewModel::signOut,
     )
 }
 

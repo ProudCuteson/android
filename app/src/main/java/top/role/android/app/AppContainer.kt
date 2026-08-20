@@ -22,6 +22,7 @@ import top.role.android.core.data.note.NoteSyncCoordinator
 import top.role.android.core.database.TopRoleDatabase
 import top.role.android.core.network.ApiConfig
 import top.role.android.core.network.auth.AuthApi
+import top.role.android.core.network.AppHttpClient
 import top.role.android.core.storage.NoteSyncCheckpointStorage
 import top.role.android.core.storage.SessionStorage
 import top.role.android.feature.discover.DiscoverRepository
@@ -41,58 +42,68 @@ import top.role.android.feature.chat.conversationlist.ChatConversationListReposi
 import top.role.android.feature.chat.conversation.ChatConversationRepository
 import top.role.android.feature.chat.friends.ChatFriendsRepository
 import top.role.android.feature.chat.group.ChatGroupRepository
+import top.role.android.feature.engage.EngageRepository
+import top.role.android.feature.survey.SurveyListRepository
+import top.role.android.feature.survey.detail.SurveyDetailRepository
+import top.role.android.feature.bounty.BountyListRepository
+import top.role.android.feature.bounty.detail.BountyDetailRepository
+import top.role.android.feature.market.MarketListRepository
+import top.role.android.feature.market.detail.MarketDetailRepository
+import top.role.android.feature.membership.MembershipRepository
+import top.role.android.core.payment.WechatPayLauncher
 
 class AppContainer(
     context: Context,
 ) {
 
-    private val appContext =
-        context.applicationContext
+    private val appContext = context.applicationContext
 
-    val sessionStorage =
-        SessionStorage(
-            context =
-                appContext,
+    val sessionStorage = SessionStorage(
+            context = appContext,
         )
 
-    val authApi =
-        AuthApi(
+    val authApi = AuthApi(
+            baseUrl = ApiConfig.BASE_URL,
+        )
+
+    val authRepository = AuthRepository(
+            authApi = authApi,
+        )
+
+    val convexClient =  ConvexMobileClient(
+            deploymentUrl = ConvexConfig.DEPLOYMENT_URL,
+            sessionStorage = sessionStorage,
+        )
+
+    val database = TopRoleDatabase.create(
+            context = appContext,
+        )
+
+    private val httpClient = OkHttpClient()
+
+    val appHttpClient =
+        AppHttpClient(
+            httpClient =
+                httpClient,
+
+            sessionStorage =
+                sessionStorage,
+
             baseUrl =
                 ApiConfig.BASE_URL,
         )
 
-    val authRepository =
-        AuthRepository(
-            authApi =
-                authApi,
+    val wechatPayLauncher =
+        WechatPayLauncher(
+            context = appContext,
         )
-
-    val convexClient =
-        ConvexMobileClient(
-            deploymentUrl =
-                ConvexConfig.DEPLOYMENT_URL,
-
-            sessionStorage =
-                sessionStorage,
-        )
-
-    val database =
-        TopRoleDatabase.create(
-            context =
-                appContext,
-        )
-
-    private val httpClient =
-        OkHttpClient()
 
     /*
      * Note local-first
      */
 
-    val noteLocalRepository =
-        NoteLocalRepository(
-            dao =
-                database.localNoteDao(),
+    val noteLocalRepository = NoteLocalRepository(
+            dao = database.localNoteDao(),
         )
 
     val noteSyncCheckpointStorage =
@@ -245,110 +256,113 @@ class AppContainer(
 
     val noteImageLocalRepository =
         NoteImageLocalRepository(
-            dao =
-                database.localNoteImageDao(),
+            dao = database.localNoteImageDao(),
         )
 
     private val localImageFileStore =
         LocalImageFileStore(
-            context =
-                appContext,
-
-            contentResolver =
-                appContext.contentResolver,
+            context = appContext,
+            contentResolver = appContext.contentResolver,
         )
 
     val noteImageService =
         NoteImageService(
-            localRepository =
-                noteImageLocalRepository,
-
-            fileStore =
-                localImageFileStore,
-
-            sourceInspector =
-                imageSourceInspector,
-
-            imageRepository =
-                imageRepository,
-
-            noteMediaLocalRepository =
-                noteMediaLocalRepository,
+            localRepository = noteImageLocalRepository,
+            fileStore = localImageFileStore,
+            sourceInspector = imageSourceInspector,
+            imageRepository = imageRepository,
+            noteMediaLocalRepository = noteMediaLocalRepository,
         )
 
     private val noteMediaPushService =
         NoteMediaPushService(
-            imageLocalRepository =
-                noteImageLocalRepository,
-
-            mediaLocalRepository =
-                noteMediaLocalRepository,
-
-            mediaRemoteDataSource =
-                noteMediaRemoteDataSource,
+            imageLocalRepository = noteImageLocalRepository,
+            mediaLocalRepository = noteMediaLocalRepository,
+            mediaRemoteDataSource = noteMediaRemoteDataSource,
         )
 
     private val noteMediaRefreshService =
         NoteMediaRefreshService(
-            imageLocalRepository =
-                noteImageLocalRepository,
-
-            mediaLocalRepository =
-                noteMediaLocalRepository,
-
-            mediaRemoteDataSource =
-                noteMediaRemoteDataSource,
-
-            fileStore =
-                localImageFileStore,
+            imageLocalRepository = noteImageLocalRepository,
+            mediaLocalRepository = noteMediaLocalRepository,
+            mediaRemoteDataSource = noteMediaRemoteDataSource,
+            fileStore = localImageFileStore,
         )
 
     val noteSyncCoordinator =
         NoteSyncCoordinator(
-            noteRefreshService =
-                noteRefreshService,
-
-            notePushService =
-                notePushService,
-
-            noteLocalRepository =
-                noteLocalRepository,
-
-            noteImageService =
-                noteImageService,
-
-            noteMediaRefreshService =
-                noteMediaRefreshService,
-
-            noteMediaPushService =
-                noteMediaPushService,
-
-            checkpointStorage =
-                noteSyncCheckpointStorage,
+            noteRefreshService = noteRefreshService,
+            notePushService = notePushService,
+            noteLocalRepository = noteLocalRepository,
+            noteImageService = noteImageService,
+            noteMediaRefreshService = noteMediaRefreshService,
+            noteMediaPushService = noteMediaPushService,
+            checkpointStorage = noteSyncCheckpointStorage,
         )
 
     val chatConversationListRepository =
         ChatConversationListRepository(
-            convexClient =
-                convexClient,
+            convexClient = convexClient,
         )
 
     val chatConversationRepository =
         ChatConversationRepository(
-            convexClient =
-                convexClient,
+            convexClient = convexClient,
         )
 
     val chatFriendsRepository =
         ChatFriendsRepository(
-            convexClient =
-                convexClient,
+            convexClient = convexClient,
         )
 
     val chatGroupRepository =
         ChatGroupRepository(
-            convexClient =
-                convexClient,
+            convexClient = convexClient,
+        )
+
+    /*
+     * Engage
+     */
+
+    val engageRepository =
+        EngageRepository(
+            convexClient = convexClient,
+        )
+
+    val surveyListRepository =
+        SurveyListRepository(
+            convexClient = convexClient,
+        )
+
+    val surveyDetailRepository =
+        SurveyDetailRepository(
+            convexClient = convexClient,
+        )
+
+    val bountyListRepository =
+        BountyListRepository(
+            convexClient = convexClient,
+        )
+
+    val bountyDetailRepository =
+        BountyDetailRepository(
+            convexClient = convexClient,
+        )
+
+    val marketListRepository =
+        MarketListRepository(
+            convexClient = convexClient,
+        )
+
+    val marketDetailRepository =
+        MarketDetailRepository(
+            convexClient = convexClient,
+        )
+
+    val membershipRepository =
+        MembershipRepository(
+            convexClient = convexClient,
+            appHttpClient = appHttpClient,
         )
 
 }

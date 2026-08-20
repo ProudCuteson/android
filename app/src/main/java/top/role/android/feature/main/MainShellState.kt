@@ -1,5 +1,7 @@
 package top.role.android.feature.main
 
+import top.role.android.app.navigation.BountyDetailRoute
+import top.role.android.app.navigation.BountyListRoute
 import top.role.android.app.navigation.ChatConversationRoute
 import top.role.android.app.navigation.ChatFriendLookupRoute
 import top.role.android.app.navigation.ChatFriendsRoute
@@ -16,13 +18,17 @@ import top.role.android.app.navigation.NoteNewDatedRoute
 import top.role.android.app.navigation.NoteNewRoute
 import top.role.android.app.navigation.SlideDetailRoute
 import top.role.android.app.navigation.SpaceListRoute
+import top.role.android.app.navigation.SurveyDetailRoute
+import top.role.android.app.navigation.SurveyListRoute
 import top.role.android.app.navigation.TopicDetailRoute
 import top.role.android.app.navigation.TopicListRoute
-
 import top.role.android.core.model.space.SpaceListMode
+import top.role.android.app.navigation.MarketDetailRoute
+import top.role.android.app.navigation.MarketListRoute
 
 const val ACCOUNT_ROUTE =
     "account"
+
 
 data class MainShellState(
     val title: String,
@@ -52,9 +58,13 @@ data class MainShellState(
         false,
 )
 
+
 fun resolveMainShellState(
-    route: String?,
-    spaceListMode: SpaceListMode?,
+    route:
+    String?,
+
+    spaceListMode:
+    SpaceListMode?,
 ): MainShellState {
 
     if (
@@ -306,6 +316,60 @@ fun resolveMainShellState(
 
         /*
          * ------------------------------------------------
+         * Engage / Survey
+         * ------------------------------------------------
+         */
+
+        SurveyListRoute.route ->
+            detailShell(
+                title =
+                    "调查与测评",
+            )
+
+        SurveyDetailRoute.route ->
+            detailShell(
+                title =
+                    "调查与测评",
+            )
+
+        /*
+         * ------------------------------------------------
+         * Engage / Bounty
+         * ------------------------------------------------
+         */
+
+        BountyListRoute.route ->
+            detailShell(
+                title =
+                    "赏金任务",
+            )
+
+        BountyDetailRoute.route ->
+            detailShell(
+                title =
+                    "赏金任务",
+            )
+
+        /*
+         * ------------------------------------------------
+         * Engage / Market
+         * ------------------------------------------------
+         */
+
+        MarketListRoute.route ->
+            detailShell(
+                title =
+                    "精选单品",
+            )
+
+        MarketDetailRoute.route ->
+            detailShell(
+                title =
+                    "单品详情",
+            )
+
+        /*
+         * ------------------------------------------------
          * Note
          * ------------------------------------------------
          *
@@ -342,8 +406,10 @@ fun resolveMainShellState(
     }
 }
 
+
 private fun detailShell(
-    title: String,
+    title:
+    String,
 ): MainShellState {
 
     return MainShellState(
@@ -375,6 +441,7 @@ private fun detailShell(
             false,
     )
 }
+
 
 private fun pageOwnedShell():
         MainShellState {

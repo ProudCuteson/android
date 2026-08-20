@@ -15,56 +15,34 @@ fun MainNavGraph(
     onSignOut: () -> Unit,
 ) {
     NavHost(
-        navController =
-            navController,
-
-        startDestination =
-            MainDestination.Day.route,
-
-        modifier =
-            modifier,
+        navController = navController,
+        startDestination = MainDestination.Day.route,
+        modifier = modifier,
     ) {
         dayNavGraph(
-            navController =
-                navController,
-
-            dependencies =
-                dependencies,
+            navController = navController,
+            dependencies = dependencies,
         )
 
         discoverNavGraph(
-            navController =
-                navController,
-
-            dependencies =
-                dependencies,
+            navController = navController,
+            dependencies =  dependencies,
         )
 
         chatNavGraph(
-            navController =
-                navController,
-
-            dependencies =
-                dependencies,
+            navController = navController,
+            dependencies = dependencies,
         )
 
         engageNavGraph(
-            navController =
-                navController,
-
-            dependencies =
-                dependencies,
+            navController = navController,
+            dependencies = dependencies,
         )
 
         accountNavGraph(
-            navController =
-                navController,
-
-            dependencies =
-                dependencies,
-
-            onSignOut =
-                onSignOut,
+            navController = navController,
+            dependencies = dependencies,
+            onSignOut = onSignOut,
         )
     }
 }
