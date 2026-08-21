@@ -1,5 +1,10 @@
 package top.role.android.feature.main
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.LibraryBooks
@@ -19,6 +24,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.MaterialTheme
 
 import androidx.compose.runtime.Composable
 
@@ -88,26 +94,14 @@ private val mainNavigationItems =
 )
 @Composable
 fun MainTopBar(
-    state:
-    MainShellState,
-
-    onBack:
-        () -> Unit,
-
-    onLibrary:
-        () -> Unit,
-
-    onAccount:
-        () -> Unit,
-
-    onFriends:
-        () -> Unit,
-
-    onAddFriend:
-        () -> Unit,
-
-    onCreateGroup:
-        () -> Unit,
+    state: MainShellState,
+    onBack: () -> Unit,
+    onLibrary: () -> Unit,
+    onAccount: () -> Unit,
+    onFriends: () -> Unit,
+    onAddFriend: () -> Unit,
+    onCreateGroup: () -> Unit,
+    onMarketOrders: () -> Unit,
 ) {
     TopAppBar(
         title = {
@@ -251,6 +245,41 @@ fun MainTopBar(
                     )
                 }
             }
+
+            /*
+             * Market
+             * ------------------------------------------------
+             */
+            if (
+                state.showMarketOrders
+            ) {
+                Text(
+                    text =
+                        "订单",
+
+                    modifier =
+                        Modifier
+                            .clickable(
+                                onClick =
+                                    onMarketOrders,
+                            )
+                            .padding(
+                                horizontal = 12.dp,
+                                vertical = 8.dp,
+                            ),
+
+                    style =
+                        MaterialTheme
+                            .typography
+                            .labelLarge,
+
+                    color =
+                        MaterialTheme
+                            .colorScheme
+                            .primary,
+                )
+            }
+
         },
     )
 }

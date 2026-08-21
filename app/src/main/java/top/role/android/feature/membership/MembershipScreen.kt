@@ -20,7 +20,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,8 +54,6 @@ fun MembershipScreen(
             MembershipContent(
                 uiState =
                     uiState,
-                onBack =
-                    onBack,
                 onSelectPlan =
                     onSelectPlan,
                 onPurchase =
@@ -90,15 +87,6 @@ private fun MembershipLoadErrorState(
                 .fillMaxSize()
                 .padding(20.dp),
     ) {
-        MembershipTopBar(
-            onBack =
-                onBack,
-        )
-
-        Spacer(
-            modifier =
-                Modifier.height(32.dp),
-        )
 
         Text(
             text =
@@ -149,7 +137,6 @@ private fun MembershipLoadErrorState(
 @Composable
 private fun MembershipContent(
     uiState: MembershipUiState,
-    onBack: () -> Unit,
     onSelectPlan: (String) -> Unit,
     onPurchase: () -> Unit,
 ) {
@@ -181,10 +168,6 @@ private fun MembershipContent(
                     vertical = 12.dp,
                 ),
     ) {
-        MembershipTopBar(
-            onBack =
-                onBack,
-        )
 
         Spacer(
             modifier =
@@ -529,50 +512,6 @@ private fun MembershipContent(
         Spacer(
             modifier =
                 Modifier.height(40.dp),
-        )
-    }
-}
-
-@Composable
-private fun MembershipTopBar(
-    onBack: () -> Unit,
-) {
-    Row(
-        modifier =
-            Modifier.fillMaxWidth(),
-        horizontalArrangement =
-            Arrangement.SpaceBetween,
-        verticalAlignment =
-            Alignment.CenterVertically,
-    ) {
-        TextButton(
-            onClick =
-                onBack,
-        ) {
-            Text(
-                text =
-                    "返回",
-            )
-        }
-
-        Text(
-            text =
-                "空间会员",
-            style =
-                MaterialTheme
-                    .typography
-                    .titleMedium,
-        )
-
-        /*
-         * 保持标题居中时的占位。
-         */
-        Spacer(
-            modifier =
-                Modifier
-                    .padding(
-                        horizontal = 24.dp
-                    ),
         )
     }
 }

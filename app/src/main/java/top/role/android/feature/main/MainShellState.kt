@@ -1,5 +1,9 @@
 package top.role.android.feature.main
 
+import top.role.android.app.navigation.AccountRoute
+import top.role.android.app.navigation.AccountPasswordRoute
+import top.role.android.app.navigation.CreditsRoute
+import top.role.android.app.navigation.SettingsRoute
 import top.role.android.app.navigation.BountyDetailRoute
 import top.role.android.app.navigation.BountyListRoute
 import top.role.android.app.navigation.ChatConversationRoute
@@ -22,42 +26,25 @@ import top.role.android.app.navigation.SurveyDetailRoute
 import top.role.android.app.navigation.SurveyListRoute
 import top.role.android.app.navigation.TopicDetailRoute
 import top.role.android.app.navigation.TopicListRoute
+import top.role.android.app.navigation.MembershipRoute
 import top.role.android.core.model.space.SpaceListMode
 import top.role.android.app.navigation.MarketDetailRoute
 import top.role.android.app.navigation.MarketListRoute
-
-const val ACCOUNT_ROUTE =
-    "account"
-
+import top.role.android.app.navigation.MarketOrderListRoute
+import top.role.android.app.navigation.MarketOrderDetailRoute
 
 data class MainShellState(
     val title: String,
-
-    val showTopBar: Boolean =
-        true,
-
-    val showBack: Boolean =
-        false,
-
-    val showLibrary: Boolean =
-        false,
-
-    val showAccount: Boolean =
-        false,
-
-    val showFriends: Boolean =
-        false,
-
-    val showAddFriend: Boolean =
-        false,
-
-    val showCreateGroup: Boolean =
-        false,
-
-    val showBottomBar: Boolean =
-        false,
+    val showTopBar: Boolean = true,
+    val showBack: Boolean = false,
+    val showLibrary: Boolean = false,
+    val showAccount: Boolean = false,
+    val showFriends: Boolean = false,
+    val showAddFriend: Boolean = false,
+    val showCreateGroup: Boolean = false,
+    val showMarketOrders: Boolean = false,
+    val showBottomBar: Boolean = false,
 )
-
 
 fun resolveMainShellState(
     route:
@@ -228,19 +215,28 @@ fun resolveMainShellState(
          * ------------------------------------------------
          */
 
-        ACCOUNT_ROUTE ->
-            MainShellState(
+        AccountRoute.route ->
+            detailShell(
                 title =
                     "我的",
+            )
 
-                showTopBar =
-                    true,
+        CreditsRoute.route ->
+            detailShell(
+                title =
+                    "购买 Credits",
+            )
 
-                showBack =
-                    true,
+        AccountPasswordRoute.route ->
+            detailShell(
+                title =
+                    "账户安全",
+            )
 
-                showBottomBar =
-                    false,
+        SettingsRoute.route ->
+            detailShell(
+                title =
+                    "设置",
             )
 
         /*
@@ -314,6 +310,12 @@ fun resolveMainShellState(
                     "演示",
             )
 
+        MembershipRoute.route ->
+            detailShell(
+                title =
+                    "会员",
+            )
+
         /*
          * ------------------------------------------------
          * Engage / Survey
@@ -357,9 +359,21 @@ fun resolveMainShellState(
          */
 
         MarketListRoute.route ->
-            detailShell(
+            MainShellState(
                 title =
-                    "精选单品",
+                    "极致单品",
+
+                showTopBar =
+                    true,
+
+                showBack =
+                    true,
+
+                showMarketOrders =
+                    true,
+
+                showBottomBar =
+                    false,
             )
 
         MarketDetailRoute.route ->
@@ -367,6 +381,10 @@ fun resolveMainShellState(
                 title =
                     "单品详情",
             )
+
+        MarketOrderListRoute.route,
+        MarketOrderDetailRoute.route ->
+            pageOwnedShell()
 
         /*
          * ------------------------------------------------

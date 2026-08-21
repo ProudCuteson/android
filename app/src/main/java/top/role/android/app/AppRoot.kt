@@ -23,6 +23,11 @@ import top.role.android.feature.auth.SignInScreen
 import top.role.android.feature.auth.SignInViewModel
 import top.role.android.feature.auth.SignInViewModelFactory
 import top.role.android.feature.main.MainScreen
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 
 @OptIn(FlowPreview::class)
 @Composable
@@ -52,6 +57,14 @@ fun AppRoot(
     sessionViewModel
         .localOwnerUserId
         .collectAsStateWithLifecycle()
+
+    var showRemoteSignIn by
+    rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    val scope =
+        rememberCoroutineScope()
 
     LaunchedEffect(
         authState,
@@ -209,40 +222,133 @@ fun AppRoot(
         }
     }
 
-    MainScreen(
-        localOwnerUserId = localOwnerUserId!!,
-        remoteAuthenticated = authState is AuthState.SignedIn,
+    LaunchedEffect(
+        authState,
+        showRemoteSignIn,
+    ) {
+        if (
+            showRemoteSignIn &&
+            authState is AuthState.SignedIn
+        ) {
+            showRemoteSignIn =
+                false
+        }
+    }
 
-        noteLocalRepository = appContainer.noteLocalRepository,
-        noteAiRemoteDataSource = appContainer.noteAiRemoteDataSource,
-        noteImageService = appContainer.noteImageService,
-        imageRepository = appContainer.imageRepository,
+    if (showRemoteSignIn) {
 
-        discoverRepository = appContainer.discoverRepository,
-        spaceListRepository = appContainer.spaceListRepository,
-        topicListRepository = appContainer.topicListRepository,
-        contentListRepository = appContainer.contentListRepository,
-        entityDetailRepository = appContainer.entityDetailRepository,
+        SignedOutContent(
+            appContainer =
+                appContainer,
+        )
 
-        topicDetailRepository = appContainer.topicDetailRepository,
-        docDetailRepository = appContainer.docDetailRepository,
-        slideDetailRepository = appContainer.slideDetailRepository,
+    } else {
 
-        chatConversationListRepository = appContainer.chatConversationListRepository,
-        chatConversationRepository = appContainer.chatConversationRepository,
-        chatFriendsRepository = appContainer.chatFriendsRepository,
-        chatGroupRepository = appContainer.chatGroupRepository,
+        MainScreen(
+            localOwnerUserId =
+                localOwnerUserId!!,
 
-        engageRepository = appContainer.engageRepository,
-        surveyListRepository = appContainer.surveyListRepository,
-        surveyDetailRepository = appContainer.surveyDetailRepository,
-        bountyListRepository = appContainer.bountyListRepository,
-        bountyDetailRepository = appContainer.bountyDetailRepository,
-        marketListRepository = appContainer.marketListRepository,
-        marketDetailRepository = appContainer.marketDetailRepository,
+            remoteAuthenticated =
+                authState is
+                        AuthState.SignedIn,
 
-        onSignOut = sessionViewModel::signOut,
-    )
+            noteLocalRepository =
+                appContainer.noteLocalRepository,
+
+            noteAiRemoteDataSource =
+                appContainer.noteAiRemoteDataSource,
+
+            noteImageService =
+                appContainer.noteImageService,
+
+            imageRepository =
+                appContainer.imageRepository,
+
+            discoverRepository =
+                appContainer.discoverRepository,
+
+            spaceListRepository =
+                appContainer.spaceListRepository,
+
+            topicListRepository =
+                appContainer.topicListRepository,
+
+            contentListRepository =
+                appContainer.contentListRepository,
+
+            entityDetailRepository =
+                appContainer.entityDetailRepository,
+
+            topicDetailRepository =
+                appContainer.topicDetailRepository,
+
+            docDetailRepository =
+                appContainer.docDetailRepository,
+
+            slideDetailRepository =
+                appContainer.slideDetailRepository,
+
+            chatConversationListRepository =
+                appContainer.chatConversationListRepository,
+
+            chatConversationRepository =
+                appContainer.chatConversationRepository,
+
+            chatFriendsRepository =
+                appContainer.chatFriendsRepository,
+
+            chatGroupRepository =
+                appContainer.chatGroupRepository,
+
+            engageRepository =
+                appContainer.engageRepository,
+
+            surveyListRepository =
+                appContainer.surveyListRepository,
+
+            surveyDetailRepository =
+                appContainer.surveyDetailRepository,
+
+            bountyListRepository =
+                appContainer.bountyListRepository,
+
+            bountyDetailRepository =
+                appContainer.bountyDetailRepository,
+
+            marketListRepository =
+                appContainer.marketListRepository,
+
+            marketDetailRepository =
+                appContainer.marketDetailRepository,
+
+            marketOrderListRepository =
+                appContainer.marketOrderListRepository,
+
+            membershipRepository =
+                appContainer.membershipRepository,
+
+            wechatPayLauncher =
+                appContainer.wechatPayLauncher,
+
+            accountRepository =
+                appContainer.accountRepository,
+
+            onReSignIn = {
+                scope.launch {
+                    appContainer
+                        .sessionStorage
+                        .clearRemoteSession()
+
+                    showRemoteSignIn =
+                        true
+                }
+            },
+
+            onSignOut =
+                sessionViewModel::signOut,
+        )
+    }
+
 }
 
 @Composable

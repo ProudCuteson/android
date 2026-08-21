@@ -48,6 +48,12 @@ import top.role.android.feature.market.detail.MarketDetailViewModel
 import top.role.android.feature.market.detail.MarketDetailScreen
 import top.role.android.feature.market.detail.MarketDetailViewModelFactory
 import top.role.android.core.model.market.MobileMarketListMode
+import top.role.android.app.navigation.MarketOrderListRoute
+import top.role.android.app.navigation.MarketOrderDetailRoute
+
+import top.role.android.feature.market.order.MarketOrderListScreen
+import top.role.android.feature.market.order.MarketOrderListViewModel
+import top.role.android.feature.market.order.MarketOrderListViewModelFactory
 
 fun NavGraphBuilder.engageNavGraph(
     navController: NavHostController,
@@ -711,6 +717,10 @@ fun NavGraphBuilder.engageNavGraph(
                     repository =
                         dependencies
                             .marketDetailRepository,
+
+                    wechatPayLauncher =
+                        dependencies
+                            .wechatPayLauncher,
                 )
             }
 
@@ -744,6 +754,31 @@ fun NavGraphBuilder.engageNavGraph(
             .uiState
             .collectAsStateWithLifecycle()
 
+        val purchasedOrderId =
+            state
+                .purchasedOrderId
+                ?.takeIf {
+                    state.paymentSuccess
+                }
+
+        LaunchedEffect(
+            purchasedOrderId
+        ) {
+            purchasedOrderId
+                ?.let { orderId ->
+
+                    marketViewModel
+                        .consumePaymentSuccess()
+
+                    navController.navigate(
+                        MarketOrderDetailRoute.create(
+                            orderId =
+                                orderId,
+                        )
+                    )
+                }
+        }
+
         MarketDetailScreen(
             state =
                 state,
@@ -751,17 +786,108 @@ fun NavGraphBuilder.engageNavGraph(
             onRetry =
                 marketViewModel::retry,
 
-            onBuy = {
-                /*
-                 * 下一阶段：
-                 *
-                 * Native Market Order
-                 * → quantity
-                 * → shipping
-                 * → create order
-                 * → payment
-                 */
+            onDecreaseQuantity =
+                marketViewModel::decreaseQuantity,
+
+            onIncreaseQuantity =
+                marketViewModel::increaseQuantity,
+
+            onReceiverNameChange =
+                marketViewModel::updateReceiverName,
+
+            onReceiverPhoneChange =
+                marketViewModel::updateReceiverPhone,
+
+            onAddressLine1Change =
+                marketViewModel::updateAddressLine1,
+
+            onPostalCodeChange =
+                marketViewModel::updatePostalCode,
+
+            onBuyerNoteChange =
+                marketViewModel::updateBuyerNote,
+
+            onRegionSelected =
+                marketViewModel::selectRegion,
+
+            onBuy =
+                marketViewModel::purchase,
+        )
+    }
+
+    /*
+     * Market Order List
+     */
+
+    composable(
+        route =
+            MarketOrderListRoute.route,
+    ) {
+
+        val factory =
+            remember(
+                dependencies
+                    .marketOrderListRepository,
+            ) {
+                MarketOrderListViewModelFactory(
+                    repository =
+                        dependencies
+                            .marketOrderListRepository,
+                )
+            }
+
+        val marketOrderListViewModel:
+                MarketOrderListViewModel =
+            viewModel(
+                key =
+                    "market-order-list",
+
+                factory =
+                    factory,
+            )
+
+        LaunchedEffect(
+            dependencies
+                .remoteAuthenticated,
+        ) {
+            if (
+                dependencies
+                    .remoteAuthenticated
+            ) {
+                marketOrderListViewModel.start()
+            } else {
+                marketOrderListViewModel
+                    .showSignedOut()
+            }
+        }
+
+        val state by
+        marketOrderListViewModel
+            .uiState
+            .collectAsStateWithLifecycle()
+
+        MarketOrderListScreen(
+            state =
+                state,
+
+            onBack = {
+                navController.popBackStack()
             },
+
+            onOrderClick = { item ->
+                navController.navigate(
+                    MarketOrderDetailRoute.create(
+                        orderId =
+                            item.id,
+                    )
+                )
+            },
+
+            onLoadMore =
+                marketOrderListViewModel::loadMore,
+
+            onRetry =
+                marketOrderListViewModel::retry,
         )
     }
 

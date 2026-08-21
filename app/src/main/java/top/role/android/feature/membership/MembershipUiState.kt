@@ -1,5 +1,6 @@
 package top.role.android.feature.membership
 
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
@@ -465,5 +466,34 @@ class MembershipViewModel(
             _uiState.value.copy(
                 paymentError = code,
             )
+    }
+}
+
+class MembershipViewModelFactory(
+    private val spaceId: String,
+    private val repository: MembershipRepository,
+    private val wechatPayLauncher: WechatPayLauncher,
+) : ViewModelProvider.Factory {
+
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(
+        modelClass: Class<T>,
+    ): T {
+
+        if (
+            modelClass.isAssignableFrom(
+                MembershipViewModel::class.java
+            )
+        ) {
+            return MembershipViewModel(
+                spaceId = spaceId,
+                repository = repository,
+                wechatPayLauncher = wechatPayLauncher,
+            ) as T
+        }
+
+        throw IllegalArgumentException(
+            "Unknown ViewModel class: ${modelClass.name}"
+        )
     }
 }

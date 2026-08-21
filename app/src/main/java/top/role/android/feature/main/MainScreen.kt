@@ -10,6 +10,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+
+import top.role.android.app.navigation.AccountRoute
 
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
@@ -17,6 +23,7 @@ import androidx.navigation.compose.rememberNavController
 import top.role.android.app.navigation.ChatFriendLookupRoute
 import top.role.android.app.navigation.ChatFriendsRoute
 import top.role.android.app.navigation.ChatGroupCreateRoute
+import top.role.android.app.navigation.MarketOrderListRoute
 import top.role.android.app.navigation.NoteLibraryRoute
 import top.role.android.app.navigation.SpaceListRoute
 
@@ -52,6 +59,10 @@ import top.role.android.feature.bounty.BountyListRepository
 import top.role.android.feature.bounty.detail.BountyDetailRepository
 import top.role.android.feature.market.MarketListRepository
 import top.role.android.feature.market.detail.MarketDetailRepository
+import top.role.android.feature.membership.MembershipRepository
+import top.role.android.core.payment.WechatPayLauncher
+import top.role.android.feature.account.AccountRepository
+import top.role.android.feature.market.order.MarketOrderListRepository
 
 @Composable
 fun MainScreen(
@@ -84,6 +95,15 @@ fun MainScreen(
     bountyDetailRepository: BountyDetailRepository,
     marketListRepository: MarketListRepository,
     marketDetailRepository: MarketDetailRepository,
+    marketOrderListRepository: MarketOrderListRepository,
+
+    membershipRepository: MembershipRepository,
+    wechatPayLauncher: WechatPayLauncher,
+
+    accountRepository: AccountRepository,
+
+    onReSignIn:
+        () -> Unit,
 
     onSignOut: () -> Unit,
 ) {
@@ -155,6 +175,12 @@ fun MainScreen(
             bountyDetailRepository,
             marketListRepository,
             marketDetailRepository,
+            marketOrderListRepository,
+
+            membershipRepository,
+            wechatPayLauncher,
+
+            accountRepository,
 
         ) {
             MainNavigationDependencies(
@@ -187,6 +213,12 @@ fun MainScreen(
                 bountyDetailRepository = bountyDetailRepository,
                 marketListRepository = marketListRepository,
                 marketDetailRepository = marketDetailRepository,
+                marketOrderListRepository = marketOrderListRepository,
+
+                membershipRepository = membershipRepository,
+                wechatPayLauncher = wechatPayLauncher,
+
+                accountRepository = accountRepository,
             )
         }
 
@@ -230,7 +262,7 @@ fun MainScreen(
 
                     onAccount = {
                         navController.navigate(
-                            ACCOUNT_ROUTE
+                            AccountRoute.route
                         ) {
                             launchSingleTop =
                                 true
@@ -263,6 +295,12 @@ fun MainScreen(
                                 true
                         }
                     },
+
+                    onMarketOrders = {
+                        navController.navigate(
+                            MarketOrderListRoute.route
+                        )
+                    },
                 )
             }
         },
@@ -293,6 +331,9 @@ fun MainScreen(
 
             dependencies =
                 navigationDependencies,
+
+            onReSignIn =
+                onReSignIn,
 
             onSignOut =
                 onSignOut,

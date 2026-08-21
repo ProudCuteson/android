@@ -35,3 +35,25 @@ object MarketDetailRoute {
         return "market/detail/$listingId"
     }
 }
+
+object MarketOrderListRoute {
+
+    const val route =
+        "market/orders"
+}
+
+object MarketOrderDetailRoute {
+
+    const val orderIdArg =
+        "orderId"
+
+    const val route =
+        "market/orders/{$orderIdArg}"
+
+    fun create(
+        orderId: String,
+    ): String {
+        return "market/orders/$orderId"
+    }
+
+}

@@ -14,7 +14,7 @@ class EntityDetailRepository(
 
         return convexClient.subscribe(
             name =
-                "mobile/ios/entity:getMobileEntityDetail",
+                "mobile/native/space/get:getMobileEntityDetail",
 
             args = mapOf(
                 "type" to "space",

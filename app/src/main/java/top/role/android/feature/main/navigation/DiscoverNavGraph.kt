@@ -16,6 +16,7 @@ import top.role.android.app.navigation.ContentListRoute
 import top.role.android.app.navigation.DocDetailRoute
 import top.role.android.app.navigation.EntityDetailRoute
 import top.role.android.app.navigation.MainDestination
+import top.role.android.app.navigation.MembershipRoute
 import top.role.android.app.navigation.SlideDetailRoute
 import top.role.android.app.navigation.SpaceListRoute
 import top.role.android.app.navigation.TopicDetailRoute
@@ -55,10 +56,39 @@ import top.role.android.feature.topic.TopicDetailScreen
 import top.role.android.feature.topic.TopicDetailViewModel
 import top.role.android.feature.topic.TopicDetailViewModelFactory
 
+import top.role.android.feature.membership.MembershipScreen
+import top.role.android.feature.membership.MembershipViewModel
+import top.role.android.feature.membership.MembershipViewModelFactory
+
 fun NavGraphBuilder.discoverNavGraph(
     navController: NavHostController,
     dependencies: MainNavigationDependencies,
 ) {
+
+    /*
+     * Membership
+     *
+     * Space / Topic / Content 的所有会员入口，
+     * 最终统一只传 spaceId。
+     */
+    fun openMembership(
+        spaceId: String?,
+    ) {
+        val normalizedSpaceId =
+            spaceId
+                ?.trim()
+                ?.takeIf {
+                    it.isNotEmpty()
+                }
+                ?: return
+
+        navController.navigate(
+            MembershipRoute.create(
+                spaceId =
+                    normalizedSpaceId,
+            )
+        )
+    }
 
     /*
      * Discover Home
@@ -79,14 +109,14 @@ fun NavGraphBuilder.discoverNavGraph(
                     )
             )
 
-        val state by
+        val discoverState by
         discoverViewModel
             .uiState
             .collectAsStateWithLifecycle()
 
         DiscoverScreen(
             state =
-                state,
+                discoverState,
 
             onEntityClick = { item ->
                 navController.navigate(
@@ -160,7 +190,7 @@ fun NavGraphBuilder.discoverNavGraph(
     }
 
     /*
-     * Space list
+     * Space List
      */
 
     composable(
@@ -190,7 +220,8 @@ fun NavGraphBuilder.discoverNavGraph(
         val factory =
             remember(
                 mode,
-                dependencies.spaceListRepository,
+                dependencies
+                    .spaceListRepository,
             ) {
                 SpaceListViewModelFactory(
                     mode =
@@ -212,14 +243,14 @@ fun NavGraphBuilder.discoverNavGraph(
                     factory,
             )
 
-        val state by
+        val spaceListState by
         spaceListViewModel
             .uiState
             .collectAsStateWithLifecycle()
 
         SpaceListScreen(
             state =
-                state,
+                spaceListState,
 
             onSpaceClick = { item ->
                 navController.navigate(
@@ -242,7 +273,7 @@ fun NavGraphBuilder.discoverNavGraph(
     }
 
     /*
-     * Topic list
+     * Topic List
      */
 
     composable(
@@ -271,14 +302,14 @@ fun NavGraphBuilder.discoverNavGraph(
                     factory,
             )
 
-        val state by
+        val topicListState by
         topicListViewModel
             .uiState
             .collectAsStateWithLifecycle()
 
         TopicListScreen(
             state =
-                state,
+                topicListState,
 
             onTopicClick = { item ->
                 navController.navigate(
@@ -312,7 +343,7 @@ fun NavGraphBuilder.discoverNavGraph(
     }
 
     /*
-     * Content list
+     * Content List
      */
 
     composable(
@@ -341,14 +372,14 @@ fun NavGraphBuilder.discoverNavGraph(
                     factory,
             )
 
-        val state by
+        val contentListState by
         contentListViewModel
             .uiState
             .collectAsStateWithLifecycle()
 
         ContentListScreen(
             state =
-                state,
+                contentListState,
 
             onContentClick = { item ->
                 when (
@@ -387,7 +418,87 @@ fun NavGraphBuilder.discoverNavGraph(
     }
 
     /*
+ * Membership
+ */
+
+    composable(
+        route =
+            MembershipRoute.route,
+
+        arguments =
+            listOf(
+                navArgument(
+                    MembershipRoute.spaceIdArg
+                ) {
+                    type =
+                        NavType.StringType
+                },
+            ),
+    ) { backStackEntry ->
+
+        val spaceId =
+            backStackEntry
+                .arguments
+                ?.getString(
+                    MembershipRoute.spaceIdArg
+                )
+                .orEmpty()
+
+        val membershipViewModel:
+                MembershipViewModel =
+            viewModel(
+                key =
+                    "membership:$spaceId",
+
+                factory =
+                    MembershipViewModelFactory(
+                        spaceId =
+                            spaceId,
+
+                        repository =
+                            dependencies
+                                .membershipRepository,
+
+                        wechatPayLauncher =
+                            dependencies
+                                .wechatPayLauncher,
+                    ),
+            )
+
+        val membershipState by
+        membershipViewModel
+            .uiState
+            .collectAsStateWithLifecycle()
+
+        MembershipScreen(
+            uiState =
+                membershipState,
+
+            onBack = {
+                navController.popBackStack()
+            },
+
+            onRetry =
+                membershipViewModel::retry,
+
+            onSelectPlan =
+                membershipViewModel::selectPlan,
+
+            onPurchase =
+                membershipViewModel::purchase,
+        )
+    }
+
+    /*
      * Space Detail
+     *
+     * 当前有两个会员入口：
+     *
+     * 1. EntityHeader：
+     *    开通会员 / 会员中心
+     *
+     * 2. 点击 member-only Topic / Content：
+     *    后端 canOpen / lockReason 拦截。
      */
 
     composable(
@@ -451,17 +562,33 @@ fun NavGraphBuilder.discoverNavGraph(
                     ),
             )
 
-        val state by
+        val entityDetailState by
         entityViewModel
             .uiState
             .collectAsStateWithLifecycle()
 
         EntityDetailScreen(
             state =
-                state,
+                entityDetailState,
 
+            /*
+             * Space Header 主动会员入口。
+             */
+            onMembershipClick = { spaceId ->
+                openMembership(
+                    spaceId
+                )
+            },
+
+            /*
+             * Space 内 Topic / Content。
+             */
             onContentClick = { item ->
 
+                /*
+                 * 后端已经计算访问权限，
+                 * Android 不重新推导会员权限。
+                 */
                 if (
                     !item.canOpen
                 ) {
@@ -469,8 +596,11 @@ fun NavGraphBuilder.discoverNavGraph(
                         item.lockReason ==
                         "member_required"
                     ) {
-                        println(
-                            "Membership purchase pending"
+                        openMembership(
+                            entityDetailState
+                                .detail
+                                ?.entity
+                                ?.id
                         )
                     }
 
@@ -516,6 +646,14 @@ fun NavGraphBuilder.discoverNavGraph(
 
     /*
      * Topic Detail
+     *
+     * 当前同样有两个会员入口：
+     *
+     * 1. Topic 本身 member_required
+     *    → TopicHeader Membership CTA
+     *
+     * 2. Topic 内某个 Doc 被锁
+     *    → 点击 Doc 时跳 Membership
      */
 
     composable(
@@ -571,17 +709,17 @@ fun NavGraphBuilder.discoverNavGraph(
                     ),
             )
 
-        val state by
+        val topicDetailState by
         topicViewModel
             .uiState
             .collectAsStateWithLifecycle()
 
         TopicDetailScreen(
             state =
-                state,
+                topicDetailState,
 
             onSpaceClick = {
-                state
+                topicDetailState
                     .detail
                     ?.space
                     ?.let { space ->
@@ -600,34 +738,57 @@ fun NavGraphBuilder.discoverNavGraph(
 
             onDocClick = { doc ->
 
+                /*
+                 * Topic Doc 自己的 access guard。
+                 */
                 if (
                     !doc.canOpen
                 ) {
-                    println(
-                        "Membership pending: ${state.detail?.space?.id}"
-                    )
-                } else {
-                    val topicId =
-                        state
-                            .detail
-                            ?.topic
-                            ?.id
-
-                    navController.navigate(
-                        DocDetailRoute.create(
-                            docId =
-                                doc.id,
-
-                            topicId =
-                                topicId,
+                    if (
+                        doc.lockReason ==
+                        "member_required"
+                    ) {
+                        openMembership(
+                            topicDetailState
+                                .detail
+                                ?.space
+                                ?.id
                         )
-                    )
+                    }
+
+                    return@TopicDetailScreen
                 }
+
+                val topicId =
+                    topicDetailState
+                        .detail
+                        ?.topic
+                        ?.id
+
+                navController.navigate(
+                    DocDetailRoute.create(
+                        docId =
+                            doc.id,
+
+                        topicId =
+                            topicId,
+                    )
+                )
             },
 
+            /*
+             * Topic Header 自身的会员 CTA。
+             *
+             * TopicDetailScreen 内已经限定：
+             * topic.lockReason == "member_required"
+             * 时才会把这个 callback 给 TopicHeader。
+             */
             onMembershipClick = {
-                println(
-                    "Membership pending: ${state.detail?.space?.id}"
+                openMembership(
+                    topicDetailState
+                        .detail
+                        ?.space
+                        ?.id
                 )
             },
         )
@@ -700,17 +861,17 @@ fun NavGraphBuilder.discoverNavGraph(
                     ),
             )
 
-        val state by
+        val docDetailState by
         docViewModel
             .uiState
             .collectAsStateWithLifecycle()
 
         DocDetailScreen(
             state =
-                state,
+                docDetailState,
 
             onSpaceClick = {
-                state
+                docDetailState
                     .detail
                     ?.space
                     ?.let { space ->
@@ -773,14 +934,14 @@ fun NavGraphBuilder.discoverNavGraph(
                     ),
             )
 
-        val state by
+        val slideDetailState by
         slideViewModel
             .uiState
             .collectAsStateWithLifecycle()
 
         SlideDetailScreen(
             state =
-                state,
+                slideDetailState,
 
             onPreviousPage =
                 slideViewModel::goToPreviousPage,

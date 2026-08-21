@@ -36,6 +36,7 @@ data class EntityDetail(
     val statsLabel: String? = null,
     val tags: List<String> = emptyList(),
 
+    val membershipEnabled: Boolean = false,
     val role: String? = null,
     val isMember: Boolean? = null,
 )

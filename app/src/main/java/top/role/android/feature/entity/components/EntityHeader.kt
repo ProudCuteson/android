@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -27,6 +28,7 @@ import top.role.android.core.ui.imageviewer.PreviewableImage
 @Composable
 fun EntityHeader(
     entity: EntityDetail,
+    onMembershipClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -80,20 +82,45 @@ fun EntityHeader(
                 )
             }
 
+        val isManager =
+            entity.role == "owner" ||
+                    entity.role == "admin"
+
         if (entity.isMember == true) {
             Text(
                 text =
                     resolveMemberRoleLabel(
                         entity.role,
                     ),
-                modifier = Modifier.padding(
-                    top = 6.dp,
-                ),
+                modifier =
+                    Modifier.padding(
+                        top = 6.dp,
+                    ),
                 style =
                     MaterialTheme.typography.labelMedium,
                 color =
                     MaterialTheme.colorScheme.primary,
             )
+        }
+
+        if (
+            entity.membershipEnabled && !isManager
+        ) {
+            OutlinedButton(
+                onClick = onMembershipClick,
+                modifier = Modifier.padding(
+                    top = 12.dp,
+                ),
+            ) {
+                Text(
+                    text =
+                        if (entity.isMember == true) {
+                            "会员中心"
+                        } else {
+                            "开通会员"
+                        },
+                )
+            }
         }
     }
 }

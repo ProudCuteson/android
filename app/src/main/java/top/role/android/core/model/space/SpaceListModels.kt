@@ -38,6 +38,8 @@ data class MobileSpaceCard(
     val tags: List<String> = emptyList(),
 
     val following: Boolean = false,
+
+    val membershipEnabled: Boolean = false,
 )
 
 @Serializable

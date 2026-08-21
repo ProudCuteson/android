@@ -12,6 +12,7 @@ fun MainNavGraph(
     navController: NavHostController,
     modifier: Modifier = Modifier,
     dependencies: MainNavigationDependencies,
+    onReSignIn: () -> Unit,
     onSignOut: () -> Unit,
 ) {
     NavHost(
@@ -42,6 +43,7 @@ fun MainNavGraph(
         accountNavGraph(
             navController = navController,
             dependencies = dependencies,
+            onReSignIn = onReSignIn,
             onSignOut = onSignOut,
         )
     }

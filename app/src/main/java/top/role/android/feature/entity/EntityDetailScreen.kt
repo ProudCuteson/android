@@ -22,6 +22,7 @@ import top.role.android.feature.entity.components.EntityAnnouncementCard
 fun EntityDetailScreen(
     state: EntityDetailUiState,
     onContentClick: (EntityPublishedItem) -> Unit = {},
+    onMembershipClick: (String) -> Unit = {},
 ) {
     when {
         state.isLoading -> {
@@ -40,7 +41,7 @@ fun EntityDetailScreen(
 
         else -> {
             val detail = state.detail
-            val entity = detail.entity!!
+            val entity = detail.entity
 
             val topics =
                 detail.contents.filter {
@@ -67,6 +68,11 @@ fun EntityDetailScreen(
                 ) {
                     EntityHeader(
                         entity = entity,
+                        onMembershipClick = {
+                            onMembershipClick(
+                                entity.id
+                            )
+                        },
                     )
                 }
 
