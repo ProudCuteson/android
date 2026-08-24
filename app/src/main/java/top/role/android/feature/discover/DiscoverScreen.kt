@@ -30,11 +30,9 @@ import top.role.android.feature.discover.components.TopicCard
 @Composable
 fun DiscoverScreen(
     state: DiscoverUiState,
-
     onEntityClick: (MobileSpaceCard) -> Unit = {},
     onTopicClick: (MobileTopicCard) -> Unit = {},
     onDocClick: (MobileContentCard) -> Unit = {},
-
     onMoreEntities: (SpaceListMode) -> Unit = {},
     onMoreTopics: () -> Unit = {},
     onMoreContent: () -> Unit = {},

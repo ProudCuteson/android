@@ -6,12 +6,18 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 
 import top.role.android.app.navigation.MainDestination
+import top.role.android.core.preferences.AppAppearance
+import top.role.android.core.preferences.WeekStart
 
 @Composable
 fun MainNavGraph(
     navController: NavHostController,
     modifier: Modifier = Modifier,
     dependencies: MainNavigationDependencies,
+    appearance: AppAppearance,
+    weekStart: WeekStart,
+    onAppearanceChange: (AppAppearance) -> Unit,
+    onWeekStartChange: (WeekStart) -> Unit,
     onReSignIn: () -> Unit,
     onSignOut: () -> Unit,
 ) {
@@ -23,6 +29,7 @@ fun MainNavGraph(
         dayNavGraph(
             navController = navController,
             dependencies = dependencies,
+            weekStart = weekStart,
         )
 
         discoverNavGraph(
@@ -43,6 +50,10 @@ fun MainNavGraph(
         accountNavGraph(
             navController = navController,
             dependencies = dependencies,
+            appearance = appearance,
+            weekStart = weekStart,
+            onAppearanceChange = onAppearanceChange,
+            onWeekStartChange = onWeekStartChange,
             onReSignIn = onReSignIn,
             onSignOut = onSignOut,
         )

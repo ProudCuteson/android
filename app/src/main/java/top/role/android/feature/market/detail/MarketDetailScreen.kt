@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -338,7 +340,7 @@ private fun MarketDetailContent(
                     Modifier
                         .fillMaxWidth()
                         .aspectRatio(
-                            1f
+                            16f / 10f
                         ),
 
                 contentScale =
@@ -692,12 +694,7 @@ private fun MarketDetailContent(
 
             Button(
                 modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            bottom =
-                                24.dp,
-                        ),
+                    Modifier.fillMaxWidth(),
 
                 enabled =
                     !state.paying &&
@@ -750,6 +747,14 @@ private fun MarketDetailContent(
                         }
                 )
             }
+
+            Spacer(
+                modifier =
+                    Modifier.height(
+                        48.dp
+                    )
+            )
+
         }
     }
 }

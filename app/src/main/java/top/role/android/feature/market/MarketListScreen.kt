@@ -6,15 +6,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -97,45 +94,22 @@ fun MarketListScreen(
     }
 }
 
-
 @Composable
 private fun MarketListContent(
-    state:
-    MarketListUiState,
-
-    onModeChange:
-        (MobileMarketListMode) -> Unit,
-
-    onMarketClick:
-        (String) -> Unit,
-
-    onLoadMore:
-        () -> Unit,
-
-    onRetry:
-        () -> Unit,
+    state: MarketListUiState,
+    onModeChange: (MobileMarketListMode) -> Unit,
+    onMarketClick: (String) -> Unit,
+    onLoadMore: () -> Unit,
+    onRetry: () -> Unit,
 ) {
-    LazyVerticalGrid(
-        columns =
-            GridCells.Fixed(
-                2
-            ),
-
+    LazyColumn(
         modifier =
             Modifier.fillMaxSize(),
 
         contentPadding =
             PaddingValues(
-                horizontal =
-                    12.dp,
-
-                vertical =
-                    12.dp,
-            ),
-
-        horizontalArrangement =
-            Arrangement.spacedBy(
-                12.dp
+                horizontal = 16.dp,
+                vertical = 12.dp,
             ),
 
         verticalArrangement =
@@ -145,11 +119,8 @@ private fun MarketListContent(
     ) {
 
         item(
-            span = {
-                androidx.compose.foundation.lazy.grid.GridItemSpan(
-                    maxLineSpan
-                )
-            }
+            key =
+                "market-mode-tabs",
         ) {
             MarketModeTabs(
                 selectedMode =
@@ -160,21 +131,21 @@ private fun MarketListContent(
             )
         }
 
+
         if (
             state.items.isEmpty()
         ) {
+
             item(
-                span = {
-                    androidx.compose.foundation.lazy.grid.GridItemSpan(
-                        maxLineSpan
-                    )
-                }
+                key =
+                    "market-empty",
             ) {
                 Text(
                     text =
                         when (
                             state.mode
                         ) {
+
                             MobileMarketListMode.Featured ->
                                 "暂无推荐单品"
 
@@ -183,10 +154,11 @@ private fun MarketListContent(
                         },
 
                     modifier =
-                        Modifier.padding(
-                            vertical =
-                                24.dp,
-                        ),
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                vertical = 32.dp,
+                            ),
 
                     color =
                         MaterialTheme
@@ -194,7 +166,9 @@ private fun MarketListContent(
                             .onSurfaceVariant,
                 )
             }
+
         } else {
+
             items(
                 items =
                     state.items,
@@ -217,22 +191,29 @@ private fun MarketListContent(
             }
         }
 
+
         if (
             !state.errorMessage
                 .isNullOrBlank() &&
             state.items.isNotEmpty()
         ) {
+
             item(
-                span = {
-                    androidx.compose.foundation.lazy.grid.GridItemSpan(
-                        maxLineSpan
-                    )
-                }
+                key =
+                    "market-error-more",
             ) {
                 Column(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                vertical = 12.dp,
+                            ),
+
                     horizontalAlignment =
                         Alignment.CenterHorizontally,
                 ) {
+
                     Text(
                         text =
                             state.errorMessage,
@@ -243,58 +224,60 @@ private fun MarketListContent(
                                 .error,
                     )
 
+
                     Button(
                         modifier =
                             Modifier.padding(
-                                top = 8.dp
+                                top = 8.dp,
                             ),
 
                         onClick =
                             onRetry,
                     ) {
+
                         Text(
-                            "重试"
+                            text =
+                                "重试",
                         )
                     }
                 }
             }
         }
 
+
         if (
             state.loadingMore
         ) {
+
             item(
-                span = {
-                    androidx.compose.foundation.lazy.grid.GridItemSpan(
-                        maxLineSpan
-                    )
-                }
+                key =
+                    "market-loading-more",
             ) {
                 Box(
                     modifier =
                         Modifier
                             .fillMaxWidth()
                             .padding(
-                                16.dp
+                                vertical = 20.dp,
                             ),
 
                     contentAlignment =
                         Alignment.Center,
                 ) {
+
                     CircularProgressIndicator()
                 }
             }
+
         } else if (
             !state.isDone &&
             state.continueCursor
                 .isNotBlank()
         ) {
+
             item(
-                span = {
-                    androidx.compose.foundation.lazy.grid.GridItemSpan(
-                        maxLineSpan
-                    )
-                }
+                key =
+                    "market-load-more",
             ) {
                 Button(
                     modifier =
@@ -303,15 +286,16 @@ private fun MarketListContent(
                     onClick =
                         onLoadMore,
                 ) {
+
                     Text(
-                        "加载更多"
+                        text =
+                            "加载更多",
                     )
                 }
             }
         }
     }
 }
-
 
 @Composable
 private fun MarketModeTabs(
@@ -415,14 +399,10 @@ private fun MarketModeTab(
     )
 }
 
-
 @Composable
 private fun MarketListCard(
-    item:
-    MobileMarketCard,
-
-    onClick:
-        () -> Unit,
+    item: MobileMarketCard,
+    onClick: () -> Unit,
 ) {
     Card(
         modifier =
@@ -431,9 +411,22 @@ private fun MarketListCard(
                 .clickable(
                     onClick =
                         onClick,
-                )
+                ),
     ) {
-        Column {
+
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        12.dp
+                    ),
+
+            horizontalArrangement =
+                Arrangement.spacedBy(
+                    14.dp
+                ),
+        ) {
 
             if (
                 item.cover.isNotBlank()
@@ -447,9 +440,8 @@ private fun MarketListCard(
 
                     modifier =
                         Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(
-                                1f
+                            .size(
+                                112.dp
                             ),
 
                     contentScale =
@@ -457,17 +449,20 @@ private fun MarketListCard(
                 )
             }
 
+
             Column(
                 modifier =
-                    Modifier.padding(
-                        12.dp
-                    ),
+                    Modifier
+                        .weight(
+                            1f
+                        ),
 
                 verticalArrangement =
                     Arrangement.spacedBy(
                         6.dp
                     ),
             ) {
+
                 Text(
                     text =
                         item.title,
@@ -475,10 +470,10 @@ private fun MarketListCard(
                     style =
                         MaterialTheme
                             .typography
-                            .titleSmall,
+                            .titleMedium,
 
                     fontWeight =
-                        FontWeight.Medium,
+                        FontWeight.SemiBold,
 
                     maxLines =
                         2,
@@ -487,10 +482,12 @@ private fun MarketListCard(
                         TextOverflow.Ellipsis,
                 )
 
+
                 if (
                     item.subtitle
                         .isNotBlank()
                 ) {
+
                     Text(
                         text =
                             item.subtitle,
@@ -513,6 +510,7 @@ private fun MarketListCard(
                     )
                 }
 
+
                 Text(
                     text =
                         item.price,
@@ -531,6 +529,7 @@ private fun MarketListCard(
                             .primary,
                 )
 
+
                 Row(
                     modifier =
                         Modifier.fillMaxWidth(),
@@ -538,6 +537,7 @@ private fun MarketListCard(
                     horizontalArrangement =
                         Arrangement.SpaceBetween,
                 ) {
+
                     Text(
                         text =
                             item.kindLabel,
@@ -553,9 +553,11 @@ private fun MarketListCard(
                                 .onSurfaceVariant,
                     )
 
+
                     if (
                         item.featured
                     ) {
+
                         Text(
                             text =
                                 "推荐",
@@ -576,7 +578,6 @@ private fun MarketListCard(
         }
     }
 }
-
 
 @Composable
 private fun MarketLoadingContent() {

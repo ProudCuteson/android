@@ -33,6 +33,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun AppRoot(
     appContainer: AppContainer,
+    appPreferencesViewModel: AppPreferencesViewModel
 ) {
     val sessionViewModel: AppSessionViewModel =
         viewModel(
@@ -65,6 +66,16 @@ fun AppRoot(
 
     val scope =
         rememberCoroutineScope()
+
+    val appearance by
+    appPreferencesViewModel
+        .appearance
+        .collectAsStateWithLifecycle()
+
+    val weekStart by
+    appPreferencesViewModel
+        .weekStart
+        .collectAsStateWithLifecycle()
 
     LaunchedEffect(
         authState,
@@ -324,6 +335,9 @@ fun AppRoot(
             marketOrderListRepository =
                 appContainer.marketOrderListRepository,
 
+            marketOrderDetailRepository =
+                appContainer.marketOrderDetailRepository,
+
             membershipRepository =
                 appContainer.membershipRepository,
 
@@ -332,6 +346,24 @@ fun AppRoot(
 
             accountRepository =
                 appContainer.accountRepository,
+
+            accountPasswordRepository =
+                appContainer.accountPasswordRepository,
+
+            appearance =
+                appearance,
+
+            weekStart =
+                weekStart,
+
+            onAppearanceChange =
+                appPreferencesViewModel::setAppearance,
+
+            onWeekStartChange =
+                appPreferencesViewModel::setWeekStart,
+
+            creditsRepository =
+                appContainer.creditsRepository,
 
             onReSignIn = {
                 scope.launch {

@@ -10,10 +10,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 
 import androidx.compose.ui.Modifier
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 
 import top.role.android.app.navigation.AccountRoute
 
@@ -61,8 +57,13 @@ import top.role.android.feature.market.MarketListRepository
 import top.role.android.feature.market.detail.MarketDetailRepository
 import top.role.android.feature.membership.MembershipRepository
 import top.role.android.core.payment.WechatPayLauncher
+import top.role.android.core.preferences.AppAppearance
+import top.role.android.core.preferences.WeekStart
 import top.role.android.feature.account.AccountRepository
+import top.role.android.feature.account.password.AccountPasswordRepository
+import top.role.android.feature.credit.CreditsRepository
 import top.role.android.feature.market.order.MarketOrderListRepository
+import top.role.android.feature.market.order.detail.MarketOrderDetailRepository
 
 @Composable
 fun MainScreen(
@@ -96,15 +97,21 @@ fun MainScreen(
     marketListRepository: MarketListRepository,
     marketDetailRepository: MarketDetailRepository,
     marketOrderListRepository: MarketOrderListRepository,
+    marketOrderDetailRepository: MarketOrderDetailRepository,
 
     membershipRepository: MembershipRepository,
     wechatPayLauncher: WechatPayLauncher,
 
     accountRepository: AccountRepository,
+    accountPasswordRepository: AccountPasswordRepository,
+    creditsRepository: CreditsRepository,
 
-    onReSignIn:
-        () -> Unit,
+    appearance: AppAppearance,
+    weekStart: WeekStart,
+    onAppearanceChange: (AppAppearance) -> Unit,
+    onWeekStartChange: (WeekStart) -> Unit,
 
+    onReSignIn: () -> Unit,
     onSignOut: () -> Unit,
 ) {
     val navController =
@@ -176,11 +183,14 @@ fun MainScreen(
             marketListRepository,
             marketDetailRepository,
             marketOrderListRepository,
+            marketOrderDetailRepository,
 
             membershipRepository,
             wechatPayLauncher,
 
             accountRepository,
+            accountPasswordRepository,
+            creditsRepository,
 
         ) {
             MainNavigationDependencies(
@@ -214,11 +224,14 @@ fun MainScreen(
                 marketListRepository = marketListRepository,
                 marketDetailRepository = marketDetailRepository,
                 marketOrderListRepository = marketOrderListRepository,
+                marketOrderDetailRepository = marketOrderDetailRepository,
 
                 membershipRepository = membershipRepository,
                 wechatPayLauncher = wechatPayLauncher,
 
                 accountRepository = accountRepository,
+                accountPasswordRepository = accountPasswordRepository,
+                creditsRepository = creditsRepository,
             )
         }
 
@@ -331,6 +344,18 @@ fun MainScreen(
 
             dependencies =
                 navigationDependencies,
+
+            appearance =
+                appearance,
+
+            weekStart =
+                weekStart,
+
+            onAppearanceChange =
+                onAppearanceChange,
+
+            onWeekStartChange =
+                onWeekStartChange,
 
             onReSignIn =
                 onReSignIn,

@@ -10,55 +10,70 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.composable
 import androidx.navigation.NavType
+import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 
-import top.role.android.app.navigation.MainDestination
-import top.role.android.app.navigation.SurveyListRoute
-import top.role.android.app.navigation.SurveyDetailRoute
-import top.role.android.app.navigation.BountyListRoute
 import top.role.android.app.navigation.BountyDetailRoute
-import top.role.android.app.navigation.MarketListRoute
+import top.role.android.app.navigation.BountyListRoute
+import top.role.android.app.navigation.MainDestination
 import top.role.android.app.navigation.MarketDetailRoute
+import top.role.android.app.navigation.MarketListRoute
+import top.role.android.app.navigation.MarketOrderDetailRoute
+import top.role.android.app.navigation.MarketOrderListRoute
+import top.role.android.app.navigation.SurveyDetailRoute
+import top.role.android.app.navigation.SurveyListRoute
+
+import top.role.android.core.model.bounty.MobileBountyListMode
+import top.role.android.core.model.market.MobileMarketListMode
+import top.role.android.core.model.survey.MobileSurveyListMode
 
 import top.role.android.feature.engage.EngageScreen
 import top.role.android.feature.engage.EngageViewModel
 import top.role.android.feature.engage.EngageViewModelFactory
 
-import top.role.android.core.model.survey.MobileSurveyListMode
-
-import top.role.android.feature.survey.SurveyListViewModelFactory
-import top.role.android.feature.survey.SurveyListViewModel
 import top.role.android.feature.survey.SurveyListScreen
+import top.role.android.feature.survey.SurveyListViewModel
+import top.role.android.feature.survey.SurveyListViewModelFactory
+
 import top.role.android.feature.survey.detail.SurveyDetailScreen
 import top.role.android.feature.survey.detail.SurveyDetailViewModel
 import top.role.android.feature.survey.detail.SurveyDetailViewModelFactory
-import top.role.android.core.model.bounty.MobileBountyListMode
-import top.role.android.feature.bounty.BountyListViewModel
+
 import top.role.android.feature.bounty.BountyListScreen
+import top.role.android.feature.bounty.BountyListViewModel
 import top.role.android.feature.bounty.BountyListViewModelFactory
-import top.role.android.feature.bounty.detail.BountyDetailViewModel
+
 import top.role.android.feature.bounty.detail.BountyDetailScreen
+import top.role.android.feature.bounty.detail.BountyDetailViewModel
 import top.role.android.feature.bounty.detail.BountyDetailViewModelFactory
-import top.role.android.feature.market.MarketListViewModel
+
 import top.role.android.feature.market.MarketListScreen
+import top.role.android.feature.market.MarketListViewModel
 import top.role.android.feature.market.MarketListViewModelFactory
-import top.role.android.feature.market.detail.MarketDetailViewModel
+
 import top.role.android.feature.market.detail.MarketDetailScreen
+import top.role.android.feature.market.detail.MarketDetailViewModel
 import top.role.android.feature.market.detail.MarketDetailViewModelFactory
-import top.role.android.core.model.market.MobileMarketListMode
-import top.role.android.app.navigation.MarketOrderListRoute
-import top.role.android.app.navigation.MarketOrderDetailRoute
 
 import top.role.android.feature.market.order.MarketOrderListScreen
 import top.role.android.feature.market.order.MarketOrderListViewModel
 import top.role.android.feature.market.order.MarketOrderListViewModelFactory
 
+import top.role.android.feature.market.order.detail.MarketOrderDetailScreen
+import top.role.android.feature.market.order.detail.MarketOrderDetailViewModel
+
+
 fun NavGraphBuilder.engageNavGraph(
     navController: NavHostController,
     dependencies: MainNavigationDependencies,
 ) {
+
+    /*
+     * ================================================================
+     * Engage Home
+     * ================================================================
+     */
 
     composable(
         route =
@@ -67,43 +82,64 @@ fun NavGraphBuilder.engageNavGraph(
 
         val factory =
             remember(
-                dependencies.engageRepository,
+                dependencies
+                    .engageRepository,
             ) {
                 EngageViewModelFactory(
-                    repository = dependencies.engageRepository,
+                    repository =
+                        dependencies
+                            .engageRepository,
                 )
             }
 
+
         val engageViewModel:
-                EngageViewModel = viewModel(
-                key = "engage-home",
-                factory = factory,
+                EngageViewModel =
+            viewModel(
+                key =
+                    "engage-home",
+
+                factory =
+                    factory,
             )
 
+
         LaunchedEffect(
-            dependencies.remoteAuthenticated,
+            dependencies
+                .remoteAuthenticated,
         ) {
             if (
-                dependencies.remoteAuthenticated
+                dependencies
+                    .remoteAuthenticated
             ) {
-                engageViewModel.start()
+                engageViewModel
+                    .start()
             } else {
-                engageViewModel.showSignedOut()
+                engageViewModel
+                    .showSignedOut()
             }
         }
+
 
         val state by
         engageViewModel
             .uiState
             .collectAsStateWithLifecycle()
 
+
         EngageScreen(
-            state = state,
+            state =
+                state,
 
-            onRetry = engageViewModel::retry,
+            onRetry =
+                engageViewModel::retry,
 
-            onSurveyClick = {
-                    surveyId ->
+
+            /*
+             * Survey
+             */
+
+            onSurveyClick = { surveyId ->
 
                 navController.navigate(
                     SurveyDetailRoute.create(
@@ -114,6 +150,7 @@ fun NavGraphBuilder.engageNavGraph(
             },
 
             onSurveyMore = {
+
                 navController.navigate(
                     SurveyListRoute.create(
                         mode =
@@ -122,8 +159,12 @@ fun NavGraphBuilder.engageNavGraph(
                 )
             },
 
-            onBountyClick = {
-                    bountyId ->
+
+            /*
+             * Bounty
+             */
+
+            onBountyClick = { bountyId ->
 
                 navController.navigate(
                     BountyDetailRoute.create(
@@ -134,6 +175,7 @@ fun NavGraphBuilder.engageNavGraph(
             },
 
             onBountyMore = {
+
                 navController.navigate(
                     BountyListRoute.create(
                         mode =
@@ -142,8 +184,12 @@ fun NavGraphBuilder.engageNavGraph(
                 )
             },
 
-            onMarketClick = {
-                    listingId ->
+
+            /*
+             * Market
+             */
+
+            onMarketClick = { listingId ->
 
                 navController.navigate(
                     MarketDetailRoute.create(
@@ -154,6 +200,7 @@ fun NavGraphBuilder.engageNavGraph(
             },
 
             onMarketMore = {
+
                 navController.navigate(
                     MarketListRoute.create(
                         mode =
@@ -163,6 +210,13 @@ fun NavGraphBuilder.engageNavGraph(
             },
         )
     }
+
+
+    /*
+     * ================================================================
+     * Survey List
+     * ================================================================
+     */
 
     composable(
         route =
@@ -191,6 +245,7 @@ fun NavGraphBuilder.engageNavGraph(
                         )
                 )
 
+
         val factory =
             remember(
                 mode,
@@ -207,6 +262,7 @@ fun NavGraphBuilder.engageNavGraph(
                 )
             }
 
+
         val viewModel:
                 SurveyListViewModel =
             viewModel(
@@ -217,6 +273,7 @@ fun NavGraphBuilder.engageNavGraph(
                     factory,
             )
 
+
         LaunchedEffect(
             dependencies
                 .remoteAuthenticated,
@@ -225,23 +282,26 @@ fun NavGraphBuilder.engageNavGraph(
                 dependencies
                     .remoteAuthenticated
             ) {
-                viewModel.start()
+                viewModel
+                    .start()
             } else {
-                viewModel.showSignedOut()
+                viewModel
+                    .showSignedOut()
             }
         }
+
 
         val state by
         viewModel
             .uiState
             .collectAsStateWithLifecycle()
 
+
         SurveyListScreen(
             state =
                 state,
 
-            onModeChange = {
-                    targetMode ->
+            onModeChange = { targetMode ->
 
                 if (
                     targetMode !=
@@ -263,8 +323,7 @@ fun NavGraphBuilder.engageNavGraph(
                 }
             },
 
-            onSurveyClick = {
-                    surveyId ->
+            onSurveyClick = { surveyId ->
 
                 navController.navigate(
                     SurveyDetailRoute.create(
@@ -281,6 +340,13 @@ fun NavGraphBuilder.engageNavGraph(
                 viewModel::retry,
         )
     }
+
+
+    /*
+     * ================================================================
+     * Survey Detail
+     * ================================================================
+     */
 
     composable(
         route =
@@ -307,6 +373,7 @@ fun NavGraphBuilder.engageNavGraph(
                 )
                 ?: return@composable
 
+
         val factory =
             remember(
                 surveyId,
@@ -323,6 +390,7 @@ fun NavGraphBuilder.engageNavGraph(
                 )
             }
 
+
         val viewModel:
                 SurveyDetailViewModel =
             viewModel(
@@ -333,6 +401,7 @@ fun NavGraphBuilder.engageNavGraph(
                     factory,
             )
 
+
         LaunchedEffect(
             dependencies
                 .remoteAuthenticated,
@@ -341,16 +410,20 @@ fun NavGraphBuilder.engageNavGraph(
                 dependencies
                     .remoteAuthenticated
             ) {
-                viewModel.start()
+                viewModel
+                    .start()
             } else {
-                viewModel.showSignedOut()
+                viewModel
+                    .showSignedOut()
             }
         }
+
 
         val state by
         viewModel
             .uiState
             .collectAsStateWithLifecycle()
+
 
         SurveyDetailScreen(
             state =
@@ -370,6 +443,13 @@ fun NavGraphBuilder.engageNavGraph(
         )
     }
 
+
+    /*
+     * ================================================================
+     * Bounty List
+     * ================================================================
+     */
+
     composable(
         route =
             BountyListRoute.route,
@@ -377,7 +457,8 @@ fun NavGraphBuilder.engageNavGraph(
         arguments =
             listOf(
                 navArgument(
-                    BountyListRoute.modeArg
+                    BountyListRoute
+                        .modeArg
                 ) {
                     type =
                         NavType.StringType
@@ -391,9 +472,11 @@ fun NavGraphBuilder.engageNavGraph(
                     backStackEntry
                         .arguments
                         ?.getString(
-                            BountyListRoute.modeArg
+                            BountyListRoute
+                                .modeArg
                         )
                 )
+
 
         val factory =
             remember(
@@ -402,13 +485,15 @@ fun NavGraphBuilder.engageNavGraph(
                     .bountyListRepository,
             ) {
                 BountyListViewModelFactory(
-                    mode = mode,
+                    mode =
+                        mode,
 
                     repository =
                         dependencies
                             .bountyListRepository,
                 )
             }
+
 
         val bountyViewModel:
                 BountyListViewModel =
@@ -420,6 +505,7 @@ fun NavGraphBuilder.engageNavGraph(
                     factory,
             )
 
+
         LaunchedEffect(
             dependencies
                 .remoteAuthenticated,
@@ -428,41 +514,46 @@ fun NavGraphBuilder.engageNavGraph(
                 dependencies
                     .remoteAuthenticated
             ) {
-                bountyViewModel.start()
+                bountyViewModel
+                    .start()
             } else {
                 bountyViewModel
                     .showSignedOut()
             }
         }
 
+
         val state by
         bountyViewModel
             .uiState
             .collectAsStateWithLifecycle()
 
-        BountyListScreen(
-            state = state,
 
-            onModeChange = {
-                    targetMode ->
+        BountyListScreen(
+            state =
+                state,
+
+            onModeChange = { targetMode ->
 
                 if (
-                    targetMode != mode
+                    targetMode !=
+                    mode
                 ) {
                     navController.navigate(
                         BountyListRoute.create(
-                            targetMode
+                            mode =
+                                targetMode,
                         )
                     )
                 }
             },
 
-            onBountyClick = {
-                    bountyId ->
+            onBountyClick = { bountyId ->
 
                 navController.navigate(
                     BountyDetailRoute.create(
-                        bountyId
+                        bountyId =
+                            bountyId,
                     )
                 )
             },
@@ -474,6 +565,13 @@ fun NavGraphBuilder.engageNavGraph(
                 bountyViewModel::retry,
         )
     }
+
+
+    /*
+     * ================================================================
+     * Bounty Detail
+     * ================================================================
+     */
 
     composable(
         route =
@@ -500,6 +598,7 @@ fun NavGraphBuilder.engageNavGraph(
                 )
                 ?: return@composable
 
+
         val factory =
             remember(
                 bountyId,
@@ -516,6 +615,7 @@ fun NavGraphBuilder.engageNavGraph(
                 )
             }
 
+
         val bountyViewModel:
                 BountyDetailViewModel =
             viewModel(
@@ -526,6 +626,7 @@ fun NavGraphBuilder.engageNavGraph(
                     factory,
             )
 
+
         LaunchedEffect(
             dependencies
                 .remoteAuthenticated,
@@ -534,12 +635,14 @@ fun NavGraphBuilder.engageNavGraph(
                 dependencies
                     .remoteAuthenticated
             ) {
-                bountyViewModel.start()
+                bountyViewModel
+                    .start()
             } else {
                 bountyViewModel
                     .showSignedOut()
             }
         }
+
 
         val state by
         bountyViewModel
@@ -549,6 +652,7 @@ fun NavGraphBuilder.engageNavGraph(
 
         val uriHandler =
             LocalUriHandler.current
+
 
         BountyDetailScreen(
             state =
@@ -568,6 +672,13 @@ fun NavGraphBuilder.engageNavGraph(
         )
     }
 
+
+    /*
+     * ================================================================
+     * Market List
+     * ================================================================
+     */
+
     composable(
         route =
             MarketListRoute.route,
@@ -575,7 +686,8 @@ fun NavGraphBuilder.engageNavGraph(
         arguments =
             listOf(
                 navArgument(
-                    MarketListRoute.modeArg
+                    MarketListRoute
+                        .modeArg
                 ) {
                     type =
                         NavType.StringType
@@ -594,6 +706,7 @@ fun NavGraphBuilder.engageNavGraph(
                         )
                 )
 
+
         val factory =
             remember(
                 mode,
@@ -610,6 +723,7 @@ fun NavGraphBuilder.engageNavGraph(
                 )
             }
 
+
         val marketViewModel:
                 MarketListViewModel =
             viewModel(
@@ -620,6 +734,7 @@ fun NavGraphBuilder.engageNavGraph(
                     factory,
             )
 
+
         LaunchedEffect(
             dependencies
                 .remoteAuthenticated,
@@ -628,24 +743,26 @@ fun NavGraphBuilder.engageNavGraph(
                 dependencies
                     .remoteAuthenticated
             ) {
-                marketViewModel.start()
+                marketViewModel
+                    .start()
             } else {
                 marketViewModel
                     .showSignedOut()
             }
         }
 
+
         val state by
         marketViewModel
             .uiState
             .collectAsStateWithLifecycle()
 
+
         MarketListScreen(
             state =
                 state,
 
-            onModeChange = {
-                    targetMode ->
+            onModeChange = { targetMode ->
 
                 if (
                     targetMode !=
@@ -660,8 +777,7 @@ fun NavGraphBuilder.engageNavGraph(
                 }
             },
 
-            onMarketClick = {
-                    listingId ->
+            onMarketClick = { listingId ->
 
                 navController.navigate(
                     MarketDetailRoute.create(
@@ -678,6 +794,13 @@ fun NavGraphBuilder.engageNavGraph(
                 marketViewModel::retry,
         )
     }
+
+
+    /*
+     * ================================================================
+     * Market Detail
+     * ================================================================
+     */
 
     composable(
         route =
@@ -704,6 +827,7 @@ fun NavGraphBuilder.engageNavGraph(
                 )
                 ?: return@composable
 
+
         val factory =
             remember(
                 listingId,
@@ -724,6 +848,7 @@ fun NavGraphBuilder.engageNavGraph(
                 )
             }
 
+
         val marketViewModel:
                 MarketDetailViewModel =
             viewModel(
@@ -734,6 +859,7 @@ fun NavGraphBuilder.engageNavGraph(
                     factory,
             )
 
+
         LaunchedEffect(
             dependencies
                 .remoteAuthenticated,
@@ -742,24 +868,34 @@ fun NavGraphBuilder.engageNavGraph(
                 dependencies
                     .remoteAuthenticated
             ) {
-                marketViewModel.start()
+                marketViewModel
+                    .start()
             } else {
                 marketViewModel
                     .showSignedOut()
             }
         }
 
+
         val state by
         marketViewModel
             .uiState
             .collectAsStateWithLifecycle()
 
+
+        /*
+         * 支付成功后进入订单详情。
+         *
+         * purchasedOrderId 只有 paymentSuccess = true
+         * 时才参与导航。
+         */
         val purchasedOrderId =
             state
                 .purchasedOrderId
                 ?.takeIf {
                     state.paymentSuccess
                 }
+
 
         LaunchedEffect(
             purchasedOrderId
@@ -778,6 +914,7 @@ fun NavGraphBuilder.engageNavGraph(
                     )
                 }
         }
+
 
         MarketDetailScreen(
             state =
@@ -815,8 +952,11 @@ fun NavGraphBuilder.engageNavGraph(
         )
     }
 
+
     /*
+     * ================================================================
      * Market Order List
+     * ================================================================
      */
 
     composable(
@@ -836,6 +976,7 @@ fun NavGraphBuilder.engageNavGraph(
                 )
             }
 
+
         val marketOrderListViewModel:
                 MarketOrderListViewModel =
             viewModel(
@@ -846,6 +987,7 @@ fun NavGraphBuilder.engageNavGraph(
                     factory,
             )
 
+
         LaunchedEffect(
             dependencies
                 .remoteAuthenticated,
@@ -854,27 +996,32 @@ fun NavGraphBuilder.engageNavGraph(
                 dependencies
                     .remoteAuthenticated
             ) {
-                marketOrderListViewModel.start()
+                marketOrderListViewModel
+                    .start()
             } else {
                 marketOrderListViewModel
                     .showSignedOut()
             }
         }
 
+
         val state by
         marketOrderListViewModel
             .uiState
             .collectAsStateWithLifecycle()
+
 
         MarketOrderListScreen(
             state =
                 state,
 
             onBack = {
-                navController.popBackStack()
+                navController
+                    .popBackStack()
             },
 
             onOrderClick = { item ->
+
                 navController.navigate(
                     MarketOrderDetailRoute.create(
                         orderId =
@@ -891,4 +1038,118 @@ fun NavGraphBuilder.engageNavGraph(
         )
     }
 
+
+    /*
+     * ================================================================
+     * Market Order Detail
+     * ================================================================
+     */
+
+    composable(
+        route =
+            MarketOrderDetailRoute.route,
+
+        arguments =
+            listOf(
+                navArgument(
+                    MarketOrderDetailRoute
+                        .orderIdArg
+                ) {
+                    type =
+                        NavType.StringType
+                }
+            ),
+    ) { backStackEntry ->
+
+        val orderId =
+            backStackEntry
+                .arguments
+                ?.getString(
+                    MarketOrderDetailRoute
+                        .orderIdArg
+                )
+                ?: return@composable
+
+
+        val factory =
+            remember(
+                orderId,
+                dependencies
+                    .marketOrderDetailRepository,
+            ) {
+                MarketOrderDetailViewModel.factory(
+                    orderId =
+                        orderId,
+
+                    repository =
+                        dependencies
+                            .marketOrderDetailRepository,
+                )
+            }
+
+
+        val marketOrderDetailViewModel:
+                MarketOrderDetailViewModel =
+            viewModel(
+                key =
+                    "market-order-detail:$orderId",
+
+                factory =
+                    factory,
+            )
+
+
+        /*
+         * Order Detail 与当前 Engage / Market
+         * 其他远端页面保持同一认证生命周期。
+         */
+        LaunchedEffect(
+            dependencies
+                .remoteAuthenticated,
+        ) {
+            if (
+                dependencies
+                    .remoteAuthenticated
+            ) {
+                marketOrderDetailViewModel
+                    .start()
+            } else {
+                marketOrderDetailViewModel
+                    .showSignedOut()
+            }
+        }
+
+
+        val state by
+        marketOrderDetailViewModel
+            .uiState
+            .collectAsStateWithLifecycle()
+
+
+        MarketOrderDetailScreen(
+            state =
+                state,
+
+            onBack = {
+                navController
+                    .popBackStack()
+            },
+
+            /*
+             * 从订单详情重新查看原商品。
+             */
+            onProductClick = { listingId ->
+
+                navController.navigate(
+                    MarketDetailRoute.create(
+                        listingId =
+                            listingId,
+                    )
+                )
+            },
+
+            onRetry =
+                marketOrderDetailViewModel::retry,
+        )
+    }
 }

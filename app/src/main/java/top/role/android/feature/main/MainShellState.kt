@@ -3,7 +3,6 @@ package top.role.android.feature.main
 import top.role.android.app.navigation.AccountRoute
 import top.role.android.app.navigation.AccountPasswordRoute
 import top.role.android.app.navigation.CreditsRoute
-import top.role.android.app.navigation.SettingsRoute
 import top.role.android.app.navigation.BountyDetailRoute
 import top.role.android.app.navigation.BountyListRoute
 import top.role.android.app.navigation.ChatConversationRoute
@@ -231,12 +230,6 @@ fun resolveMainShellState(
             detailShell(
                 title =
                     "账户安全",
-            )
-
-        SettingsRoute.route ->
-            detailShell(
-                title =
-                    "设置",
             )
 
         /*

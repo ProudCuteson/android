@@ -2,6 +2,7 @@ package top.role.android.feature.note.library
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -279,17 +280,16 @@ private fun LibraryHeader(
         modifier =
             Modifier
                 .fillMaxWidth()
+                .statusBarsPadding()
                 .padding(
-                    horizontal =
-                        8.dp,
-
-                    vertical =
-                        8.dp,
+                    horizontal = 8.dp,
+                    vertical = 8.dp,
                 ),
 
         verticalAlignment =
             Alignment.CenterVertically,
     ) {
+
         IconButton(
             onClick =
                 onBack,
@@ -303,10 +303,11 @@ private fun LibraryHeader(
             )
         }
 
+
         Text(
             modifier =
                 Modifier.weight(
-                    1f,
+                    1f
                 ),
 
             text =
@@ -320,6 +321,7 @@ private fun LibraryHeader(
             fontWeight =
                 FontWeight.SemiBold,
         )
+
 
         IconButton(
             onClick =

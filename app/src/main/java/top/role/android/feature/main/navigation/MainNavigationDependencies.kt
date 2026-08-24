@@ -14,6 +14,7 @@ import top.role.android.core.data.image.NoteImageService
 import top.role.android.core.data.note.ai.NoteAiRemoteDataSource
 import top.role.android.core.payment.WechatPayLauncher
 import top.role.android.feature.account.AccountRepository
+import top.role.android.feature.account.password.AccountPasswordRepository
 import top.role.android.feature.chat.conversationlist.ChatConversationListRepository
 import top.role.android.feature.chat.conversation.ChatConversationRepository
 import top.role.android.feature.chat.friends.ChatFriendsRepository
@@ -26,7 +27,9 @@ import top.role.android.feature.bounty.detail.BountyDetailRepository
 import top.role.android.feature.market.MarketListRepository
 import top.role.android.feature.market.detail.MarketDetailRepository
 import top.role.android.feature.market.order.MarketOrderListRepository
+import top.role.android.feature.market.order.detail.MarketOrderDetailRepository
 import top.role.android.feature.membership.MembershipRepository
+import top.role.android.feature.credit.CreditsRepository
 
 data class MainNavigationDependencies(
     val localOwnerUserId: String,
@@ -57,5 +60,8 @@ data class MainNavigationDependencies(
     val membershipRepository: MembershipRepository,
     val wechatPayLauncher: WechatPayLauncher,
     val marketOrderListRepository: MarketOrderListRepository,
+    val marketOrderDetailRepository: MarketOrderDetailRepository,
     val accountRepository: AccountRepository,
+    val accountPasswordRepository: AccountPasswordRepository,
+    val creditsRepository: CreditsRepository,
 )

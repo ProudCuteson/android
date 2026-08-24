@@ -131,6 +131,23 @@ fun NavGraphBuilder.discoverNavGraph(
             },
 
             onTopicClick = { item ->
+
+                if (
+                    !item.canOpen
+                ) {
+                    if (
+                        item.lockReason ==
+                        "member_required"
+                    ) {
+                        openMembership(
+                            item.space.id
+                        )
+                    }
+
+                    return@DiscoverScreen
+                }
+
+
                 navController.navigate(
                     TopicDetailRoute.create(
                         id =
@@ -186,6 +203,7 @@ fun NavGraphBuilder.discoverNavGraph(
                     ContentListRoute.route
                 )
             },
+
         )
     }
 
@@ -418,8 +436,8 @@ fun NavGraphBuilder.discoverNavGraph(
     }
 
     /*
- * Membership
- */
+     * Membership
+     */
 
     composable(
         route =

@@ -52,8 +52,11 @@ import top.role.android.feature.market.detail.MarketDetailRepository
 import top.role.android.feature.membership.MembershipRepository
 import top.role.android.core.payment.WechatPayLauncher
 import top.role.android.feature.market.order.MarketOrderListRepository
-
+import top.role.android.feature.market.order.detail.MarketOrderDetailRepository
+import top.role.android.feature.credit.CreditsRepository
 import top.role.android.feature.account.AccountRepository
+import top.role.android.feature.account.password.AccountPasswordRepository
+import top.role.android.core.preferences.AppPreferencesRepository
 
 class AppContainer(
     context: Context,
@@ -368,6 +371,12 @@ class AppContainer(
             convexClient = convexClient,
         )
 
+    val marketOrderDetailRepository =
+        MarketOrderDetailRepository(
+            convexClient =
+                convexClient,
+        )
+
     val membershipRepository =
         MembershipRepository(
             convexClient = convexClient,
@@ -378,6 +387,27 @@ class AppContainer(
         AccountRepository(
             convexClient =
                 convexClient,
+        )
+
+    val creditsRepository =
+        CreditsRepository(
+            convexClient =
+                convexClient,
+
+            appHttpClient =
+                appHttpClient,
+        )
+
+    val accountPasswordRepository =
+        AccountPasswordRepository(
+            convexClient =
+                convexClient,
+        )
+
+    val appPreferencesRepository =
+        AppPreferencesRepository(
+            context =
+                appContext,
         )
 
 }

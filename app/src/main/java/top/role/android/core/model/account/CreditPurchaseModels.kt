@@ -36,3 +36,46 @@ data class CreditPurchasePack(
     val desc: String? = null,
     val isCustom: Boolean = false,
 )
+
+@Serializable
+data class MobileRecentCreditPurchasesResponse(
+    val ok: Boolean = false,
+
+    val items:
+    List<MobileRecentCreditPurchase> =
+        emptyList(),
+)
+
+
+@Serializable
+data class MobileRecentCreditPurchase(
+    val id: String = "",
+    val outTradeNo: String = "",
+    val status: String = "",
+
+    val packKey: String? = null,
+    val packTitle: String? = null,
+
+    val amountMinor: Double = 0.0,
+    val amountText: String? = null,
+    val currency: String = "",
+
+    val credits: Double = 0.0,
+    val discountRate: String? = null,
+    val isCustom: Boolean = false,
+
+    val paymentProvider: String? = null,
+    val paymentChannel: String? = null,
+
+    val balanceAfter: Double? = null,
+
+    val paidAt: Double? = null,
+    val settledAt: Double? = null,
+    val failedAt: Double? = null,
+
+    val failureCode: String? = null,
+    val dueAt: Double? = null,
+
+    val createdAt: Double? = null,
+    val updatedAt: Double? = null,
+)

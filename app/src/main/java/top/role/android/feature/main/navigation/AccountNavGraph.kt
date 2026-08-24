@@ -8,21 +8,32 @@ import androidx.navigation.compose.composable
 import top.role.android.app.navigation.AccountPasswordRoute
 import top.role.android.app.navigation.AccountRoute
 import top.role.android.app.navigation.CreditsRoute
-import top.role.android.app.navigation.SettingsRoute
+import top.role.android.app.navigation.InAppBrowserRoute
+
+import top.role.android.core.preferences.AppAppearance
+import top.role.android.core.preferences.WeekStart
 
 import top.role.android.feature.account.AccountScreen
 import top.role.android.feature.account.AccountViewModel
+import top.role.android.feature.account.password.AccountPasswordScreen
+import top.role.android.feature.account.password.AccountPasswordViewModel
+
+import top.role.android.feature.credit.CreditsScreen
+import top.role.android.feature.credit.CreditsViewModel
 
 
 fun NavGraphBuilder.accountNavGraph(
-    navController:
-    NavHostController,
-    dependencies:
-    MainNavigationDependencies,
-    onReSignIn:
-        () -> Unit,
-    onSignOut:
-        () -> Unit,
+    navController: NavHostController,
+    dependencies: MainNavigationDependencies,
+
+    appearance: AppAppearance,
+    weekStart: WeekStart,
+
+    onAppearanceChange: (AppAppearance) -> Unit,
+    onWeekStartChange: (WeekStart) -> Unit,
+
+    onReSignIn: () -> Unit,
+    onSignOut: () -> Unit,
 ) {
 
     composable(
@@ -45,6 +56,20 @@ fun NavGraphBuilder.accountNavGraph(
             viewModel =
                 viewModel,
 
+            appearance =
+                appearance,
+
+            weekStart =
+                weekStart,
+
+            onAppearanceChange =
+                onAppearanceChange,
+
+            onWeekStartChange =
+                onWeekStartChange,
+
+            versionName = "1.0",
+
             onOpenCredits = {
                 navController.navigate(
                     CreditsRoute.route
@@ -57,9 +82,21 @@ fun NavGraphBuilder.accountNavGraph(
                 )
             },
 
-            onOpenSettings = {
+            onOpenTerms = {
                 navController.navigate(
-                    SettingsRoute.route
+                    InAppBrowserRoute.create(
+                        title = "用户协议",
+                        url = "https://role.top/home/term",
+                    )
+                )
+            },
+
+            onOpenPrivacy = {
+                navController.navigate(
+                    InAppBrowserRoute.create(
+                        title = "隐私政策",
+                        url = "https://role.top/home/privacy",
+                    )
                 )
             },
 
@@ -68,6 +105,63 @@ fun NavGraphBuilder.accountNavGraph(
 
             onSignOut =
                 onSignOut,
+        )
+    }
+
+
+    composable(
+        route =
+            CreditsRoute.route,
+    ) {
+
+        val viewModel:
+                CreditsViewModel =
+            viewModel(
+                factory =
+                    CreditsViewModel.factory(
+                        repository =
+                            dependencies
+                                .creditsRepository,
+
+                        wechatPayLauncher =
+                            dependencies
+                                .wechatPayLauncher,
+                    ),
+            )
+
+        CreditsScreen(
+            viewModel =
+                viewModel,
+        )
+    }
+
+
+    composable(
+        route =
+            AccountPasswordRoute.route,
+    ) {
+
+        val viewModel:
+                AccountPasswordViewModel =
+            viewModel(
+                factory =
+                    AccountPasswordViewModel.factory(
+                        accountRepository =
+                            dependencies
+                                .accountRepository,
+
+                        passwordRepository =
+                            dependencies
+                                .accountPasswordRepository,
+                    ),
+            )
+
+        AccountPasswordScreen(
+            viewModel =
+                viewModel,
+
+            onReSignIn =
+                onReSignIn,
         )
     }
 }

@@ -12,10 +12,12 @@ import top.role.android.app.navigation.NoteLibraryRoute
 import top.role.android.feature.note.library.NoteLibraryScreen
 import top.role.android.app.navigation.NoteNewRoute
 import top.role.android.app.navigation.NoteNewDatedRoute
+import top.role.android.core.preferences.WeekStart
 
 fun NavGraphBuilder.dayNavGraph(
     navController: NavHostController,
     dependencies: MainNavigationDependencies,
+    weekStart: WeekStart
 ) {
     composable(
         route =
@@ -35,6 +37,8 @@ fun NavGraphBuilder.dayNavGraph(
                     )
                 )
             },
+
+            weekStart = weekStart,
 
             onOpenNote = { localKey ->
                 navController.navigate(
