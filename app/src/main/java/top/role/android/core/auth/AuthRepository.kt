@@ -113,6 +113,69 @@ class AuthRepository(
             )
         }
     }
+
+    suspend fun signInWithPassword(
+        phone: String,
+        password: String,
+    ): Result<LoginResult> {
+        return runCatching {
+            val response =
+                authApi.signInWithPassword(
+                    phone =
+                        phone,
+
+                    password =
+                        password,
+                )
+
+            if (
+                !response.ok
+            ) {
+                throw AuthException(
+                    code =
+                        response.code
+                            ?: "LOGIN_FAILED",
+
+                    message =
+                        response.message
+                            ?: "手机号或密码不正确",
+                )
+            }
+
+            LoginResult(
+                accessToken =
+                    response.accessToken
+                        ?: throw AuthException(
+                            code =
+                                "INVALID_RESPONSE",
+
+                            message =
+                                "登录令牌缺失",
+                        ),
+
+                expiresAt =
+                    response.expiresAt
+                        ?: throw AuthException(
+                            code =
+                                "INVALID_RESPONSE",
+
+                            message =
+                                "登录有效期缺失",
+                        ),
+
+                user =
+                    response.user
+                        ?: throw AuthException(
+                            code =
+                                "INVALID_RESPONSE",
+
+                            message =
+                                "登录用户信息缺失",
+                        ),
+            )
+        }
+    }
+
 }
 
 class AuthException(

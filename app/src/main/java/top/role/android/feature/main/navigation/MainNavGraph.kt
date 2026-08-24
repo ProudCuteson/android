@@ -57,5 +57,10 @@ fun MainNavGraph(
             onReSignIn = onReSignIn,
             onSignOut = onSignOut,
         )
+
+        browserNavGraph(
+            navController =
+                navController,
+        )
     }
 }

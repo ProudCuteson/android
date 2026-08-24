@@ -53,3 +53,9 @@ data class ExchangeOtpResponse(
     val code: String? = null,
     val message: String? = null,
 )
+
+@Serializable
+data class PasswordLoginRequest(
+    val phone: String,
+    val password: String,
+)

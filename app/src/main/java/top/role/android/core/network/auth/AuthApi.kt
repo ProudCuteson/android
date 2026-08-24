@@ -2,7 +2,6 @@ package top.role.android.core.network.auth
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -59,6 +58,31 @@ class AuthApi(
             ),
             decode = {
                 json.decodeFromString<ExchangeOtpResponse>(it)
+            },
+        )
+    }
+
+    suspend fun signInWithPassword(
+        phone: String,
+        password: String,
+    ): ExchangeOtpResponse {
+        return post(
+            path =
+                "/api/auth/phone/password-login",
+
+            request =
+                PasswordLoginRequest(
+                    phone =
+                        phone,
+
+                    password =
+                        password,
+                ),
+
+            decode = {
+                json.decodeFromString<ExchangeOtpResponse>(
+                    it
+                )
             },
         )
     }

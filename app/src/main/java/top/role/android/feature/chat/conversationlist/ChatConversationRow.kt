@@ -1,5 +1,8 @@
 package top.role.android.feature.chat.conversationlist
 
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -21,11 +24,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.layout.fillMaxSize
+
 import top.role.android.core.model.chat.MobileConversationKind
 import top.role.android.core.model.chat.MobileConversationListItem
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 @Composable
 fun ChatConversationRow(
@@ -214,40 +217,58 @@ private fun ChatConversationAvatar(
         modifier =
             Modifier
                 .size(48.dp)
-                .clip(shape)
+                .clip(
+                    shape
+                )
                 .background(
                     MaterialTheme
                         .colorScheme
                         .surfaceVariant
                 ),
-        contentAlignment = Alignment.Center,
+
+        contentAlignment =
+            Alignment.Center,
     ) {
+
         if (
             !imageUrl.isNullOrBlank()
         ) {
+
             AsyncImage(
-                model = imageUrl,
-                contentDescription = null,
+                model =
+                    imageUrl,
+
+                contentDescription =
+                    null,
+
                 modifier =
                     Modifier
-                        .size(48.dp)
-                        .clip(shape),
+                        .fillMaxSize(),
+
+                contentScale =
+                    ContentScale.Crop,
             )
+
         } else {
+
             Text(
                 text =
                     title
                         .firstOrNull()
                         ?.toString()
-                        ?: if (isGroup) {
+                        ?: if (
+                            isGroup
+                        ) {
                             "群"
                         } else {
                             "聊"
                         },
+
                 style =
                     MaterialTheme
                         .typography
                         .titleMedium,
+
                 color =
                     MaterialTheme
                         .colorScheme

@@ -3,6 +3,7 @@ package top.role.android.core.preferences
 import android.content.Context
 
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 
@@ -50,6 +51,25 @@ class AppPreferencesRepository(
             }
 
 
+    /*
+     * ------------------------------------------------
+     * Auth Agreement
+     * ------------------------------------------------
+     */
+
+    val acceptedAuthAgreementVersion:
+            Flow<Int> =
+        context
+            .appPreferencesDataStore
+            .data
+            .map { preferences ->
+
+                preferences[
+                    AUTH_AGREEMENT_VERSION_KEY
+                ] ?: 0
+            }
+
+
     suspend fun setAppearance(
         appearance: AppAppearance,
     ) {
@@ -82,6 +102,24 @@ class AppPreferencesRepository(
     }
 
 
+    /*
+     * 用户明确同意当前版本的
+     * 用户协议 / 隐私政策后调用。
+     */
+    suspend fun acceptAuthAgreement() {
+
+        context
+            .appPreferencesDataStore
+            .edit { preferences ->
+
+                preferences[
+                    AUTH_AGREEMENT_VERSION_KEY
+                ] =
+                    CURRENT_AUTH_AGREEMENT_VERSION
+            }
+    }
+
+
     private companion object {
 
         val APPEARANCE_KEY =
@@ -93,6 +131,12 @@ class AppPreferencesRepository(
         val WEEK_START_KEY =
             stringPreferencesKey(
                 "week_start"
+            )
+
+
+        val AUTH_AGREEMENT_VERSION_KEY =
+            intPreferencesKey(
+                "auth_agreement_version"
             )
     }
 }

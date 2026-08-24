@@ -16,6 +16,7 @@ import top.role.android.core.auth.AppSession
 data class SignInUiState(
     val phone: String = "",
     val code: String = "",
+    val password: String = "",
 
     val otpSent: Boolean = false,
     val maskedPhone: String? = null,
@@ -209,6 +210,116 @@ class SignInViewModel(
         return phone.length == 11 &&
                 phone.startsWith("1")
     }
+
+    fun updatePassword(
+        value: String,
+    ) {
+        _uiState.update {
+            it.copy(
+                password =
+                    value,
+
+                errorMessage =
+                    null,
+            )
+        }
+    }
+
+    fun signInWithPassword() {
+        val state =
+            _uiState.value
+
+        if (
+            !isValidMainlandPhone(
+                state.phone
+            )
+        ) {
+            _uiState.update {
+                it.copy(
+                    errorMessage =
+                        "请输入有效的中国大陆手机号",
+                )
+            }
+
+            return
+        }
+
+        if (
+            state.password.isBlank()
+        ) {
+            _uiState.update {
+                it.copy(
+                    errorMessage =
+                        "请输入密码",
+                )
+            }
+
+            return
+        }
+
+        if (
+            state.isSigningIn
+        ) {
+            return
+        }
+
+        viewModelScope.launch {
+
+            _uiState.update {
+                it.copy(
+                    isSigningIn =
+                        true,
+
+                    errorMessage =
+                        null,
+                )
+            }
+
+            authRepository
+                .signInWithPassword(
+                    phone =
+                        state.phone,
+
+                    password =
+                        state.password,
+                )
+                .onSuccess { login ->
+
+                    sessionStorage.saveSession(
+                        AppSession(
+                            accessToken =
+                                login.accessToken,
+
+                            expiresAt =
+                                login.expiresAt,
+
+                            userId =
+                                login.user.id,
+
+                            phone =
+                                login.user.phone,
+                        )
+                    )
+                }
+                .onFailure { error ->
+
+                    _uiState.update {
+                        it.copy(
+                            errorMessage =
+                                error.toUserMessage(),
+                        )
+                    }
+                }
+
+            _uiState.update {
+                it.copy(
+                    isSigningIn =
+                        false,
+                )
+            }
+        }
+    }
+
 }
 
 private fun Throwable.toUserMessage(): String {

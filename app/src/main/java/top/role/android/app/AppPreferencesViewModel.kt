@@ -6,11 +6,13 @@ import androidx.lifecycle.viewModelScope
 
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 import top.role.android.core.preferences.AppAppearance
 import top.role.android.core.preferences.AppPreferencesRepository
+import top.role.android.core.preferences.CURRENT_AUTH_AGREEMENT_VERSION
 import top.role.android.core.preferences.WeekStart
 
 
@@ -57,6 +59,30 @@ class AppPreferencesViewModel(
             )
 
 
+    val hasAcceptedAuthAgreement:
+            StateFlow<Boolean> =
+        repository
+            .acceptedAuthAgreementVersion
+            .map { version ->
+
+                version >=
+                        CURRENT_AUTH_AGREEMENT_VERSION
+            }
+            .stateIn(
+                scope =
+                    viewModelScope,
+
+                started =
+                    SharingStarted.WhileSubscribed(
+                        stopTimeoutMillis =
+                            5_000,
+                    ),
+
+                initialValue =
+                    false,
+            )
+
+
     fun setAppearance(
         appearance:
         AppAppearance,
@@ -83,6 +109,15 @@ class AppPreferencesViewModel(
                     weekStart =
                         weekStart,
                 )
+        }
+    }
+
+
+    fun acceptAuthAgreement() {
+        viewModelScope.launch {
+
+            repository
+                .acceptAuthAgreement()
         }
     }
 

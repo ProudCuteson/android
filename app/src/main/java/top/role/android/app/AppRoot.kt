@@ -28,6 +28,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import top.role.android.app.navigation.InAppBrowserRoute
+import top.role.android.feature.main.navigation.browserNavGraph
 
 @OptIn(FlowPreview::class)
 @Composable
@@ -75,6 +80,11 @@ fun AppRoot(
     val weekStart by
     appPreferencesViewModel
         .weekStart
+        .collectAsStateWithLifecycle()
+
+    val hasAcceptedAuthAgreement by
+    appPreferencesViewModel
+        .hasAcceptedAuthAgreement
         .collectAsStateWithLifecycle()
 
     LaunchedEffect(
@@ -180,6 +190,12 @@ fun AppRoot(
         SignedOutContent(
             appContainer =
                 appContainer,
+
+            hasAcceptedAuthAgreement =
+                hasAcceptedAuthAgreement,
+
+            onAcceptAuthAgreement =
+                appPreferencesViewModel::acceptAuthAgreement,
         )
 
         return
@@ -251,6 +267,12 @@ fun AppRoot(
         SignedOutContent(
             appContainer =
                 appContainer,
+
+            hasAcceptedAuthAgreement =
+                hasAcceptedAuthAgreement,
+
+            onAcceptAuthAgreement =
+                appPreferencesViewModel::acceptAuthAgreement,
         )
 
     } else {
@@ -386,6 +408,8 @@ fun AppRoot(
 @Composable
 private fun SignedOutContent(
     appContainer: AppContainer,
+    hasAcceptedAuthAgreement: Boolean,
+    onAcceptAuthAgreement: () -> Unit,
 ) {
     val signInViewModel: SignInViewModel =
         viewModel(
@@ -401,17 +425,72 @@ private fun SignedOutContent(
     signInViewModel.uiState
         .collectAsStateWithLifecycle()
 
-    SignInScreen(
-        state = state,
-        onPhoneChange =
-            signInViewModel::updatePhone,
-        onCodeChange =
-            signInViewModel::updateCode,
-        onSendOtp =
-            signInViewModel::sendOtp,
-        onSignIn =
-            signInViewModel::verifyAndSignIn,
-        onBackToPhone =
-            signInViewModel::backToPhone,
-    )
+    val navController =
+        rememberNavController()
+
+    NavHost(
+        navController = navController,
+        startDestination = "sign_in",
+    ) {
+
+        composable(
+            route = "sign_in",
+        ) {
+
+            SignInScreen(
+                state = state,
+
+                hasAcceptedAgreement =
+                    hasAcceptedAuthAgreement,
+
+                onAcceptAgreement =
+                    onAcceptAuthAgreement,
+
+                onPhoneChange =
+                    signInViewModel::updatePhone,
+
+                onCodeChange =
+                    signInViewModel::updateCode,
+
+                onPasswordChange =
+                    signInViewModel::updatePassword,
+
+                onSendOtp =
+                    signInViewModel::sendOtp,
+
+                onSignIn =
+                    signInViewModel::verifyAndSignIn,
+
+                onPasswordSignIn =
+                    signInViewModel::signInWithPassword,
+
+                onBackToPhone =
+                    signInViewModel::backToPhone,
+
+                onOpenTerms = {
+                    navController.navigate(
+                        InAppBrowserRoute.create(
+                            title = "用户协议",
+                            url = "https://role.top/home/term",
+                        )
+                    )
+                },
+
+                onOpenPrivacy = {
+                    navController.navigate(
+                        InAppBrowserRoute.create(
+                            title = "隐私政策",
+                            url = "https://role.top/home/privacy",
+                        )
+                    )
+                },
+            )
+        }
+
+        // 这里注册现有 InAppBrowserScreen
+        browserNavGraph(
+            navController =
+                navController,
+        )
+    }
 }
