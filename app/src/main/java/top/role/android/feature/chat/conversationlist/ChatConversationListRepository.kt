@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 
 import top.role.android.core.convex.ConvexMobileClient
 import top.role.android.core.model.chat.MobileConversationListItem
+import top.role.android.feature.chat.conversation.MutationOkResult
 
 class ChatConversationListRepository(
     private val convexClient: ConvexMobileClient,
@@ -28,7 +29,7 @@ class ChatConversationListRepository(
             "CONVERSATION_ID_REQUIRED"
         }
 
-        convexClient.mutation<Map<String, Any?>>(
+        convexClient.mutation<MutationOkResult>(
             name =
                 "mobile/native/chat/conversation:hideConversationForMe",
 

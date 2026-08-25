@@ -15,6 +15,17 @@ data class MobileSendImageMessageResult(
     val copied: Boolean = false,
 )
 
+@Serializable
+data class MutationOkResult(
+    val ok: Boolean,
+)
+
+@Serializable
+data class SendTextMessageResult(
+    val ok: Boolean,
+    val messageId: String,
+)
+
 class ChatConversationRepository(
     private val convexClient: ConvexMobileClient,
 ) {
@@ -63,7 +74,7 @@ class ChatConversationRepository(
     suspend fun markOpened(
         conversationId: String,
     ) {
-        convexClient.mutation<Map<String, Any?>>(
+        convexClient.mutation<MutationOkResult>(
             name =
                 "mobile/native/chat/conversation:markConversationOpened",
 
@@ -98,7 +109,7 @@ class ChatConversationRepository(
         }
 
         convexClient.mutation<
-                Map<String, Any?>
+                SendTextMessageResult
                 >(
             name =
                 "mobile/native/chat/message:sendTextMessage",
@@ -154,11 +165,15 @@ class ChatConversationRepository(
             "MESSAGE_ID_REQUIRED"
         }
 
-        convexClient.mutation<Map<String, Any?>>(
-            name = "mobile/native/chat/message:recallMessage",
-            args = mapOf(
-                "messageId" to messageId,
-            ),
+        convexClient.mutation<MutationOkResult>(
+            name =
+                "mobile/native/chat/message:recallMessage",
+
+            args =
+                mapOf(
+                    "messageId" to
+                            messageId,
+                ),
         )
     }
 
@@ -169,11 +184,15 @@ class ChatConversationRepository(
             "MESSAGE_ID_REQUIRED"
         }
 
-        convexClient.mutation<Map<String, Any?>>(
-            name = "mobile/native/chat/message:deleteMessageForMe",
-            args = mapOf(
-                "messageId" to messageId,
-            ),
+        convexClient.mutation<MutationOkResult>(
+            name =
+                "mobile/native/chat/message:deleteMessageForMe",
+
+            args =
+                mapOf(
+                    "messageId" to
+                            messageId,
+                ),
         )
     }
 
