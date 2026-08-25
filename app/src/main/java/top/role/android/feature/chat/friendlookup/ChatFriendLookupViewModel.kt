@@ -175,14 +175,45 @@ class ChatFriendLookupViewModel(
             }
                 .onSuccess { result ->
 
-                    _uiState.value =
-                        _uiState.value.copy(
-                            sendingUserId = null,
+                    val conversationId =
+                        result.conversationId
+
+                    if (
+                        result.ok &&
+                        !conversationId.isNullOrBlank()
+                    ) {
+                        _uiState.value =
+                            _uiState.value.copy(
+                                sendingUserId = null,
+                            )
+
+                        onSuccess(
+                            conversationId
                         )
 
-                    onSuccess(
-                        result.conversationId
-                    )
+                    } else {
+
+                        _uiState.value =
+                            _uiState.value.copy(
+                                sendingUserId = null,
+                                errorMessage =
+                                    when (
+                                        result.code
+                                    ) {
+                                        "CANNOT_MESSAGE_SELF" ->
+                                            "不能和自己聊天。"
+
+                                        "USER_NOT_FOUND" ->
+                                            "用户不存在。"
+
+                                        "NOT_FRIENDS" ->
+                                            "你们还不是好友。"
+
+                                        else ->
+                                            "暂时无法打开聊天。"
+                                    },
+                            )
+                    }
                 }
                 .onFailure {
 

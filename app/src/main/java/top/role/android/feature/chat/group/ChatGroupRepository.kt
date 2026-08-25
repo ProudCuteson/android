@@ -19,7 +19,7 @@ class ChatGroupRepository(
 
         return convexClient.subscribe(
             name =
-                "mobile/ios/chat:getMobileConversation",
+                "mobile/native/chat/conversation:getConversation",
 
             args =
                 mapOf(
@@ -36,7 +36,7 @@ class ChatGroupRepository(
 
         return convexClient.mutation(
             name =
-                "mobile/ios/chat:createMobileGroupConversation",
+                "mobile/native/chat/group:createGroup",
 
             args =
                 mapOf(
@@ -53,7 +53,7 @@ class ChatGroupRepository(
 
         return convexClient.mutation(
             name =
-                "mobile/ios/chat:updateMobileGroupConversation",
+                "mobile/native/chat/group:updateGroup",
 
             args =
                 mapOf(
@@ -73,7 +73,7 @@ class ChatGroupRepository(
 
         return convexClient.mutation(
             name =
-                "mobile/ios/chat:addMobileGroupMembers",
+                "mobile/native/chat/group:addGroupMembers",
 
             args =
                 mapOf(
@@ -93,7 +93,7 @@ class ChatGroupRepository(
 
         return convexClient.mutation(
             name =
-                "mobile/ios/chat:removeMobileGroupMember",
+                "mobile/native/chat/group:removeGroupMember",
 
             args =
                 mapOf(
@@ -112,7 +112,7 @@ class ChatGroupRepository(
 
         return convexClient.mutation(
             name =
-                "mobile/ios/chat:leaveMobileConversation",
+                "mobile/native/chat/group:leaveConversation",
 
             args =
                 mapOf(
@@ -129,7 +129,7 @@ class ChatGroupRepository(
 
         return convexClient.mutation(
             name =
-                "mobile/ios/chat:transferMobileGroupOwner",
+                "mobile/native/chat/group:transferGroupOwner",
 
             args =
                 mapOf(

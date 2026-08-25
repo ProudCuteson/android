@@ -24,7 +24,7 @@ class ChatConversationRepository(
     ): Flow<Result<MobileConversationDetail?>> {
         return convexClient.subscribe(
             name =
-                "mobile/ios/chat:getMobileConversation",
+                "mobile/native/chat/conversation:getConversation",
 
             args =
                 mapOf(
@@ -41,7 +41,7 @@ class ChatConversationRepository(
     ): Flow<Result<MobileChatMessagePage>> {
         return convexClient.subscribe(
             name =
-                "mobile/ios/chat:listMobileMessagesPaginated",
+                "mobile/native/chat/message:listMessagesPaginated",
 
             args =
                 mapOf(
@@ -65,7 +65,7 @@ class ChatConversationRepository(
     ) {
         convexClient.mutation<Map<String, Any?>>(
             name =
-                "mobile/ios/chat:markMobileConversationOpened",
+                "mobile/native/chat/conversation:markConversationOpened",
 
             args =
                 mapOf(
@@ -101,7 +101,7 @@ class ChatConversationRepository(
                 Map<String, Any?>
                 >(
             name =
-                "mobile/ios/chat:sendMobileTextMessage",
+                "mobile/native/chat/message:sendTextMessage",
 
             args =
                 args,
@@ -142,7 +142,7 @@ class ChatConversationRepository(
             }
 
         return convexClient.action(
-            name = "mobile/ios/chat:sendMobileImageMessage",
+            name = "mobile/native/chat/image:sendImageMessage",
             args = args,
         )
     }
@@ -155,7 +155,7 @@ class ChatConversationRepository(
         }
 
         convexClient.mutation<Map<String, Any?>>(
-            name = "mobile/ios/chat:recallMobileMessage",
+            name = "mobile/native/chat/message:recallMessage",
             args = mapOf(
                 "messageId" to messageId,
             ),
@@ -170,7 +170,7 @@ class ChatConversationRepository(
         }
 
         convexClient.mutation<Map<String, Any?>>(
-            name = "mobile/ios/chat:deleteMobileMessageForMe",
+            name = "mobile/native/chat/message:deleteMessageForMe",
             args = mapOf(
                 "messageId" to messageId,
             ),

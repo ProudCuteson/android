@@ -287,8 +287,7 @@ private fun MobileChartHeader(
         }
 
         if (
-            showDescription &&
-            description != null
+            showDescription
         ) {
             Text(
                 text =

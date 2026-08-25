@@ -2,6 +2,7 @@ package top.role.android.feature.chat.conversationlist
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,10 +21,14 @@ class ChatConversationListViewModel(
     val uiState: StateFlow<ChatConversationListUiState> =
         _uiState.asStateFlow()
 
-    private var observeJob: Job? = null
+    private var observeJob: Job? =
+        null
+
 
     fun start() {
-        if (observeJob != null) {
+        if (
+            observeJob != null
+        ) {
             return
         }
 
@@ -32,17 +37,22 @@ class ChatConversationListViewModel(
 
         observeJob =
             viewModelScope.launch {
+
                 repository
                     .observeConversations()
                     .collect { result ->
+
                         result
                             .onSuccess { conversations ->
+
                                 _uiState.value =
                                     ChatConversationListUiState.Content(
-                                        conversations = conversations,
+                                        conversations =
+                                            conversations,
                                     )
                             }
                             .onFailure {
+
                                 _uiState.value =
                                     ChatConversationListUiState.Error(
                                         message =
@@ -53,12 +63,46 @@ class ChatConversationListViewModel(
             }
     }
 
+
+    fun hideConversation(
+        conversationId: String,
+    ) {
+        if (
+            conversationId.isBlank()
+        ) {
+            return
+        }
+
+        viewModelScope.launch {
+
+            runCatching {
+                repository
+                    .hideConversationForMe(
+                        conversationId =
+                            conversationId,
+                    )
+            }
+                .onFailure {
+
+                    /*
+                     * 当前列表继续保持。
+                     *
+                     * 后续如果需要 Snackbar，
+                     * 再单独增加 effect / message state，
+                     * 不污染列表主 UiState。
+                     */
+                }
+        }
+    }
+
+
     fun showOffline() {
         stopSubscription()
 
         _uiState.value =
             ChatConversationListUiState.Offline
     }
+
 
     fun showSignedOut() {
         stopSubscription()
@@ -67,18 +111,23 @@ class ChatConversationListViewModel(
             ChatConversationListUiState.SignedOut
     }
 
+
     fun retry() {
         stopSubscription()
         start()
     }
 
+
     private fun stopSubscription() {
         observeJob?.cancel()
-        observeJob = null
+        observeJob =
+            null
     }
+
 
     override fun onCleared() {
         stopSubscription()
+
         super.onCleared()
     }
 }

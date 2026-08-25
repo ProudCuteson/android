@@ -3,19 +3,13 @@ package top.role.android.feature.chat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 
 import androidx.compose.runtime.Composable
 
@@ -26,114 +20,105 @@ import androidx.compose.ui.unit.dp
 import top.role.android.feature.chat.conversationlist.ChatConversationListUiState
 import top.role.android.feature.chat.conversationlist.ChatConversationRow
 
+
 @Composable
 fun ChatScreen(
     state: ChatConversationListUiState,
     onRetry: () -> Unit,
     onConversationClick: (String) -> Unit,
 ) {
-    Column(
+    Box(
         modifier =
             Modifier.fillMaxSize(),
     ) {
+        when (state) {
 
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-        ) {
-            when (state) {
-                ChatConversationListUiState.Loading -> {
-                    Box(
+            ChatConversationListUiState.Loading -> {
+                CircularProgressIndicator(
+                    modifier =
+                        Modifier.align(
+                            Alignment.Center
+                        ),
+                )
+            }
+
+
+            ChatConversationListUiState.Offline -> {
+                ChatMessageState(
+                    title =
+                        "当前处于离线状态",
+
+                    description =
+                        "连接网络后将自动恢复聊天。",
+                )
+            }
+
+
+            ChatConversationListUiState.SignedOut -> {
+                ChatMessageState(
+                    title =
+                        "登录后使用聊天",
+
+                    description =
+                        "请先登录账号。",
+                )
+            }
+
+
+            is ChatConversationListUiState.Error -> {
+                ChatMessageState(
+                    title =
+                        "无法加载聊天",
+
+                    description =
+                        state.message,
+
+                    actionLabel =
+                        "重试",
+
+                    onAction =
+                        onRetry,
+                )
+            }
+
+
+            is ChatConversationListUiState.Content -> {
+                if (
+                    state.conversations.isEmpty()
+                ) {
+                    ChatMessageState(
+                        title =
+                            "暂无会话",
+
+                        description =
+                            "新的聊天会显示在这里。",
+                    )
+
+                } else {
+
+                    LazyColumn(
                         modifier =
                             Modifier.fillMaxSize(),
-
-                        contentAlignment =
-                            Alignment.Center,
                     ) {
-                        CircularProgressIndicator()
-                    }
-                }
+                        items(
+                            items =
+                                state.conversations,
 
-                ChatConversationListUiState.Offline -> {
-                    ChatMessageState(
-                        title =
-                            "当前处于离线状态",
+                            key = {
+                                it.conversationId
+                            },
+                        ) { item ->
 
-                        description =
-                            "连接网络后即可继续使用聊天。",
+                            ChatConversationRow(
+                                item =
+                                    item,
 
-                        actionLabel =
-                            "重试",
-
-                        onAction =
-                            onRetry,
-                    )
-                }
-
-                ChatConversationListUiState.SignedOut -> {
-                    ChatMessageState(
-                        title =
-                            "登录后使用聊天",
-
-                        description =
-                            "请先登录账号。",
-                    )
-                }
-
-                is ChatConversationListUiState.Error -> {
-                    ChatMessageState(
-                        title =
-                            "无法加载聊天",
-
-                        description =
-                            state.message,
-
-                        actionLabel =
-                            "重试",
-
-                        onAction =
-                            onRetry,
-                    )
-                }
-
-                is ChatConversationListUiState.Content -> {
-                    if (
-                        state.conversations.isEmpty()
-                    ) {
-                        ChatMessageState(
-                            title =
-                                "暂无会话",
-
-                            description =
-                                "新的聊天会显示在这里。",
-                        )
-                    } else {
-                        LazyColumn(
-                            modifier =
-                                Modifier.fillMaxSize(),
-                        ) {
-                            items(
-                                items =
-                                    state.conversations,
-
-                                key = {
-                                    it.conversationId
+                                onClick = {
+                                    onConversationClick(
+                                        item.conversationId
+                                    )
                                 },
-                            ) { item ->
-
-                                ChatConversationRow(
-                                    item =
-                                        item,
-
-                                    onClick = {
-                                        onConversationClick(
-                                            item.conversationId
-                                        )
-                                    },
-                                )
-                            }
+                            )
                         }
                     }
                 }
@@ -141,6 +126,7 @@ fun ChatScreen(
         }
     }
 }
+
 
 @Composable
 private fun ChatMessageState(

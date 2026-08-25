@@ -3,11 +3,11 @@ package top.role.android.feature.chat.friends
 import kotlinx.coroutines.flow.Flow
 
 import top.role.android.core.convex.ConvexMobileClient
-import top.role.android.core.model.chat.MobileDirectConversationResult
 import top.role.android.core.model.chat.MobileFriendInviteItem
 import top.role.android.core.model.chat.MobileFriendItem
 import top.role.android.core.model.chat.MobileFriendLookupItem
 import top.role.android.core.model.chat.MobileFriendActionResult
+import top.role.android.core.model.chat.MobileOpenFriendConversationResult
 
 class ChatFriendsRepository(
     private val convexClient:
@@ -19,7 +19,7 @@ class ChatFriendsRepository(
 
         return convexClient.subscribe(
             name =
-                "mobile/ios/friend:listMobileFriends",
+                "mobile/native/friend/index:listFriends",
 
             args =
                 emptyMap(),
@@ -31,7 +31,7 @@ class ChatFriendsRepository(
 
         return convexClient.subscribe(
             name =
-                "mobile/ios/friend:listMobileFriendInvites",
+                "mobile/native/friend/index:listFriendInvites",
 
             args =
                 emptyMap(),
@@ -44,7 +44,7 @@ class ChatFriendsRepository(
 
         return convexClient.mutation(
             name =
-                "mobile/ios/friend:acceptMobileFriendInvite",
+                "mobile/native/friend/index:acceptFriendInvite",
 
             args =
                 mapOf(
@@ -59,7 +59,7 @@ class ChatFriendsRepository(
 
         return convexClient.mutation(
             name =
-                "mobile/ios/friend:rejectMobileFriendInvite",
+                "mobile/native/friend/index:rejectFriendInvite",
 
             args =
                 mapOf(
@@ -70,11 +70,11 @@ class ChatFriendsRepository(
 
     suspend fun openDirectConversation(
         userId: String,
-    ): MobileDirectConversationResult {
+    ): MobileOpenFriendConversationResult {
 
         return convexClient.mutation(
             name =
-                "mobile/ios/chat:getOrCreateMobileDirectConversation",
+                "mobile/native/friend/index:openDirectConversationWithUser",
 
             args =
                 mapOf(
@@ -90,7 +90,7 @@ class ChatFriendsRepository(
 
         return convexClient.subscribe(
             name =
-                "mobile/ios/friend:lookupMobileUsers",
+                "mobile/native/friend/index:lookupUsers",
 
             args =
                 mapOf(
@@ -106,7 +106,7 @@ class ChatFriendsRepository(
 
         return convexClient.mutation(
             name =
-                "mobile/ios/friend:sendMobileFriendInvite",
+                "mobile/native/friend/index:sendFriendInvite",
 
             args =
                 mapOf(

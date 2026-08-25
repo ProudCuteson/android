@@ -80,9 +80,6 @@ fun MobileRenderBlockView(
                 )
             }
 
-            else -> {
-                // image / code / table / chart 后面补
-            }
         }
     }
 }
