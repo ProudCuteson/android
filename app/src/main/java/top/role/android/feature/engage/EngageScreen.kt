@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -28,7 +27,7 @@ import androidx.compose.ui.unit.dp
 import top.role.android.core.model.engage.MobileBountyCard
 import top.role.android.core.model.engage.MobileMarketCard
 import top.role.android.core.model.engage.MobileSurveyCard
-
+import top.role.android.ui.components.RemoteMessageState
 
 @Composable
 fun EngageScreen(
@@ -47,13 +46,32 @@ fun EngageScreen(
 ) {
     when {
         state.signedOut -> {
-            EngageSignedOutContent()
+            RemoteMessageState(
+                title =
+                    "登录后使用参与功能",
+
+                description =
+                    "请先登录账号，以查看调查、赏金和市场内容。",
+            )
         }
+
+
+        state.offline -> {
+            RemoteMessageState(
+                title =
+                    "当前处于离线状态",
+
+                description =
+                    "连接网络后将自动恢复内容列表。",
+            )
+        }
+
 
         state.loading &&
                 state.home == null -> {
             EngageLoadingContent()
         }
+
 
         state.home != null -> {
             val home =
@@ -95,22 +113,29 @@ fun EngageScreen(
             )
         }
 
+
         state.errorMessage != null -> {
-            EngageErrorContent(
-                message =
+            RemoteMessageState(
+                title =
+                    "参与内容加载失败",
+
+                description =
                     state.errorMessage,
 
-                onRetry =
+                actionLabel =
+                    "重试",
+
+                onAction =
                     onRetry,
             )
         }
+
 
         else -> {
             EngageEmptyContent()
         }
     }
 }
-
 
 @Composable
 private fun EngageHomeContent(
@@ -718,79 +743,6 @@ private fun EngageLoadingContent() {
         CircularProgressIndicator()
     }
 }
-
-
-@Composable
-private fun EngageSignedOutContent() {
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-
-        horizontalAlignment =
-            Alignment.CenterHorizontally,
-
-        verticalArrangement =
-            Arrangement.Center,
-    ) {
-        Text(
-            text =
-                "登录后查看参与内容",
-
-            style =
-                MaterialTheme
-                    .typography
-                    .bodyLarge,
-        )
-    }
-}
-
-
-@Composable
-private fun EngageErrorContent(
-    message: String,
-    onRetry: () -> Unit,
-) {
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-
-        horizontalAlignment =
-            Alignment.CenterHorizontally,
-
-        verticalArrangement =
-            Arrangement.Center,
-    ) {
-        Text(
-            text =
-                message,
-
-            style =
-                MaterialTheme
-                    .typography
-                    .bodyMedium,
-        )
-
-        Button(
-            modifier =
-                Modifier.padding(
-                    top = 16.dp
-                ),
-
-            onClick =
-                onRetry,
-        ) {
-            Text(
-                text =
-                    "重试"
-            )
-        }
-    }
-}
-
 
 @Composable
 private fun EngageInlineError(

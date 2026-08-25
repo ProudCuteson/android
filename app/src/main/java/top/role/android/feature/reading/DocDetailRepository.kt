@@ -30,7 +30,7 @@ class DocDetailRepository(
 
         return convexClient.subscribe(
             name =
-                "mobile/ios/doc:getMobileDocDetail",
+                "mobile/native/doc/index:getDocDetail",
 
             args = args,
         )

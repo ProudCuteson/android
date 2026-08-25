@@ -23,6 +23,7 @@ import top.role.android.core.database.TopRoleDatabase
 import top.role.android.core.network.ApiConfig
 import top.role.android.core.network.auth.AuthApi
 import top.role.android.core.network.AppHttpClient
+import top.role.android.core.network.NetworkMonitor
 import top.role.android.core.storage.NoteSyncCheckpointStorage
 import top.role.android.core.storage.SessionStorage
 import top.role.android.feature.discover.DiscoverRepository
@@ -97,6 +98,12 @@ class AppContainer(
 
             baseUrl =
                 ApiConfig.BASE_URL,
+        )
+
+    val networkMonitor =
+        NetworkMonitor(
+            context =
+                appContext,
         )
 
     val wechatPayLauncher =

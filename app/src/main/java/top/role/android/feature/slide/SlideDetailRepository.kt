@@ -23,7 +23,7 @@ class SlideDetailRepository(
                 convexClient
                     .subscribe<MobileSlideDetailResponse?>(
                         name =
-                            "mobile/ios/slide:getMobileSlideDetail",
+                            "mobile/native/slide/index:getSlideDetail",
 
                         args =
                             mapOf(
@@ -59,7 +59,7 @@ class SlideDetailRepository(
             convexClient
                 .subscribe<MobileSlideQuestionsResponse>(
                     name =
-                        "mobile/ios/slide:listMobileSlideQuestions",
+                        "mobile/native/slide/index:listSlideQuestions",
 
                     args =
                         mapOf(
@@ -107,7 +107,7 @@ class SlideDetailRepository(
                 convexClient
                     .mutation<MobileSlideQuestionSubmitResponse>(
                         name =
-                            "mobile/ios/slide:createMobileSlideQuestion",
+                            "mobile/native/slide/index:createSlideQuestion",
 
                         args =
                             mapOf(
@@ -157,7 +157,7 @@ class SlideDetailRepository(
                 convexClient
                     .mutation<MobileSlideQuestionActionResponse>(
                         name =
-                            "mobile/ios/slide:markMobileSlideQuestionAnswered",
+                            "mobile/native/slide/index:markSlideQuestionAnswered",
 
                         args =
                             mapOf(
@@ -204,7 +204,7 @@ class SlideDetailRepository(
                 convexClient
                     .mutation<MobileSlideQuestionActionResponse>(
                         name =
-                            "mobile/ios/slide:hideMobileSlideQuestion",
+                            "mobile/native/slide/index:hideSlideQuestion",
 
                         args =
                             mapOf(

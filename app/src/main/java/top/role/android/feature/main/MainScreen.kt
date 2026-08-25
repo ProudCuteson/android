@@ -69,6 +69,7 @@ import top.role.android.feature.market.order.detail.MarketOrderDetailRepository
 fun MainScreen(
     localOwnerUserId: String,
     remoteAuthenticated: Boolean,
+    remoteOnline: Boolean,
 
     noteLocalRepository: NoteLocalRepository,
     noteAiRemoteDataSource: NoteAiRemoteDataSource,
@@ -155,6 +156,7 @@ fun MainScreen(
         remember(
             localOwnerUserId,
             remoteAuthenticated,
+            remoteOnline,
 
             noteLocalRepository,
             noteAiRemoteDataSource,
@@ -196,6 +198,7 @@ fun MainScreen(
             MainNavigationDependencies(
                 localOwnerUserId = localOwnerUserId,
                 remoteAuthenticated = remoteAuthenticated,
+                remoteOnline = remoteOnline,
 
                 noteLocalRepository = noteLocalRepository,
                 noteAiRemoteDataSource = noteAiRemoteDataSource,

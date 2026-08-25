@@ -74,13 +74,20 @@ fun NavGraphBuilder.chatNavGraph(
 
         LaunchedEffect(
             dependencies.remoteAuthenticated,
+            dependencies.remoteOnline,
         ) {
-            if (
-                dependencies.remoteAuthenticated
-            ) {
-                chatViewModel.start()
-            } else {
-                chatViewModel.showSignedOut()
+            when {
+                !dependencies.remoteAuthenticated -> {
+                    chatViewModel.showSignedOut()
+                }
+
+                !dependencies.remoteOnline -> {
+                    chatViewModel.showOffline()
+                }
+
+                else -> {
+                    chatViewModel.start()
+                }
             }
         }
 
@@ -98,6 +105,12 @@ fun NavGraphBuilder.chatNavGraph(
                     ChatConversationRoute.create(
                         conversationId = conversationId,
                     )
+                )
+            },
+            onHideConversation = { conversationId ->
+                chatViewModel.hideConversation(
+                    conversationId =
+                        conversationId,
                 )
             },
         )

@@ -16,7 +16,7 @@ class TopicDetailRepository(
 
         return convexClient.subscribe(
             name =
-                "mobile/ios/topic:getMobileTopicDetail",
+                "mobile/native/topic/index:getTopicDetail",
 
             args = mapOf(
                 "topicId" to topicId,

@@ -1,5 +1,6 @@
 package top.role.android.feature.main.navigation
 
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 
@@ -113,6 +114,25 @@ fun NavGraphBuilder.discoverNavGraph(
         discoverViewModel
             .uiState
             .collectAsStateWithLifecycle()
+
+        LaunchedEffect(
+            dependencies.remoteAuthenticated,
+            dependencies.remoteOnline,
+        ) {
+            when {
+                !dependencies.remoteAuthenticated -> {
+                    discoverViewModel.showSignedOut()
+                }
+
+                !dependencies.remoteOnline -> {
+                    discoverViewModel.showOffline()
+                }
+
+                else -> {
+                    discoverViewModel.start()
+                }
+            }
+        }
 
         DiscoverScreen(
             state =

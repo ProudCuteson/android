@@ -6,12 +6,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+
 import androidx.compose.runtime.Composable
+
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -19,38 +23,69 @@ import androidx.compose.ui.unit.dp
 import top.role.android.core.model.content.MobileContentCard
 import top.role.android.core.model.discover.MobileDiscoverPage
 import top.role.android.core.model.space.MobileSpaceCard
-import top.role.android.core.model.topic.MobileTopicCard
 import top.role.android.core.model.space.SpaceListMode
+import top.role.android.core.model.topic.MobileTopicCard
 
 import top.role.android.feature.discover.components.DiscoverSectionHeader
 import top.role.android.feature.discover.components.EntityCard
 import top.role.android.feature.discover.components.PublishedCard
 import top.role.android.feature.discover.components.TopicCard
+import top.role.android.ui.components.RemoteMessageState
+
 
 @Composable
 fun DiscoverScreen(
     state: DiscoverUiState,
+
     onEntityClick: (MobileSpaceCard) -> Unit = {},
     onTopicClick: (MobileTopicCard) -> Unit = {},
     onDocClick: (MobileContentCard) -> Unit = {},
+
     onMoreEntities: (SpaceListMode) -> Unit = {},
     onMoreTopics: () -> Unit = {},
     onMoreContent: () -> Unit = {},
 ) {
     when {
+
+        state.isSignedOut -> {
+            RemoteMessageState(
+                title =
+                    "登录后浏览发现",
+
+                description =
+                    "请先登录账号，以获取最新的空间、话题和内容。",
+            )
+        }
+
+
+        state.isOffline -> {
+            RemoteMessageState(
+                title =
+                    "当前处于离线状态",
+
+                description =
+                    "连接网络后将自动恢复浏览。",
+            )
+        }
+
+
         state.isLoading -> {
             DiscoverLoading()
         }
 
+
         state.errorMessage != null -> {
             DiscoverError(
-                message = state.errorMessage,
+                message =
+                    state.errorMessage,
             )
         }
 
+
         state.page != null -> {
             DiscoverContent(
-                page = state.page,
+                page =
+                    state.page,
 
                 onEntityClick =
                     onEntityClick,
@@ -72,11 +107,13 @@ fun DiscoverScreen(
             )
         }
 
+
         else -> {
             DiscoverEmpty()
         }
     }
 }
+
 
 @Composable
 private fun DiscoverContent(
@@ -104,52 +141,74 @@ private fun DiscoverContent(
     val featuredSpaces =
         page.featuredSpaces
 
+
     val featuredIds =
         featuredSpaces
             .asSequence()
-            .map { it.id }
+            .map {
+                it.id
+            }
             .toSet()
+
 
     val followingSpaces =
         page.followingSpaces
             .filterNot {
-                it.id in featuredIds
+                it.id in
+                        featuredIds
             }
+
 
     val followingIds =
         followingSpaces
             .asSequence()
-            .map { it.id }
+            .map {
+                it.id
+            }
             .toSet()
+
 
     val latestSpaces =
         page.latestSpaces
             .filterNot {
-                it.id in featuredIds ||
-                        it.id in followingIds
+                it.id in
+                        featuredIds ||
+                        it.id in
+                        followingIds
             }
 
+
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(
-                horizontal = 16.dp,
-            ),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(
+                    horizontal =
+                        16.dp,
+                ),
+
         verticalArrangement =
-            Arrangement.spacedBy(10.dp),
+            Arrangement.spacedBy(
+                10.dp
+            ),
     ) {
 
         /*
          * 推荐空间
          */
+
         if (
-            featuredSpaces.isNotEmpty()
+            featuredSpaces
+                .isNotEmpty()
         ) {
             item(
-                key = "featured-header"
+                key =
+                    "featured-header"
             ) {
                 DiscoverSectionHeader(
-                    title = "推荐",
+                    title =
+                        "推荐",
+
                     onMoreClick = {
                         onMoreEntities(
                             SpaceListMode.Featured
@@ -158,32 +217,46 @@ private fun DiscoverContent(
                 )
             }
 
+
             items(
-                items = featuredSpaces,
+                items =
+                    featuredSpaces,
+
                 key = {
                     "featured:${it.id}"
                 },
             ) { item ->
+
                 EntityCard(
-                    item = item,
+                    item =
+                        item,
+
                     onClick = {
-                        onEntityClick(item)
+                        onEntityClick(
+                            item
+                        )
                     },
                 )
             }
         }
 
+
         /*
          * 我关注的空间
          */
+
         if (
-            followingSpaces.isNotEmpty()
+            followingSpaces
+                .isNotEmpty()
         ) {
             item(
-                key = "following-header"
+                key =
+                    "following-header"
             ) {
                 DiscoverSectionHeader(
-                    title = "我关注的",
+                    title =
+                        "我关注的",
+
                     onMoreClick = {
                         onMoreEntities(
                             SpaceListMode.Following
@@ -192,32 +265,46 @@ private fun DiscoverContent(
                 )
             }
 
+
             items(
-                items = followingSpaces,
+                items =
+                    followingSpaces,
+
                 key = {
                     "following:${it.id}"
                 },
             ) { item ->
+
                 EntityCard(
-                    item = item,
+                    item =
+                        item,
+
                     onClick = {
-                        onEntityClick(item)
+                        onEntityClick(
+                            item
+                        )
                     },
                 )
             }
         }
 
+
         /*
          * 最新空间
          */
+
         if (
-            latestSpaces.isNotEmpty()
+            latestSpaces
+                .isNotEmpty()
         ) {
             item(
-                key = "latest-header"
+                key =
+                    "latest-header"
             ) {
                 DiscoverSectionHeader(
-                    title = "最新空间",
+                    title =
+                        "最新空间",
+
                     onMoreClick = {
                         onMoreEntities(
                             SpaceListMode.Latest
@@ -226,37 +313,51 @@ private fun DiscoverContent(
                 )
             }
 
+
             items(
-                items = latestSpaces,
+                items =
+                    latestSpaces,
+
                 key = {
                     "latest:${it.id}"
                 },
             ) { item ->
+
                 EntityCard(
-                    item = item,
+                    item =
+                        item,
+
                     onClick = {
-                        onEntityClick(item)
+                        onEntityClick(
+                            item
+                        )
                     },
                 )
             }
         }
 
+
         /*
          * 话题
          */
+
         if (
             page.topics
                 .isNotEmpty()
         ) {
             item(
-                key = "topics-header"
+                key =
+                    "topics-header"
             ) {
                 DiscoverSectionHeader(
-                    title = "话题",
+                    title =
+                        "话题",
+
                     onMoreClick =
                         onMoreTopics,
                 )
             }
+
 
             items(
                 items =
@@ -266,31 +367,42 @@ private fun DiscoverContent(
                     "topic:${it.publishId}:${it.id}"
                 },
             ) { item ->
+
                 TopicCard(
-                    item = item,
+                    item =
+                        item,
+
                     onClick = {
-                        onTopicClick(item)
+                        onTopicClick(
+                            item
+                        )
                     },
                 )
             }
         }
 
+
         /*
          * 最新内容
          */
+
         if (
             page.contents
                 .isNotEmpty()
         ) {
             item(
-                key = "docs-header"
+                key =
+                    "docs-header"
             ) {
                 DiscoverSectionHeader(
-                    title = "最新内容",
+                    title =
+                        "最新内容",
+
                     onMoreClick =
                         onMoreContent,
                 )
             }
+
 
             items(
                 items =
@@ -300,33 +412,45 @@ private fun DiscoverContent(
                     "content:${it.type}:${it.publishId}:${it.id}"
                 },
             ) { item ->
+
                 PublishedCard(
-                    item = item,
+                    item =
+                        item,
+
                     onClick = {
-                        onDocClick(item)
+                        onDocClick(
+                            item
+                        )
                     },
                 )
             }
         }
 
+
         item(
-            key = "bottom-space"
+            key =
+                "bottom-space"
         ) {
             Spacer(
                 modifier =
-                    Modifier.height(24.dp),
+                    Modifier.height(
+                        24.dp
+                    ),
             )
         }
     }
 }
+
 
 @Composable
 private fun DiscoverLoading() {
     Column(
         modifier =
             Modifier.fillMaxSize(),
+
         horizontalAlignment =
             Alignment.CenterHorizontally,
+
         verticalArrangement =
             Arrangement.Center,
     ) {
@@ -339,14 +463,20 @@ private fun DiscoverError(
     message: String,
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(
+                    24.dp
+                ),
+
         verticalArrangement =
             Arrangement.Center,
+
         horizontalAlignment =
             Alignment.CenterHorizontally,
     ) {
+
         Text(
             text =
                 "发现内容加载失败",
@@ -357,12 +487,15 @@ private fun DiscoverError(
                     .titleMedium,
         )
 
+
         Text(
-            text = message,
+            text =
+                message,
 
             modifier =
                 Modifier.padding(
-                    top = 8.dp,
+                    top =
+                        8.dp,
                 ),
 
             style =
@@ -378,18 +511,23 @@ private fun DiscoverError(
     }
 }
 
+
 @Composable
 private fun DiscoverEmpty() {
     Column(
         modifier =
             Modifier.fillMaxSize(),
+
         verticalArrangement =
             Arrangement.Center,
+
         horizontalAlignment =
             Alignment.CenterHorizontally,
     ) {
+
         Text(
-            text = "暂无发现内容",
+            text =
+                "暂无发现内容",
 
             color =
                 MaterialTheme

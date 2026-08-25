@@ -11,22 +11,21 @@ import kotlinx.coroutines.launch
 
 import top.role.android.core.model.engage.MobileEngageHome
 
+
 data class EngageUiState(
     val loading: Boolean = false,
 
+    val offline: Boolean = false,
     val signedOut: Boolean = false,
 
-    val home:
-    MobileEngageHome? = null,
+    val home: MobileEngageHome? = null,
 
-    val errorMessage:
-    String? = null,
+    val errorMessage: String? = null,
 )
 
 
 class EngageViewModel(
-    private val repository:
-    EngageRepository,
+    private val repository: EngageRepository,
 ) : ViewModel() {
 
     private val _uiState =
@@ -34,12 +33,12 @@ class EngageViewModel(
             EngageUiState()
         )
 
-    val uiState:
-            StateFlow<EngageUiState> =
+    val uiState: StateFlow<EngageUiState> =
         _uiState.asStateFlow()
 
-    private var observeJob:
-            Job? = null
+
+    private var observeJob: Job? =
+        null
 
 
     fun start() {
@@ -54,25 +53,39 @@ class EngageViewModel(
     }
 
 
-    fun showSignedOut() {
-        observeJob?.cancel()
-        observeJob = null
+    fun showOffline() {
+        stopSubscription()
 
         _uiState.value =
-            EngageUiState(
+            _uiState.value.copy(
                 loading = false,
+
+                offline = true,
+                signedOut = false,
+
+                errorMessage = null,
+            )
+    }
+
+
+    fun showSignedOut() {
+        stopSubscription()
+
+        _uiState.value =
+            _uiState.value.copy(
+                loading = false,
+
+                offline = false,
                 signedOut = true,
-                home = null,
+
                 errorMessage = null,
             )
     }
 
 
     fun retry() {
-        observeJob?.cancel()
-        observeJob = null
-
-        observeHome()
+        stopSubscription()
+        start()
     }
 
 
@@ -80,9 +93,13 @@ class EngageViewModel(
         _uiState.value =
             _uiState.value.copy(
                 loading = true,
+
+                offline = false,
                 signedOut = false,
+
                 errorMessage = null,
             )
+
 
         observeJob =
             viewModelScope.launch {
@@ -95,10 +112,14 @@ class EngageViewModel(
                             onSuccess = { home ->
 
                                 _uiState.value =
-                                    EngageUiState(
+                                    _uiState.value.copy(
                                         loading = false,
+
+                                        offline = false,
                                         signedOut = false,
+
                                         home = home,
+
                                         errorMessage = null,
                                     )
                             },
@@ -108,7 +129,10 @@ class EngageViewModel(
                                 _uiState.value =
                                     _uiState.value.copy(
                                         loading = false,
+
+                                        offline = false,
                                         signedOut = false,
+
                                         errorMessage =
                                             error.message
                                                 ?: "加载参与内容失败",
@@ -117,5 +141,19 @@ class EngageViewModel(
                         )
                     }
             }
+    }
+
+
+    private fun stopSubscription() {
+        observeJob?.cancel()
+        observeJob =
+            null
+    }
+
+
+    override fun onCleared() {
+        stopSubscription()
+
+        super.onCleared()
     }
 }

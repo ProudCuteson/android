@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
+import top.role.android.ui.components.RemoteMessageState
 import top.role.android.feature.chat.conversationlist.ChatConversationListUiState
 import top.role.android.feature.chat.conversationlist.ChatConversationRow
 
@@ -26,6 +27,7 @@ fun ChatScreen(
     state: ChatConversationListUiState,
     onRetry: () -> Unit,
     onConversationClick: (String) -> Unit,
+    onHideConversation: (String) -> Unit,
 ) {
     Box(
         modifier =
@@ -44,23 +46,17 @@ fun ChatScreen(
 
 
             ChatConversationListUiState.Offline -> {
-                ChatMessageState(
-                    title =
-                        "当前处于离线状态",
-
-                    description =
-                        "连接网络后将自动恢复聊天。",
+                RemoteMessageState(
+                    title = "当前处于离线状态",
+                    description = "连接网络后将自动恢复聊天。",
                 )
             }
 
 
             ChatConversationListUiState.SignedOut -> {
-                ChatMessageState(
-                    title =
-                        "登录后使用聊天",
-
-                    description =
-                        "请先登录账号。",
+                RemoteMessageState(
+                    title = "登录后使用聊天",
+                    description = "请先登录账号。",
                 )
             }
 
@@ -118,6 +114,13 @@ fun ChatScreen(
                                         item.conversationId
                                     )
                                 },
+
+                                onHide = {
+                                    onHideConversation(
+                                        item.conversationId
+                                    )
+                                },
+
                             )
                         }
                     }

@@ -20,6 +20,9 @@ import top.role.android.core.model.slide.MobileSlidePage
 import top.role.android.core.model.slide.MobileSlideRect
 import top.role.android.core.model.slide.MobileSlideSummary
 import top.role.android.core.model.slide.MobileSlideElementKind
+import androidx.compose.foundation.border
+import androidx.compose.material3.MaterialTheme
+import top.role.android.ui.theme.LocalTopRoleDarkTheme
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import android.graphics.Color as AndroidColor
@@ -60,78 +63,141 @@ fun SlidePageCanvas(
 ) {
     val canvasWidth =
         slide.canvasW
-            .takeIf { it > 0.0 }
+            .takeIf {
+                it > 0.0
+            }
             ?: 1920.0
 
     val canvasHeight =
         slide.canvasH
-            .takeIf { it > 0.0 }
+            .takeIf {
+                it > 0.0
+            }
             ?: 1080.0
 
-    val aspectRatio =
-        (canvasWidth / canvasHeight)
-            .toFloat()
+
+    val isDark =
+        LocalTopRoleDarkTheme.current
+
+
+    val shape =
+        RoundedCornerShape(
+            12.dp
+        )
+
+
+    val borderColor =
+        if (
+            isDark
+        ) {
+            Color(
+                0xFF454545
+            )
+        } else {
+            MaterialTheme
+                .colorScheme
+                .outlineVariant
+        }
+
 
     BoxWithConstraints(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(
-                RoundedCornerShape(12.dp)
-            ),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clip(
+                    shape
+                )
+                .border(
+                    width = 1.dp,
+                    color = borderColor,
+                    shape = shape,
+                ),
     ) {
         val canvasWidthPx =
             constraints.maxWidth
 
-        if (canvasWidthPx <= 0) {
+        if (
+            canvasWidthPx <= 0
+        ) {
             return@BoxWithConstraints
         }
+
 
         val scale =
             canvasWidthPx.toDouble() /
                     canvasWidth
 
+
         val canvasHeightPx =
-            (canvasHeight * scale)
+            (
+                    canvasHeight *
+                            scale
+                    )
                 .roundToInt()
-                .coerceAtLeast(1)
+                .coerceAtLeast(
+                    1
+                )
+
 
         SlideCanvasLayout(
-            widthPx = canvasWidthPx,
-            heightPx = canvasHeightPx,
-            modifier = Modifier
-                .fillMaxWidth()
-                .requiredSize(
-                    width =
-                        maxWidth,
-                    height =
-                        with(
-                            androidx.compose.ui.platform.LocalDensity.current
-                        ) {
-                            canvasHeightPx
-                                .toDp()
-                        },
-                ),
+            widthPx =
+                canvasWidthPx,
+
+            heightPx =
+                canvasHeightPx,
+
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .requiredSize(
+                        width =
+                            maxWidth,
+
+                        height =
+                            with(
+                                androidx.compose.ui.platform
+                                    .LocalDensity
+                                    .current
+                            ) {
+                                canvasHeightPx
+                                    .toDp()
+                            },
+                    ),
         ) {
+
             SlidePageBackground(
-                page = page,
+                page =
+                    page,
+
                 modifier =
                     Modifier.fillMaxSize(),
             )
 
-            page.elements.forEach { element ->
-                SlidePositionedElement(
-                    element = element,
-                    scale = scale,
-                    allowVerticalOverflow =
-                        element.type ==
-                                MobileSlideElementKind.Text,
-                ) {
-                    SlideElementRenderer(
-                        element = element,
-                        scale = scale,
-                    )
+
+            page.elements
+                .forEach { element ->
+
+                    SlidePositionedElement(
+                        element =
+                            element,
+
+                        scale =
+                            scale,
+
+                        allowVerticalOverflow =
+                            element.type ==
+                                    MobileSlideElementKind.Text,
+                    ) {
+
+                        SlideElementRenderer(
+                            element =
+                                element,
+
+                            scale =
+                                scale,
+                        )
+                    }
                 }
-            }
         }
     }
 }
@@ -277,21 +343,43 @@ private fun SlidePageBackground(
     val background =
         page.background
 
+    val isDark =
+        LocalTopRoleDarkTheme.current
+
+
+    val defaultColor =
+        if (
+            isDark
+        ) {
+            Color(
+                0xFF121212
+            )
+        } else {
+            Color.White
+        }
+
+
     val color =
-        when (background.kind) {
-            "color" ->
+        when (
+            background.kind
+        ) {
+            "color" -> {
                 parseSlideColor(
                     background.color
-                )
-                    ?: Color.White
+                ) ?: defaultColor
+            }
 
-            else ->
-                Color.White
+            else -> {
+                defaultColor
+            }
         }
+
 
     Box(
         modifier =
-            modifier.background(color),
+            modifier.background(
+                color
+            ),
     )
 }
 

@@ -34,6 +34,7 @@ import top.role.android.feature.credit.CreditsRepository
 data class MainNavigationDependencies(
     val localOwnerUserId: String,
     val remoteAuthenticated: Boolean,
+    val remoteOnline: Boolean,
     val noteLocalRepository: NoteLocalRepository,
     val noteAiRemoteDataSource:NoteAiRemoteDataSource,
     val noteImageService: NoteImageService,

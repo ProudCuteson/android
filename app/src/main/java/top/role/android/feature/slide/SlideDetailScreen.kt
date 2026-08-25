@@ -34,6 +34,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.background
+import top.role.android.ui.theme.LocalTopRoleDarkTheme
 import top.role.android.feature.slide.qa.SlideAskSheet
 import top.role.android.feature.slide.render.SlidePageCanvas
 
@@ -70,14 +75,17 @@ fun SlideDetailScreen(
         )
     }
 
+
     when {
         state.isLoading -> {
             SlideDetailLoading()
         }
 
+
         state.isUnavailable -> {
             SlideDetailUnavailable()
         }
+
 
         state.errorMessage != null -> {
             SlideDetailError(
@@ -88,6 +96,7 @@ fun SlideDetailScreen(
                     onRetry,
             )
         }
+
 
         state.detail != null -> {
             SlideDetailContent(
@@ -111,6 +120,7 @@ fun SlideDetailScreen(
         }
     }
 
+
     if (
         showAskSheet &&
         state.detail != null
@@ -129,7 +139,9 @@ fun SlideDetailScreen(
                 state.isOwner,
 
             questions =
-                if (state.isOwner) {
+                if (
+                    state.isOwner
+                ) {
                     state.presenterQuestions
                 } else {
                     state.questions
@@ -175,13 +187,17 @@ fun SlideDetailScreen(
                 }
             },
 
-            onMarkAnswered = { questionId ->
+            onMarkAnswered = {
+                    questionId ->
+
                 onMarkQuestionAnswered(
                     questionId
                 )
             },
 
-            onHide = { questionId ->
+            onHide = {
+                    questionId ->
+
                 onHideQuestion(
                     questionId
                 )
@@ -203,21 +219,74 @@ private fun SlideDetailContent(
         state.detail
             ?: return
 
+
+    val isDark =
+        LocalTopRoleDarkTheme.current
+
+
+    val pageBackground =
+        if (
+            isDark
+        ) {
+            Color(
+                0xFF121212
+            )
+        } else {
+            MaterialTheme
+                .colorScheme
+                .background
+        }
+
+
+    val primaryTextColor =
+        if (
+            isDark
+        ) {
+            Color(
+                0xFFF2F2F2
+            )
+        } else {
+            MaterialTheme
+                .colorScheme
+                .onBackground
+        }
+
+
+    val secondaryTextColor =
+        if (
+            isDark
+        ) {
+            Color(
+                0xFFCACACA
+            )
+        } else {
+            MaterialTheme
+                .colorScheme
+                .onSurfaceVariant
+        }
+
+
     Column(
         modifier =
             Modifier
                 .fillMaxSize()
+                .background(
+                    pageBackground
+                )
                 .padding(
-                    horizontal = 16.dp,
+                    horizontal =
+                        16.dp,
                 ),
     ) {
+
         Text(
             text =
                 detail.slide.title,
 
             modifier =
                 Modifier.padding(
-                    top = 12.dp,
+                    top =
+                        12.dp,
                 ),
 
             style =
@@ -228,12 +297,16 @@ private fun SlideDetailContent(
             fontWeight =
                 FontWeight.SemiBold,
 
+            color =
+                primaryTextColor,
+
             maxLines =
                 2,
 
             overflow =
                 TextOverflow.Ellipsis,
         )
+
 
         detail.slide.description
             ?.takeIf {
@@ -247,7 +320,8 @@ private fun SlideDetailContent(
 
                     modifier =
                         Modifier.padding(
-                            top = 6.dp,
+                            top =
+                                6.dp,
                         ),
 
                     style =
@@ -256,9 +330,7 @@ private fun SlideDetailContent(
                             .bodyMedium,
 
                     color =
-                        MaterialTheme
-                            .colorScheme
-                            .onSurfaceVariant,
+                        secondaryTextColor,
 
                     maxLines =
                         2,
@@ -268,12 +340,14 @@ private fun SlideDetailContent(
                 )
             }
 
+
         Spacer(
             modifier =
                 Modifier.height(
                     16.dp
                 )
         )
+
 
         if (
             state.currentPage != null
@@ -289,6 +363,7 @@ private fun SlideDetailContent(
                     Modifier.fillMaxWidth(),
             )
         } else {
+
             Box(
                 modifier =
                     Modifier
@@ -300,17 +375,17 @@ private fun SlideDetailContent(
                 contentAlignment =
                     Alignment.Center,
             ) {
+
                 Text(
                     text =
                         "暂无演示页面",
 
                     color =
-                        MaterialTheme
-                            .colorScheme
-                            .onSurfaceVariant,
+                        secondaryTextColor,
                 )
             }
         }
+
 
         SlidePageControls(
             state =
@@ -322,6 +397,7 @@ private fun SlideDetailContent(
             onNextPage =
                 onNextPage,
         )
+
 
         SlideInteractionBar(
             canAsk =
@@ -497,6 +573,39 @@ private fun SlideInteractionAction(
 
     onClick: () -> Unit,
 ) {
+
+    val isDark =
+        LocalTopRoleDarkTheme.current
+
+
+    val containerColor =
+        if (
+            isDark
+        ) {
+            Color(
+                0xFF242424
+            )
+        } else {
+            MaterialTheme
+                .colorScheme
+                .surfaceContainerLow
+        }
+
+
+    val contentColor =
+        if (
+            isDark
+        ) {
+            Color(
+                0xFFF2F2F2
+            )
+        } else {
+            MaterialTheme
+                .colorScheme
+                .onSurface
+        }
+
+
     Card(
         modifier =
             modifier
@@ -511,13 +620,13 @@ private fun SlideInteractionAction(
             ),
 
         colors =
-            CardDefaults
-                .cardColors(
-                    containerColor =
-                        MaterialTheme
-                            .colorScheme
-                            .surfaceContainerLow,
-                ),
+            CardDefaults.cardColors(
+                containerColor =
+                    containerColor,
+
+                contentColor =
+                    contentColor,
+            ),
     ) {
         Row(
             modifier =
@@ -534,22 +643,33 @@ private fun SlideInteractionAction(
             horizontalArrangement =
                 Arrangement.Center,
         ) {
-            icon()
 
-            Text(
-                text =
-                    text,
+            CompositionLocalProvider(
+                LocalContentColor provides
+                        contentColor,
+            ) {
 
-                modifier =
-                    Modifier.padding(
-                        start = 8.dp,
-                    ),
+                icon()
 
-                style =
-                    MaterialTheme
-                        .typography
-                        .labelLarge,
-            )
+
+                Text(
+                    text =
+                        text,
+
+                    modifier =
+                        Modifier.padding(
+                            start = 8.dp,
+                        ),
+
+                    style =
+                        MaterialTheme
+                            .typography
+                            .labelLarge,
+
+                    color =
+                        contentColor,
+                )
+            }
         }
     }
 }

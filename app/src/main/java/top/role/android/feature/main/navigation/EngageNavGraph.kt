@@ -105,18 +105,21 @@ fun NavGraphBuilder.engageNavGraph(
 
 
         LaunchedEffect(
-            dependencies
-                .remoteAuthenticated,
+            dependencies.remoteAuthenticated,
+            dependencies.remoteOnline,
         ) {
-            if (
-                dependencies
-                    .remoteAuthenticated
-            ) {
-                engageViewModel
-                    .start()
-            } else {
-                engageViewModel
-                    .showSignedOut()
+            when {
+                !dependencies.remoteAuthenticated -> {
+                    engageViewModel.showSignedOut()
+                }
+
+                !dependencies.remoteOnline -> {
+                    engageViewModel.showOffline()
+                }
+
+                else -> {
+                    engageViewModel.start()
+                }
             }
         }
 

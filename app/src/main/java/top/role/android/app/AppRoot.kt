@@ -87,6 +87,14 @@ fun AppRoot(
         .hasAcceptedAuthAgreement
         .collectAsStateWithLifecycle()
 
+    val isOnline by
+    appContainer
+        .networkMonitor
+        .isOnline
+        .collectAsStateWithLifecycle(
+            initialValue = false,
+        )
+
     LaunchedEffect(
         authState,
         localOwnerUserId,
@@ -284,6 +292,9 @@ fun AppRoot(
             remoteAuthenticated =
                 authState is
                         AuthState.SignedIn,
+
+            remoteOnline =
+                isOnline,
 
             noteLocalRepository =
                 appContainer.noteLocalRepository,
