@@ -14,7 +14,7 @@ data class ChatConversationUiState(
 
     val loadingMore: Boolean = false,
     val messagesDone: Boolean = true,
-    val continueCursor: String = "",
+    val continueCursor: String? = null,
 
     val notFound: Boolean = false,
 
@@ -26,6 +26,7 @@ data class ChatConversationUiState(
     val sendErrorMessage: String? = null,
 
     val replyTarget: ChatReplyTarget? = null,
+
     val imageDraft: ChatImageDraft? = null,
     val imageSending: Boolean = false,
     val imageSendErrorMessage: String? = null,

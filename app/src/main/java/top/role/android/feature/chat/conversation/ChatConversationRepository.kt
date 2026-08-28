@@ -12,7 +12,6 @@ data class MobileSendImageMessageResult(
     val ok: Boolean,
     val messageId: String,
     val imageId: String,
-    val copied: Boolean = false,
 )
 
 @Serializable
@@ -33,6 +32,12 @@ class ChatConversationRepository(
     fun observeConversation(
         conversationId: String,
     ): Flow<Result<MobileConversationDetail?>> {
+        require(
+            conversationId.isNotBlank()
+        ) {
+            "CONVERSATION_ID_REQUIRED"
+        }
+
         return convexClient.subscribe(
             name =
                 "mobile/native/chat/conversation:getConversation",
@@ -50,6 +55,12 @@ class ChatConversationRepository(
         cursor: String? = null,
         numItems: Double = 30.0,
     ): Flow<Result<MobileChatMessagePage>> {
+        require(
+            conversationId.isNotBlank()
+        ) {
+            "CONVERSATION_ID_REQUIRED"
+        }
+
         return convexClient.subscribe(
             name =
                 "mobile/native/chat/message:listMessagesPaginated",
@@ -74,6 +85,12 @@ class ChatConversationRepository(
     suspend fun markOpened(
         conversationId: String,
     ) {
+        require(
+            conversationId.isNotBlank()
+        ) {
+            "CONVERSATION_ID_REQUIRED"
+        }
+
         convexClient.mutation<MutationOkResult>(
             name =
                 "mobile/native/chat/conversation:markConversationOpened",
@@ -90,27 +107,41 @@ class ChatConversationRepository(
         conversationId: String,
         text: String,
         replyToMessageId: String? = null,
-    ) {
+    ): SendTextMessageResult {
+        require(
+            conversationId.isNotBlank()
+        ) {
+            "CONVERSATION_ID_REQUIRED"
+        }
+
+        val normalizedText =
+            text.trim()
+
+        require(
+            normalizedText.isNotEmpty()
+        ) {
+            "MESSAGE_TEXT_REQUIRED"
+        }
+
         val args =
             mutableMapOf<String, Any?>(
                 "conversationId" to
                         conversationId,
 
                 "text" to
-                        text,
+                        normalizedText,
             )
 
-        if (
-            !replyToMessageId
-                .isNullOrBlank()
-        ) {
-            args["replyToMessageId"] =
-                replyToMessageId
-        }
+        replyToMessageId
+            ?.takeIf {
+                it.isNotBlank()
+            }
+            ?.let {
+                args["replyToMessageId"] =
+                    it
+            }
 
-        convexClient.mutation<
-                SendTextMessageResult
-                >(
+        return convexClient.mutation(
             name =
                 "mobile/native/chat/message:sendTextMessage",
 
@@ -125,43 +156,61 @@ class ChatConversationRepository(
         caption: String? = null,
         replyToMessageId: String? = null,
     ): MobileSendImageMessageResult {
-        require(conversationId.isNotBlank()) {
+        require(
+            conversationId.isNotBlank()
+        ) {
             "CONVERSATION_ID_REQUIRED"
         }
 
-        require(imageId.isNotBlank()) {
+        require(
+            imageId.isNotBlank()
+        ) {
             "IMAGE_ID_REQUIRED"
         }
 
         val args =
             mutableMapOf<String, Any?>(
-                "conversationId" to conversationId,
-                "imageId" to imageId,
+                "conversationId" to
+                        conversationId,
+
+                "imageId" to
+                        imageId,
             )
 
         caption
             ?.trim()
-            ?.takeIf { it.isNotEmpty() }
+            ?.takeIf {
+                it.isNotEmpty()
+            }
             ?.let {
-                args["caption"] = it
+                args["caption"] =
+                    it
             }
 
         replyToMessageId
-            ?.takeIf { it.isNotBlank() }
+            ?.takeIf {
+                it.isNotBlank()
+            }
             ?.let {
-                args["replyToMessageId"] = it
+                args["replyToMessageId"] =
+                    it
             }
 
         return convexClient.action(
-            name = "mobile/native/chat/image:sendImageMessage",
-            args = args,
+            name =
+                "mobile/native/chat/image:sendImageMessage",
+
+            args =
+                args,
         )
     }
 
     suspend fun recallMessage(
         messageId: String,
     ) {
-        require(messageId.isNotBlank()) {
+        require(
+            messageId.isNotBlank()
+        ) {
             "MESSAGE_ID_REQUIRED"
         }
 
@@ -180,7 +229,9 @@ class ChatConversationRepository(
     suspend fun deleteMessageForMe(
         messageId: String,
     ) {
-        require(messageId.isNotBlank()) {
+        require(
+            messageId.isNotBlank()
+        ) {
             "MESSAGE_ID_REQUIRED"
         }
 
@@ -195,5 +246,4 @@ class ChatConversationRepository(
                 ),
         )
     }
-
 }

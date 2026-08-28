@@ -338,6 +338,9 @@ fun AppRoot(
             chatConversationRepository =
                 appContainer.chatConversationRepository,
 
+            chatImagePreviewRepository =
+                appContainer.chatImagePreviewRepository,
+
             chatFriendsRepository =
                 appContainer.chatFriendsRepository,
 

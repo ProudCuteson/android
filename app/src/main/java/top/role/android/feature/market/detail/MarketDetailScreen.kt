@@ -38,6 +38,8 @@ import coil3.compose.AsyncImage
 
 import top.role.android.core.model.region.ChinaRegionNode
 import top.role.android.core.model.region.MarketRegionSelection
+import top.role.android.core.payment.temp.MobilePaymentNotice
+import top.role.android.core.payment.temp.WebPurchaseConfig
 import top.role.android.core.region.ChinaRegionRepository
 import top.role.android.feature.market.detail.components.MarketPurchaseSection
 import top.role.android.feature.market.detail.components.MarketRegionPicker
@@ -317,6 +319,11 @@ private fun MarketDetailContent(
                 16.dp
             ),
     ) {
+
+        MobilePaymentNotice(
+            webUrl =
+                WebPurchaseConfig.MARKET_URL,
+        )
 
         /*
          * ------------------------------------------------

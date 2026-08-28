@@ -58,6 +58,7 @@ import top.role.android.feature.credit.CreditsRepository
 import top.role.android.feature.account.AccountRepository
 import top.role.android.feature.account.password.AccountPasswordRepository
 import top.role.android.core.preferences.AppPreferencesRepository
+import top.role.android.feature.chat.conversation.ChatImagePreviewRepository
 
 class AppContainer(
     context: Context,
@@ -320,6 +321,11 @@ class AppContainer(
 
     val chatConversationRepository =
         ChatConversationRepository(
+            convexClient = convexClient,
+        )
+
+    val chatImagePreviewRepository =
+        ChatImagePreviewRepository(
             convexClient = convexClient,
         )
 

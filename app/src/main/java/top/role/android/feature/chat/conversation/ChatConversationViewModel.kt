@@ -171,7 +171,7 @@ class ChatConversationViewModel(
         if (
             current.loadingMore ||
             current.messagesDone ||
-            current.continueCursor.isBlank()
+            current.continueCursor.isNullOrBlank()
         ) {
             return
         }
@@ -293,13 +293,7 @@ class ChatConversationViewModel(
                         replyToMessageId,
                 )
             }.onSuccess {
-                /*
-                 * 只有真正发送成功后
-                 * 才清空正文和 reply。
-                 *
-                 * 失败时保留用户输入，
-                 * 可以直接重试。
-                 */
+
                 _uiState.value =
                     _uiState.value.copy(
                         inputText = "",
@@ -545,20 +539,17 @@ class ChatConversationViewModel(
                         text =
                             message.text,
 
-                        thumbnailUrl =
-                            image?.thumbnailUrl
+                        imageId =
+                            image?.imageId
                                 ?.takeIf {
                                     it.isNotBlank()
-                                }
-                                ?: image?.originalUrl
-                                    ?.takeIf {
-                                        it.isNotBlank()
-                                    },
+                                },
                     ),
 
                 sendErrorMessage = null,
                 imageSendErrorMessage = null,
             )
+
     }
 
     fun cancelReply() {
@@ -594,6 +585,27 @@ class ChatConversationViewModel(
         operateMessage(
             messageId =
                 message.messageId,
+
+            onSuccess = {
+                val latest =
+                    _uiState.value
+
+                _uiState.value =
+                    latest.copy(
+                        messages =
+                            latest.messages.filterNot {
+                                it.messageId ==
+                                        message.messageId
+                            },
+
+                        replyTarget =
+                            latest.replyTarget
+                                ?.takeUnless {
+                                    it.messageId ==
+                                            message.messageId
+                                },
+                    )
+            },
         ) {
             repository.deleteMessageForMe(
                 message.messageId
@@ -617,6 +629,7 @@ class ChatConversationViewModel(
 
     private fun operateMessage(
         messageId: String,
+        onSuccess: () -> Unit = {},
         operation: suspend () -> Unit,
     ) {
         val current =
@@ -641,6 +654,8 @@ class ChatConversationViewModel(
             runCatching {
                 operation()
             }.onSuccess {
+                onSuccess()
+
                 _uiState.value =
                     _uiState.value.copy(
                         operatingMessageId =
@@ -649,12 +664,6 @@ class ChatConversationViewModel(
                         messageOperationError =
                             null,
                     )
-
-                /*
-                 * realtime subscription
-                 * 会负责更新消息列表，
-                 * 不需要本地手动删除/修改 message。
-                 */
             }.onFailure { error ->
                 _uiState.value =
                     _uiState.value.copy(
@@ -732,10 +741,10 @@ class ChatConversationViewModel(
                 "无法使用这张图片，请重新选择。"
 
             raw.contains(
-                "IMAGE_SEND_URLS_NOT_AVAILABLE",
+                "IMAGE_NOT_CONVERSATION_IMAGE",
                 ignoreCase = true,
             ) ->
-                "图片处理失败，请稍后重试。"
+                "图片状态异常，请重新选择。"
 
             raw.contains(
                 "REPLY_MESSAGE_NOT_FOUND",

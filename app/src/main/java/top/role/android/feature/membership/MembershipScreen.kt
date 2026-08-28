@@ -26,6 +26,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import top.role.android.core.model.membership.MobileMembershipPlan
 
+import top.role.android.core.payment.temp.MobilePaymentNotice
+import top.role.android.core.payment.temp.WebPurchaseConfig
+
 @Composable
 fun MembershipScreen(
     uiState: MembershipUiState,
@@ -168,6 +171,11 @@ private fun MembershipContent(
                     vertical = 12.dp,
                 ),
     ) {
+
+        MobilePaymentNotice(
+            webUrl =
+                WebPurchaseConfig.MEMBERSHIP_URL,
+        )
 
         Spacer(
             modifier =

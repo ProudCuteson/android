@@ -180,6 +180,9 @@ fun NavGraphBuilder.chatNavGraph(
             state =
                 state,
 
+            imagePreviewRepository =
+                dependencies.chatImagePreviewRepository,
+
             onBack = {
                 navController.navigate(
                     MainDestination.Chat.route

@@ -4,18 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class MobileChatAttachment(
-    val type: String? = null,
-
-    val imageId: String? = null,
-    val thumbnailUrl: String? = null,
-    val originalUrl: String? = null,
-
-    val name: String? = null,
-    val mime: String? = null,
-
-    val size: Double? = null,
-    val width: Double? = null,
-    val height: Double? = null,
+    val imageId: String,
 )
 
 @Serializable
@@ -31,6 +20,7 @@ data class MobileChatMessage(
     val kind: String,
 
     val text: String? = null,
+
     val attachments:
     List<MobileChatAttachment>? = null,
 
@@ -52,7 +42,7 @@ data class MobileChatReplyPreview(
     val kind: String,
 
     val text: String? = null,
-    val thumbnailUrl: String? = null,
+    val imageId: String? = null,
 
     val deleted: Boolean = false,
 )
@@ -65,5 +55,5 @@ data class MobileChatMessagePage(
 
     val isDone: Boolean = true,
 
-    val continueCursor: String = "",
+    val continueCursor: String? = null,
 )

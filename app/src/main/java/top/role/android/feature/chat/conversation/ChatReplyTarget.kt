@@ -5,5 +5,5 @@ data class ChatReplyTarget(
     val senderName: String,
     val kind: String,
     val text: String? = null,
-    val thumbnailUrl: String? = null,
+    val imageId: String? = null,
 )

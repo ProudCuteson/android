@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -24,7 +25,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import top.role.android.core.model.chat.MobileChatMessage
 import top.role.android.core.model.chat.MobileChatReplyPreview
 
@@ -79,6 +79,7 @@ internal fun ChatLoadEarlierMessages(
 @Composable
 internal fun ChatMessageRow(
     message: MobileChatMessage,
+    imagePreviewRepository: ChatImagePreviewRepository,
     onLongClick: () -> Unit,
     onOpenImage: (String) -> Unit,
 ) {
@@ -135,11 +136,8 @@ internal fun ChatMessageRow(
 
                             modifier =
                                 Modifier.padding(
-                                    start =
-                                        4.dp,
-
-                                    bottom =
-                                        3.dp,
+                                    start = 4.dp,
+                                    bottom = 3.dp,
                                 ),
                         )
                     }
@@ -148,6 +146,9 @@ internal fun ChatMessageRow(
             ChatMessageBubble(
                 message =
                     message,
+
+                imagePreviewRepository =
+                    imagePreviewRepository,
 
                 onLongClick =
                     onLongClick,
@@ -174,14 +175,9 @@ internal fun ChatMessageRow(
 
                 modifier =
                     Modifier.padding(
-                        start =
-                            4.dp,
-
-                        top =
-                            3.dp,
-
-                        end =
-                            4.dp,
+                        start = 4.dp,
+                        top = 3.dp,
+                        end = 4.dp,
                     ),
             )
         }
@@ -190,14 +186,10 @@ internal fun ChatMessageRow(
 
 @Composable
 private fun ChatMessageBubble(
-    message:
-    MobileChatMessage,
-
-    onLongClick:
-        () -> Unit,
-
-    onOpenImage:
-        (String) -> Unit,
+    message: MobileChatMessage,
+    imagePreviewRepository: ChatImagePreviewRepository,
+    onLongClick: () -> Unit,
+    onOpenImage: (String) -> Unit,
 ) {
     val backgroundColor =
         if (
@@ -312,6 +304,9 @@ private fun ChatMessageBubble(
                 reply =
                     reply,
 
+                imagePreviewRepository =
+                    imagePreviewRepository,
+
                 contentColor =
                     contentColor,
             )
@@ -351,8 +346,14 @@ private fun ChatMessageBubble(
                     contentColor =
                         contentColor,
 
+                    imagePreviewRepository =
+                        imagePreviewRepository,
+
                     onOpenImage =
                         onOpenImage,
+
+                    onLongClick =
+                        onLongClick,
                 )
             }
 
@@ -379,10 +380,13 @@ private fun ChatReplyPreview(
     reply:
     MobileChatReplyPreview,
 
+    imagePreviewRepository:
+    ChatImagePreviewRepository,
+
     contentColor:
     Color,
 ) {
-    Column(
+    Row(
         modifier =
             Modifier
                 .fillMaxWidth()
@@ -392,116 +396,151 @@ private fun ChatReplyPreview(
                     )
                 )
                 .padding(
-                    horizontal =
-                        9.dp,
-
-                    vertical =
-                        7.dp,
+                    horizontal = 9.dp,
+                    vertical = 7.dp,
                 ),
+
+        horizontalArrangement =
+            Arrangement.spacedBy(
+                8.dp
+            ),
+
+        verticalAlignment =
+            Alignment.CenterVertically,
     ) {
-        reply.senderName
-            ?.takeIf {
-                it.isNotBlank()
-            }
-            ?.let { name ->
-                Text(
-                    text =
-                        name,
+        if (
+            !reply.deleted &&
+            reply.kind == "image"
+        ) {
+            reply.imageId
+                ?.takeIf {
+                    it.isNotBlank()
+                }
+                ?.let { imageId ->
+                    ChatImagePreview(
+                        imageId =
+                            imageId,
 
-                    style =
-                        MaterialTheme
-                            .typography
-                            .labelSmall,
+                        kind =
+                            "thumb",
 
-                    color =
-                        contentColor.copy(
-                            alpha =
-                                0.75f
-                        ),
+                        repository =
+                            imagePreviewRepository,
 
-                    maxLines =
-                        1,
+                        modifier =
+                            Modifier
+                                .width(
+                                    42.dp
+                                )
+                                .height(
+                                    42.dp
+                                )
+                                .clip(
+                                    RoundedCornerShape(
+                                        7.dp
+                                    )
+                                ),
 
-                    overflow =
-                        TextOverflow.Ellipsis,
-                )
-            }
+                        contentDescription =
+                            "回复图片",
 
-        Text(
-            text =
-                when {
-                    reply.deleted ->
-                        "消息已撤回"
+                        contentScale =
+                            ContentScale.Crop,
+                    )
+                }
+        }
 
-                    reply.kind ==
-                            "image" ->
-                        "[图片]"
-
-                    !reply.text
-                        .isNullOrBlank() ->
-                        reply.text
-
-                    else ->
-                        "消息"
-                },
-
-            style =
-                MaterialTheme
-                    .typography
-                    .bodySmall,
-
-            color =
-                contentColor.copy(
-                    alpha =
-                        0.85f
+        Column(
+            modifier =
+                Modifier.weight(
+                    1f
                 ),
+        ) {
+            reply.senderName
+                ?.takeIf {
+                    it.isNotBlank()
+                }
+                ?.let { name ->
+                    Text(
+                        text =
+                            name,
 
-            maxLines =
-                2,
+                        style =
+                            MaterialTheme
+                                .typography
+                                .labelSmall,
 
-            overflow =
-                TextOverflow.Ellipsis,
-        )
+                        color =
+                            contentColor.copy(
+                                alpha =
+                                    0.75f
+                            ),
+
+                        maxLines =
+                            1,
+
+                        overflow =
+                            TextOverflow.Ellipsis,
+                    )
+                }
+
+            Text(
+                text =
+                    when {
+                        reply.deleted ->
+                            "消息已撤回"
+
+                        reply.kind ==
+                                "image" ->
+                            "[图片]"
+
+                        !reply.text
+                            .isNullOrBlank() ->
+                            reply.text
+
+                        else ->
+                            "消息"
+                    },
+
+                style =
+                    MaterialTheme
+                        .typography
+                        .bodySmall,
+
+                color =
+                    contentColor.copy(
+                        alpha =
+                            0.85f
+                    ),
+
+                maxLines =
+                    2,
+
+                overflow =
+                    TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
 @Composable
 private fun ChatImageMessageContent(
-    message:
-    MobileChatMessage,
-
-    contentColor:
-    Color,
-
-    onOpenImage:
-        (String) -> Unit,
+    message: MobileChatMessage,
+    imagePreviewRepository: ChatImagePreviewRepository,
+    contentColor: Color,
+    onOpenImage: (String) -> Unit,
+    onLongClick: () -> Unit,
 ) {
-    val image =
+    val imageId =
         message.attachments
             ?.firstOrNull()
-
-    val thumbnailUrl =
-        image
-            ?.thumbnailUrl
+            ?.imageId
             ?.takeIf {
                 it.isNotBlank()
             }
-            ?: image
-                ?.originalUrl
-                ?.takeIf {
-                    it.isNotBlank()
-                }
-
-    val originalUrl =
-        image
-            ?.originalUrl
-            ?.takeIf {
-                it.isNotBlank()
-            }
-            ?: thumbnailUrl
 
     if (
-        thumbnailUrl == null
+        imageId == null
     ) {
         Text(
             text =
@@ -515,25 +554,24 @@ private fun ChatImageMessageContent(
     }
 
     Column {
-        AsyncImage(
-            model =
-                thumbnailUrl,
+        ChatImagePreview(
+            imageId =
+                imageId,
 
-            contentDescription =
-                "聊天图片",
+            kind =
+                "thumb",
 
-            contentScale =
-                ContentScale.Crop,
+            repository =
+                imagePreviewRepository,
 
             modifier =
                 Modifier
                     .widthIn(
-                        max =
-                            240.dp
+                        max = 240.dp
                     )
                     .heightIn(
-                        max =
-                            320.dp
+                        min = 120.dp,
+                        max = 320.dp
                     )
                     .clip(
                         RoundedCornerShape(
@@ -542,14 +580,20 @@ private fun ChatImageMessageContent(
                     )
                     .combinedClickable(
                         onClick = {
-                            originalUrl
-                                ?.let(
-                                    onOpenImage
-                                )
+                            onOpenImage(
+                                imageId
+                            )
                         },
 
-                        onLongClick = {},
+                        onLongClick =
+                            onLongClick,
                     ),
+
+            contentDescription =
+                "聊天图片",
+
+            contentScale =
+                ContentScale.Crop,
         )
 
         message.text
@@ -571,8 +615,7 @@ private fun ChatImageMessageContent(
 
                     modifier =
                         Modifier.padding(
-                            top =
-                                7.dp,
+                            top = 7.dp,
                         ),
                 )
             }

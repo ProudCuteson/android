@@ -39,6 +39,9 @@ internal fun ChatComposerArea(
     state:
     ChatConversationUiState,
 
+    imagePreviewRepository:
+    ChatImagePreviewRepository,
+
     onInputTextChange:
         (String) -> Unit,
 
@@ -66,6 +69,9 @@ internal fun ChatComposerArea(
                 ChatReplyComposerBar(
                     reply =
                         reply,
+
+                    imagePreviewRepository =
+                        imagePreviewRepository,
 
                     onCancel =
                         onCancelReply,
@@ -122,6 +128,9 @@ private fun ChatReplyComposerBar(
     reply:
     ChatReplyTarget,
 
+    imagePreviewRepository:
+    ChatImagePreviewRepository,
+
     onCancel:
         () -> Unit,
 ) {
@@ -139,10 +148,55 @@ private fun ChatReplyComposerBar(
 
         verticalAlignment =
             Alignment.CenterVertically,
+
+        horizontalArrangement =
+            Arrangement.spacedBy(
+                10.dp
+            ),
     ) {
+        if (
+            reply.kind == "image"
+        ) {
+            reply.imageId
+                ?.takeIf {
+                    it.isNotBlank()
+                }
+                ?.let { imageId ->
+                    ChatImagePreview(
+                        imageId =
+                            imageId,
+
+                        kind =
+                            "thumb",
+
+                        repository =
+                            imagePreviewRepository,
+
+                        modifier =
+                            Modifier
+                                .size(
+                                    44.dp
+                                )
+                                .clip(
+                                    RoundedCornerShape(
+                                        8.dp
+                                    )
+                                ),
+
+                        contentDescription =
+                            "回复图片",
+
+                        contentScale =
+                            ContentScale.Crop,
+                    )
+                }
+        }
+
         Column(
             modifier =
-                Modifier.weight(1f),
+                Modifier.weight(
+                    1f
+                ),
         ) {
             Text(
                 text =

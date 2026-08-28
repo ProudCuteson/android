@@ -10,7 +10,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -21,7 +20,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import coil3.compose.AsyncImage
 import top.role.android.core.model.chat.MobileChatMessage
 
 @Composable
@@ -120,8 +118,11 @@ internal fun ChatMessageActionDialog(
 
 @Composable
 internal fun ChatFullScreenImageDialog(
-    url:
+    imageId:
     String,
+
+    imagePreviewRepository:
+    ChatImagePreviewRepository,
 
     onDismiss:
         () -> Unit,
@@ -144,18 +145,24 @@ internal fun ChatFullScreenImageDialog(
                         Color.Black
                     ),
         ) {
-            AsyncImage(
-                model =
-                    url,
+            ChatImagePreview(
+                imageId =
+                    imageId,
+
+                kind =
+                    "original",
+
+                repository =
+                    imagePreviewRepository,
 
                 contentDescription =
                     "图片原图",
 
-                modifier =
-                    Modifier.fillMaxSize(),
-
                 contentScale =
                     ContentScale.Fit,
+
+                modifier =
+                    Modifier.fillMaxSize(),
             )
 
             IconButton(

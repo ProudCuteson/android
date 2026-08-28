@@ -24,6 +24,7 @@ import top.role.android.feature.survey.SurveyListRepository
 import top.role.android.feature.survey.detail.SurveyDetailRepository
 import top.role.android.feature.bounty.BountyListRepository
 import top.role.android.feature.bounty.detail.BountyDetailRepository
+import top.role.android.feature.chat.conversation.ChatImagePreviewRepository
 import top.role.android.feature.market.MarketListRepository
 import top.role.android.feature.market.detail.MarketDetailRepository
 import top.role.android.feature.market.order.MarketOrderListRepository
@@ -49,6 +50,7 @@ data class MainNavigationDependencies(
     val slideDetailRepository: SlideDetailRepository,
     val chatConversationListRepository: ChatConversationListRepository,
     val chatConversationRepository: ChatConversationRepository,
+    val chatImagePreviewRepository: ChatImagePreviewRepository,
     val chatFriendsRepository: ChatFriendsRepository,
     val chatGroupRepository: ChatGroupRepository,
     val engageRepository: EngageRepository,
@@ -65,4 +67,4 @@ data class MainNavigationDependencies(
     val accountRepository: AccountRepository,
     val accountPasswordRepository: AccountPasswordRepository,
     val creditsRepository: CreditsRepository,
-)
+    )

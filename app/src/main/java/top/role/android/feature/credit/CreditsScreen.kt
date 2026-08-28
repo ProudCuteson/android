@@ -34,6 +34,9 @@ import top.role.android.core.model.account.MobileCreditPurchaseOption
 import top.role.android.core.model.account.MobileCustomCreditPurchaseOption
 import top.role.android.core.model.account.MobileRecentCreditPurchase
 
+import top.role.android.core.payment.temp.MobilePaymentNotice
+import top.role.android.core.payment.temp.WebPurchaseConfig
+
 
 @Composable
 fun CreditsScreen(
@@ -92,6 +95,7 @@ private fun CreditsScreenContent(
         }
 
         else -> {
+
             CreditsContent(
                 state =
                     state,
@@ -218,6 +222,7 @@ private fun CreditsContent(
     onContinuePurchase:
         (MobileRecentCreditPurchase) -> Unit,
 ) {
+
     val purchaseInProgress =
         state.purchasingPackKey != null
 
@@ -236,6 +241,14 @@ private fun CreditsContent(
                 24.dp
             ),
     ) {
+
+
+        item {
+            MobilePaymentNotice(
+                webUrl =
+                    WebPurchaseConfig.CREDITS_URL,
+            )
+        }
 
         /*
          * 固定 Credits 档位

@@ -61,6 +61,7 @@ import top.role.android.core.preferences.AppAppearance
 import top.role.android.core.preferences.WeekStart
 import top.role.android.feature.account.AccountRepository
 import top.role.android.feature.account.password.AccountPasswordRepository
+import top.role.android.feature.chat.conversation.ChatImagePreviewRepository
 import top.role.android.feature.credit.CreditsRepository
 import top.role.android.feature.market.order.MarketOrderListRepository
 import top.role.android.feature.market.order.detail.MarketOrderDetailRepository
@@ -87,6 +88,7 @@ fun MainScreen(
 
     chatConversationListRepository: ChatConversationListRepository,
     chatConversationRepository: ChatConversationRepository,
+    chatImagePreviewRepository: ChatImagePreviewRepository,
     chatFriendsRepository: ChatFriendsRepository,
     chatGroupRepository: ChatGroupRepository,
 
@@ -174,6 +176,7 @@ fun MainScreen(
 
             chatConversationListRepository,
             chatConversationRepository,
+            chatImagePreviewRepository,
             chatFriendsRepository,
             chatGroupRepository,
 
@@ -216,6 +219,7 @@ fun MainScreen(
 
                 chatConversationListRepository = chatConversationListRepository,
                 chatConversationRepository = chatConversationRepository,
+                chatImagePreviewRepository = chatImagePreviewRepository,
                 chatFriendsRepository = chatFriendsRepository,
                 chatGroupRepository = chatGroupRepository,
 
