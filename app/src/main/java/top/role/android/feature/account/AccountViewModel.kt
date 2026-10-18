@@ -9,29 +9,28 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
+import kotlinx.coroutines.Job
 
 class AccountViewModel(
     private val repository: AccountRepository,
 ) : ViewModel() {
 
-    private val _uiState =
-        MutableStateFlow(
-            AccountUiState()
-        )
+    private val _uiState = MutableStateFlow(AccountUiState())
+    val uiState: StateFlow<AccountUiState> = _uiState.asStateFlow()
+    private var accountJob: Job? = null
 
-    val uiState:
-            StateFlow<AccountUiState> =
-        _uiState.asStateFlow()
-
-
-    init {
-        observeAccountHome()
-    }
-
-
+    init { observeAccountHome() }
     private fun observeAccountHome() {
-        viewModelScope.launch {
+        accountJob?.cancel()
+
+        accountJob = viewModelScope.launch {
+
+            _uiState.update {
+                it.copy(
+                    loading = it.account == null,
+                    errorMessage = null,
+                )
+            }
 
             repository
                 .observeAccountHome()
@@ -47,14 +46,13 @@ class AccountViewModel(
                                     errorMessage = null,
                                 )
                         }
-                        .onFailure {
+                        .onFailure { error ->
+                            android.util.Log.e("AccountHome", "Account subscription failed", error)
 
                             _uiState.update {
                                 it.copy(
                                     loading = false,
-                                    account = null,
-                                    errorMessage =
-                                        "暂时无法加载账户信息，请稍后再试。",
+                                    errorMessage = "暂时无法加载账户信息，请稍后再试。",
                                 )
                             }
                         }
@@ -62,6 +60,9 @@ class AccountViewModel(
         }
     }
 
+    fun retry() {
+        observeAccountHome()
+    }
 
     companion object {
 

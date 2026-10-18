@@ -18,36 +18,23 @@ fun PreviewableImage(
     contentScale: ContentScale =
         ContentScale.Crop,
 ) {
-    val url =
-        imageUrl
-            ?.takeIf {
-                it.isNotBlank()
-            }
-            ?: return
+    val url = imageUrl
+        ?.takeIf {it.isNotBlank()}
+        ?: return
 
-    var previewing by
-    remember(url) {
-        mutableStateOf(false)
-    }
+    var previewing by remember(url) { mutableStateOf(false) }
 
     AsyncImage(
         model = url,
-        contentDescription =
-            contentDescription,
-        modifier = modifier
-            .clickable {
-                previewing = true
-            },
-        contentScale =
-            contentScale,
+        contentDescription = contentDescription,
+        modifier = modifier.clickable { previewing = true },
+        contentScale = contentScale,
     )
 
     if (previewing) {
         ImageViewerDialog(
             imageUrl = url,
-            onDismiss = {
-                previewing = false
-            },
+            onDismiss = { previewing = false },
         )
     }
 }

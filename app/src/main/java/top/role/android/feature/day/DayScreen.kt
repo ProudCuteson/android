@@ -38,176 +38,83 @@ fun DayScreen(
 ) {
     val viewModel: DayHomeViewModel =
         viewModel(
-            factory =
-                DayHomeViewModelFactory(
-                    ownerUserId =
-                        ownerUserId,
-                    noteLocalRepository =
-                        noteLocalRepository,
-                ),
+            factory = DayHomeViewModelFactory(
+                ownerUserId = ownerUserId,
+                noteLocalRepository = noteLocalRepository,
+            ),
         )
 
-    val state by
-    viewModel.uiState
-        .collectAsStateWithLifecycle()
-
-    val selectedDate =
-        LocalDate.parse(
-            state.selectedDayKey
-        )
-
-    val selectedMonth =
-        YearMonth.from(
-            selectedDate
-        )
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val selectedDate = LocalDate.parse(state.selectedDayKey)
+    val selectedMonth = YearMonth.from(selectedDate)
 
     LazyColumn(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(
-                    horizontal = 16.dp,
-                ),
-
-        verticalArrangement =
-            Arrangement.spacedBy(
-                16.dp
+        modifier = Modifier.fillMaxSize().padding(
+            horizontal = 16.dp,
             ),
+
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
 
         item {
             DayCalendar(
-                yearMonth =
-                    selectedMonth,
-
-                selectedDayKey =
-                    state.selectedDayKey,
-
-                dottedDayKeys =
-                    state.dottedDayKeys,
-
-                todayDayKey =
-                    DayKey.today(),
-
-                weekStart =
-                    weekStart,
-
+                yearMonth = selectedMonth,
+                selectedDayKey = state.selectedDayKey,
+                dottedDayKeys = state.dottedDayKeys,
+                todayDayKey = DayKey.today(),
+                weekStart = weekStart,
                 onPreviousMonth = {
-                    val previousMonth =
-                        selectedMonth
-                            .minusMonths(1)
-
+                    val previousMonth = selectedMonth.minusMonths(1)
                     viewModel.selectDay(
-                        previousMonth
-                            .atDay(1)
-                            .toString()
+                        previousMonth.atDay(1).toString()
                     )
                 },
-
                 onNextMonth = {
-                    val nextMonth =
-                        selectedMonth
-                            .plusMonths(1)
-
-                    viewModel.selectDay(
-                        nextMonth
-                            .atDay(1)
-                            .toString()
+                    val nextMonth = selectedMonth.plusMonths(1)
+                    viewModel.selectDay(nextMonth.atDay(1) .toString()
                     )
                 },
-
-                onSelectDay =
-                    viewModel::selectDay,
+                onSelectDay = viewModel::selectDay,
             )
         }
-
 
         item {
             SelectedDaySection(
-                selectedDayKey =
-                    state.selectedDayKey,
-
-                diary =
-                    state.selectedDayDiary,
-
-                datedNotes =
-                    state.selectedDayNotes,
-
-                onOpenDayNote = {
-                    onOpenDayNote(
-                        state.selectedDayKey
-                    )
-                },
-
-                onCreateDatedNote = {
-                    onCreateDatedNote(
-                        state.selectedDayKey
-                    )
-                },
-
-                onOpenNote =
-                    onOpenNote,
+                selectedDayKey = state.selectedDayKey,
+                diary = state.selectedDayDiary,
+                datedNotes = state.selectedDayNotes,
+                onOpenDayNote = {onOpenDayNote(state.selectedDayKey)},
+                onCreateDatedNote = {onCreateDatedNote(state.selectedDayKey )},
+                onOpenNote = onOpenNote,
             )
         }
 
-
         if (
-            state.recentNotes
-                .isNotEmpty()
+            state.recentNotes.isNotEmpty()
         ) {
-
             item {
                 Text(
-                    text =
-                        "本月近期",
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .titleMedium,
-
-                    fontWeight =
-                        FontWeight.SemiBold,
+                    text = "本月近期",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
                 )
             }
 
-
             items(
-                count =
-                    state.recentNotes.size,
-
-                key = { index ->
-                    state.recentNotes[
-                        index
-                    ].localKey
-                },
+                count = state.recentNotes.size,
+                key = { index -> state.recentNotes[index].localKey },
             ) { index ->
-
-                val note =
-                    state.recentNotes[
-                        index
-                    ]
-
+                val note = state.recentNotes[index]
                 RecentNoteRow(
-                    note =
-                        note,
-
-                    onClick = {
-                        onOpenNote(
-                            note.localKey
-                        )
-                    },
+                    note = note,
+                    onClick = {onOpenNote(note.localKey)},
                 )
             }
         }
 
-
         item {
             Spacer(
-                modifier =
-                    Modifier.height(
-                        24.dp
-                    )
+                modifier = Modifier.height(24.dp)
             )
         }
     }

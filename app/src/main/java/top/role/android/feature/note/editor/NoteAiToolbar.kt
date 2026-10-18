@@ -38,55 +38,27 @@ fun NoteAiToolbar(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier =
-            modifier.fillMaxWidth(),
-
-        verticalArrangement =
-            Arrangement.spacedBy(
-                8.dp,
-            ),
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(
-            modifier =
-                Modifier.fillMaxWidth(),
-
-            verticalAlignment =
-                Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                imageVector =
-                    Icons.Default.AutoAwesome,
-
-                contentDescription =
-                    null,
-
-                tint =
-                    MaterialTheme
-                        .colorScheme
-                        .primary,
+                imageVector = Icons.Default.AutoAwesome,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
             )
 
             Text(
-                text =
-                    "AI 助力",
-
-                modifier =
-                    Modifier.padding(
-                        start =
-                            6.dp,
-                    ),
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .labelLarge,
+                text = "AI 助力",
+                modifier = Modifier.padding(start = 6.dp),
+                style = MaterialTheme.typography.labelLarge,
             )
 
             Spacer(
-                modifier =
-                    Modifier.weight(
-                        1f,
-                    ),
+                modifier = Modifier.weight(1f),
             )
 
             if (
@@ -97,86 +69,44 @@ fun NoteAiToolbar(
         }
 
         Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(
-                        rememberScrollState(),
-                    ),
-
-            horizontalArrangement =
-                Arrangement.spacedBy(
-                    8.dp,
-                ),
+            modifier = Modifier.fillMaxWidth().horizontalScroll(
+                rememberScrollState(),
+            ),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             NoteAiModeChip(
-                label =
-                    "润色",
-
-                mode =
-                    NoteAiMode.Polish,
-
-                enabled =
-                    !running,
-
-                onClick =
-                    onRunAi,
+                label = "润色",
+                mode = NoteAiMode.Polish,
+                enabled = !running,
+                onClick = onRunAi,
             )
 
             NoteAiModeChip(
-                label =
-                    "扩写",
-
-                mode =
-                    NoteAiMode.Expand,
-
-                enabled =
-                    !running,
-
-                onClick =
-                    onRunAi,
+                label = "扩写",
+                mode = NoteAiMode.Expand,
+                enabled = !running,
+                onClick = onRunAi,
             )
 
             NoteAiModeChip(
-                label =
-                    "缩短",
-
-                mode =
-                    NoteAiMode.Shorten,
-
-                enabled =
-                    !running,
-
-                onClick =
-                    onRunAi,
+                label = "缩短",
+                mode = NoteAiMode.Shorten,
+                enabled = !running,
+                onClick = onRunAi,
             )
 
             NoteAiModeChip(
-                label =
-                    "标题",
-
-                mode =
-                    NoteAiMode.Title,
-
-                enabled =
-                    !running,
-
-                onClick =
-                    onRunAi,
+                label = "标题",
+                mode = NoteAiMode.Title,
+                enabled = !running,
+                onClick = onRunAi,
             )
 
             NoteAiModeChip(
-                label =
-                    "生成",
-
-                mode =
-                    NoteAiMode.Free,
-
-                enabled =
-                    !running,
-
-                onClick =
-                    onRunAi,
+                label = "生成",
+                mode = NoteAiMode.Free,
+                enabled = !running,
+                onClick = onRunAi,
             )
         }
 
@@ -184,49 +114,26 @@ fun NoteAiToolbar(
             !errorMessage.isNullOrBlank()
         ) {
             Text(
-                text =
-                    errorMessage,
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodySmall,
-
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .error,
+                text = errorMessage,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
             )
         }
 
         if (
-            !suggestion.isNullOrBlank() &&
-            suggestionMode !=
-            null
+            !suggestion.isNullOrBlank() && suggestionMode != null
         ) {
             NoteAiSuggestion(
-                suggestion =
-                    suggestion,
-
-                mode =
-                    suggestionMode,
-
-                onReplaceText =
-                    onReplaceText,
-
-                onAppendText =
-                    onAppendText,
-
-                onUseAsTitle =
-                    onUseAsTitle,
-
-                onDismiss =
-                    onDismissSuggestion,
+                suggestion = suggestion,
+                mode =  suggestionMode,
+                onReplaceText = onReplaceText,
+                onAppendText = onAppendText,
+                onUseAsTitle = onUseAsTitle,
+                onDismiss = onDismissSuggestion,
             )
         }
     }
 }
-
 
 @Composable
 private fun NoteAiModeChip(
@@ -236,21 +143,9 @@ private fun NoteAiModeChip(
     onClick: (NoteAiMode) -> Unit,
 ) {
     AssistChip(
-        onClick = {
-            onClick(
-                mode,
-            )
-        },
-
-        enabled =
-            enabled,
-
-        label = {
-            Text(
-                text =
-                    label,
-            )
-        },
+        onClick = { onClick( mode ) },
+        enabled = enabled,
+        label = { Text( text = label ) },
     )
 }
 
@@ -264,128 +159,59 @@ private fun NoteAiSuggestion(
     onDismiss: () -> Unit,
 ) {
     Surface(
-        modifier =
-            Modifier.fillMaxWidth(),
-
-        shape =
-            MaterialTheme
-                .shapes
-                .medium,
-
-        color =
-            MaterialTheme
-                .colorScheme
-                .surfaceVariant,
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceVariant,
     ) {
         Column(
-            modifier =
-                Modifier.padding(
-                    12.dp,
-                ),
+            modifier = Modifier.padding( 12.dp,),
         ) {
             Text(
-                text =
-                    if (
-                        mode ==
-                        NoteAiMode.Title
-                    ) {
-                        "AI 标题建议"
-                    } else {
-                        "AI 建议"
-                    },
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .labelMedium,
-
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .onSurfaceVariant,
+                text = if ( mode == NoteAiMode.Title) {"AI 标题建议"} else {"AI 建议"},
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             Spacer(
-                modifier =
-                    Modifier.height(
-                        8.dp,
-                    ),
+                modifier = Modifier.height( 8.dp),
             )
 
             Text(
-                text =
-                    suggestion,
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodyMedium,
-
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .onSurface,
+                text = suggestion,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
             )
 
             Spacer(
-                modifier =
-                    Modifier.height(
-                        8.dp,
-                    ),
+                modifier = Modifier.height(8.dp),
             )
 
             Row(
-                modifier =
-                    Modifier.fillMaxWidth(),
-
-                horizontalArrangement =
-                    Arrangement.End,
-
-                verticalAlignment =
-                    Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (
-                    mode ==
-                    NoteAiMode.Title
+                    mode == NoteAiMode.Title
                 ) {
-                    TextButton(
-                        onClick =
-                            onUseAsTitle,
-                    ) {
-                        Text(
-                            text =
-                                "使用为标题",
-                        )
+                    TextButton(onClick = onUseAsTitle) {
+                        Text(text = "使用为标题")
                     }
                 } else {
-                    TextButton(
-                        onClick =
-                            onReplaceText,
-                    ) {
+                    TextButton(onClick = onReplaceText) {
                         Text(
-                            text =
-                                "替换正文",
+                            text = "替换正文",
                         )
                     }
-
-                    TextButton(
-                        onClick =
-                            onAppendText,
-                    ) {
+                    TextButton(onClick = onAppendText) {
                         Text(
-                            text =
-                                "追加",
+                            text = "追加",
                         )
                     }
                 }
-
-                TextButton(
-                    onClick =
-                        onDismiss,
-                ) {
+                TextButton(onClick = onDismiss ) {
                     Text(
-                        text =
-                            "取消",
+                        text = "取消",
                     )
                 }
             }

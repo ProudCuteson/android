@@ -59,49 +59,23 @@ fun AccountScreen(
     onOpenTerms: () -> Unit,
     onOpenPrivacy: () -> Unit,
 
-    onReSignIn: () -> Unit,
     onSignOut: () -> Unit,
 ) {
-    val uiState by
-    viewModel.uiState
-        .collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     AccountScreenContent(
-        uiState =
-            uiState,
-
-        appearance =
-            appearance,
-
-        weekStart =
-            weekStart,
-
-        onAppearanceChange =
-            onAppearanceChange,
-
-        onWeekStartChange =
-            onWeekStartChange,
-
-        versionName =
-            versionName,
-
-        onOpenCredits =
-            onOpenCredits,
-
-        onOpenPassword =
-            onOpenPassword,
-
-        onOpenTerms =
-            onOpenTerms,
-
-        onOpenPrivacy =
-            onOpenPrivacy,
-
-        onReSignIn =
-            onReSignIn,
-
-        onSignOut =
-            onSignOut,
+        uiState = uiState,
+        onRetry = viewModel::retry,
+        appearance = appearance,
+        weekStart = weekStart,
+        onAppearanceChange = onAppearanceChange,
+        onWeekStartChange = onWeekStartChange,
+        versionName = versionName,
+        onOpenCredits = onOpenCredits,
+        onOpenPassword = onOpenPassword,
+        onOpenTerms = onOpenTerms,
+        onOpenPrivacy = onOpenPrivacy,
+        onSignOut = onSignOut,
     )
 }
 
@@ -109,7 +83,7 @@ fun AccountScreen(
 @Composable
 private fun AccountScreenContent(
     uiState: AccountUiState,
-
+    onRetry: () -> Unit,
     appearance: AppAppearance,
     weekStart: WeekStart,
 
@@ -124,66 +98,33 @@ private fun AccountScreenContent(
     onOpenTerms: () -> Unit,
     onOpenPrivacy: () -> Unit,
 
-    onReSignIn: () -> Unit,
     onSignOut: () -> Unit,
 ) {
     when {
-
-        uiState.loading &&
-                uiState.account == null -> {
-
+        uiState.loading && uiState.account == null -> {
             AccountLoadingState()
         }
 
-
         uiState.account != null -> {
-
             AccountContent(
-                account =
-                    uiState.account,
-
-                appearance =
-                    appearance,
-
-                weekStart =
-                    weekStart,
-
-                onAppearanceChange =
-                    onAppearanceChange,
-
-                onWeekStartChange =
-                    onWeekStartChange,
-
-                versionName =
-                    versionName,
-
-                onOpenCredits =
-                    onOpenCredits,
-
-                onOpenPassword =
-                    onOpenPassword,
-
-                onOpenTerms =
-                    onOpenTerms,
-
-                onOpenPrivacy =
-                    onOpenPrivacy,
-
-                onSignOut =
-                    onSignOut,
+                account =  uiState.account,
+                appearance = appearance,
+                weekStart = weekStart,
+                onAppearanceChange = onAppearanceChange,
+                onWeekStartChange = onWeekStartChange,
+                versionName = versionName,
+                onOpenCredits = onOpenCredits,
+                onOpenPassword = onOpenPassword,
+                onOpenTerms = onOpenTerms,
+                onOpenPrivacy = onOpenPrivacy,
+                onSignOut = onSignOut,
             )
         }
 
-
         else -> {
-
             AccountErrorState(
-                message =
-                    uiState.errorMessage
-                        ?: "账户信息暂时不可用。",
-
-                onReSignIn =
-                    onReSignIn,
+                message = uiState.errorMessage ?: "账户信息暂时不可用。",
+                onRetry = onRetry,
             )
         }
     }
@@ -193,102 +134,49 @@ private fun AccountScreenContent(
 @Composable
 private fun AccountLoadingState() {
     Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-
-        verticalArrangement =
-            Arrangement.Center,
-
-        horizontalAlignment =
-            Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-
         CircularProgressIndicator()
-
-
-        Spacer(
-            modifier =
-                Modifier.height(16.dp)
-        )
-
-
+        Spacer( modifier = Modifier.height(16.dp))
         Text(
-            text =
-                "正在加载账户信息…",
-
-            style =
-                MaterialTheme.typography.bodyMedium,
-
-            color =
-                MaterialTheme.colorScheme.onSurfaceVariant,
+            text = "正在加载账户信息…",
+            style =  MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
-
 
 @Composable
 private fun AccountErrorState(
     message: String,
-    onReSignIn: () -> Unit,
+    onRetry: () -> Unit,
 ) {
     Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-
-        verticalArrangement =
-            Arrangement.Center,
-
-        horizontalAlignment =
-            Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        Text(
+            text = "无法加载账户",
+            style = MaterialTheme.typography.titleMedium,
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text =
-                "无法加载账户",
-
-            style =
-                MaterialTheme.typography.titleMedium,
+            text = message,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
+        Spacer(modifier = Modifier.height(20.dp))
 
-        Spacer(
-            modifier =
-                Modifier.height(8.dp)
-        )
-
-
-        Text(
-            text =
-                message,
-
-            color =
-                MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-
-        Spacer(
-            modifier =
-                Modifier.height(20.dp)
-        )
-
-
-        Button(
-            onClick =
-                onReSignIn,
-        ) {
-
-            Text(
-                text =
-                    "重新登录",
-            )
+        Button(onClick = onRetry) {
+            Text("重试")
         }
     }
 }
-
 
 @Composable
 private fun AccountContent(
@@ -311,15 +199,11 @@ private fun AccountContent(
     onSignOut: () -> Unit,
 ) {
     LazyColumn(
-        modifier =
-            Modifier.fillMaxSize(),
-
-        contentPadding =
-            PaddingValues(
-                horizontal = 20.dp,
-                vertical = 20.dp,
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(
+            horizontal = 20.dp,
+            vertical = 20.dp,
             ),
-
         verticalArrangement =
             Arrangement.spacedBy(
                 24.dp

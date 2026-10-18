@@ -398,46 +398,24 @@ fun NoteImageReading(
     images: List<NoteEditorImageUi>,
     modifier: Modifier = Modifier,
 ) {
-    val visibleImages =
-        images.filter { image ->
-            !image.displayUrl
-                .isNullOrBlank()
-        }
+    val visibleImages = images.filter { !it.displayUrl.isNullOrBlank() }
+    if (visibleImages.isEmpty()) return
 
-    if (
-        visibleImages.isEmpty()
+    LazyRow(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        return
-    }
-
-    Column(
-        modifier =
-            modifier.fillMaxWidth(),
-
-        verticalArrangement =
-            Arrangement.spacedBy(
-                12.dp,
-            ),
-    ) {
-        visibleImages.forEach { image ->
+        items(
+            items = visibleImages,
+            key = { it.localImageKey },
+        ) { image ->
             PreviewableImage(
-                imageUrl =
-                    image.displayUrl,
-
-                contentDescription =
-                    "记录图片",
-
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .clip(
-                            MaterialTheme
-                                .shapes
-                                .medium,
-                        ),
-
-                contentScale =
-                    ContentScale.FillWidth,
+                imageUrl = image.displayUrl,
+                contentDescription = "记录图片",
+                modifier = Modifier
+                    .size(120.dp)
+                    .clip(MaterialTheme.shapes.medium),
+                contentScale = ContentScale.Crop,
             )
         }
     }

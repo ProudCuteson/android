@@ -36,52 +36,22 @@ fun NavGraphBuilder.accountNavGraph(
     onSignOut: () -> Unit,
 ) {
 
-    composable(
-        route =
-            AccountRoute.route,
-    ) {
-
-        val viewModel:
-                AccountViewModel =
-            viewModel(
-                factory =
-                    AccountViewModel.factory(
-                        repository =
-                            dependencies
-                                .accountRepository,
-                    ),
+    composable(route = AccountRoute.route) {
+        val viewModel: AccountViewModel = viewModel(
+            factory = AccountViewModel.factory(
+                repository = dependencies.accountRepository,
+                ),
             )
 
         AccountScreen(
-            viewModel =
-                viewModel,
-
-            appearance =
-                appearance,
-
-            weekStart =
-                weekStart,
-
-            onAppearanceChange =
-                onAppearanceChange,
-
-            onWeekStartChange =
-                onWeekStartChange,
-
+            viewModel = viewModel,
+            appearance = appearance,
+            weekStart = weekStart,
+            onAppearanceChange = onAppearanceChange,
+            onWeekStartChange = onWeekStartChange,
             versionName = "1.0",
-
-            onOpenCredits = {
-                navController.navigate(
-                    CreditsRoute.route
-                )
-            },
-
-            onOpenPassword = {
-                navController.navigate(
-                    AccountPasswordRoute.route
-                )
-            },
-
+            onOpenCredits = {navController.navigate(CreditsRoute.route)},
+            onOpenPassword = {navController.navigate(AccountPasswordRoute.route)},
             onOpenTerms = {
                 navController.navigate(
                     InAppBrowserRoute.create(
@@ -90,7 +60,6 @@ fun NavGraphBuilder.accountNavGraph(
                     )
                 )
             },
-
             onOpenPrivacy = {
                 navController.navigate(
                     InAppBrowserRoute.create(
@@ -99,69 +68,34 @@ fun NavGraphBuilder.accountNavGraph(
                     )
                 )
             },
-
-            onReSignIn =
-                onReSignIn,
-
-            onSignOut =
-                onSignOut,
+            onSignOut = onSignOut,
         )
     }
 
-
     composable(
-        route =
-            CreditsRoute.route,
+        route = CreditsRoute.route,
     ) {
-
-        val viewModel:
-                CreditsViewModel =
-            viewModel(
-                factory =
-                    CreditsViewModel.factory(
-                        repository =
-                            dependencies
-                                .creditsRepository,
-
-                        wechatPayLauncher =
-                            dependencies
-                                .wechatPayLauncher,
-                    ),
+        val viewModel: CreditsViewModel = viewModel(
+            factory = CreditsViewModel.factory(
+                repository = dependencies.creditsRepository,
+                wechatPayLauncher = dependencies.wechatPayLauncher,
+                ),
             )
-
-        CreditsScreen(
-            viewModel =
-                viewModel,
-        )
+        CreditsScreen(viewModel = viewModel)
     }
 
+    composable(route = AccountPasswordRoute.route) {
 
-    composable(
-        route =
-            AccountPasswordRoute.route,
-    ) {
-
-        val viewModel:
-                AccountPasswordViewModel =
-            viewModel(
-                factory =
-                    AccountPasswordViewModel.factory(
-                        accountRepository =
-                            dependencies
-                                .accountRepository,
-
-                        passwordRepository =
-                            dependencies
-                                .accountPasswordRepository,
-                    ),
+        val viewModel: AccountPasswordViewModel = viewModel(
+            factory = AccountPasswordViewModel.factory(
+                accountRepository = dependencies.accountRepository,
+                passwordRepository = dependencies.accountPasswordRepository,
+                ),
             )
 
         AccountPasswordScreen(
-            viewModel =
-                viewModel,
-
-            onReSignIn =
-                onReSignIn,
+            viewModel = viewModel,
+            onReSignIn = onReSignIn,
         )
     }
 }

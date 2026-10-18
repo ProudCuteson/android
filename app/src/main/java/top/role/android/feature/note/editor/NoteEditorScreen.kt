@@ -1,5 +1,8 @@
 package top.role.android.feature.note.editor
 
+import android.net.Uri
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,14 +52,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import top.role.android.core.data.note.NoteLocalRepository
-import top.role.android.core.model.note.NoteRemoteStatus
-import top.role.android.core.model.note.NoteSyncState
-import android.net.Uri
 import top.role.android.core.data.image.ImageRepository
 import top.role.android.core.data.image.NoteImageService
-import top.role.android.core.data.note.ai.NoteAiRemoteDataSource
+import top.role.android.core.data.note.NoteLocalRepository
 import top.role.android.core.data.note.ai.NoteAiMode
+import top.role.android.core.data.note.ai.NoteAiRemoteDataSource
+import top.role.android.core.model.note.NoteRemoteStatus
+import top.role.android.core.model.note.NoteSyncState
 
 @Composable
 fun NoteEditorRoute(
@@ -65,156 +67,70 @@ fun NoteEditorRoute(
     noteAiRemoteDataSource: NoteAiRemoteDataSource,
     noteImageService: NoteImageService,
     imageRepository: ImageRepository,
-
     initialLocalKey: String? = null,
     initialDayKey: String? = null,
     openAsDayOnly: Boolean = false,
     createAsNormal: Boolean = false,
     createAsDated: Boolean = false,
-
     onBack: () -> Unit,
 ) {
     val viewModel: NoteEditorViewModel =
         viewModel(
             factory =
                 NoteEditorViewModelFactory(
-                    ownerUserId =
-                        ownerUserId,
-
-                    noteLocalRepository =
-                        noteLocalRepository,
-
-                    noteAiRemoteDataSource =
-                        noteAiRemoteDataSource,
-
-                    noteImageService =
-                        noteImageService,
-
-                    imageRepository =
-                        imageRepository,
-
-                    initialLocalKey =
-                        initialLocalKey,
-
-                    initialDayKey =
-                        initialDayKey,
-
-                    openAsDayOnly =
-                        openAsDayOnly,
-
-                    createAsNormal =
-                        createAsNormal,
-
-                    createAsDated =
-                        createAsDated,
-                )
+                    ownerUserId = ownerUserId,
+                    noteLocalRepository = noteLocalRepository,
+                    noteAiRemoteDataSource = noteAiRemoteDataSource,
+                    noteImageService = noteImageService,
+                    imageRepository = imageRepository,
+                    initialLocalKey = initialLocalKey,
+                    initialDayKey = initialDayKey,
+                    openAsDayOnly = openAsDayOnly,
+                    createAsNormal = createAsNormal,
+                    createAsDated = createAsDated,
+                ),
         )
 
-    val state by
-    viewModel.uiState
-        .collectAsStateWithLifecycle()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val lifecycleOwner = LocalLifecycleOwner.current
 
-    val lifecycleOwner =
-        LocalLifecycleOwner.current
-
-    DisposableEffect(
-        lifecycleOwner,
-        viewModel,
-    ) {
-        val observer =
-            LifecycleEventObserver { _, event ->
-                if (
-                    event ==
-                    Lifecycle.Event.ON_STOP
-                ) {
-                    viewModel.saveNow()
-                }
-            }
-
-        lifecycleOwner.lifecycle
-            .addObserver(
-                observer,
-            )
-
-        onDispose {
-            lifecycleOwner.lifecycle
-                .removeObserver(
-                    observer,
-                )
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) viewModel.saveNow()
         }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    val scope =
-        rememberCoroutineScope()
+    val scope = rememberCoroutineScope()
 
     NoteEditorScreen(
-        state =
-            state,
-
-        onTitleChange =
-            viewModel::updateTitle,
-
-        onTextChange =
-            viewModel::updateText,
-
-        onPinnedChange =
-            viewModel::setPinned,
-
-        onStartEditing =
-            viewModel::startEditing,
-
-        onFinishEditing =
-            viewModel::finishEditing,
-
-        onRunAi =
-            viewModel::runAi,
-
-        onReplaceTextWithAi =
-            viewModel::replaceTextWithAiSuggestion,
-
-        onAppendAiToText =
-            viewModel::appendAiSuggestionToText,
-
-        onUseAiAsTitle =
-            viewModel::useAiSuggestionAsTitle,
-
-        onDismissAiSuggestion =
-            viewModel::clearAiSuggestion,
-
-        onAddImage =
-            viewModel::addImage,
-
-        onRetryImageUpload =
-            viewModel::retryImageUpload,
-
-        onRemoveImage =
-            viewModel::removeImage,
-
-        onUseRemoteConflict = {
-            viewModel
-                .resolveConflictUsingRemote(
-                    onDeleted =
-                        onBack,
-                )
-        },
-
-        onKeepLocalConflict =
-            viewModel::resolveConflictKeepingLocal,
-
+        state = state,
+        onTitleChange = viewModel::updateTitle,
+        onTextChange = viewModel::updateText,
+        onPinnedChange = viewModel::setPinned,
+        onStartEditing = viewModel::startEditing,
+        onFinishEditing = viewModel::finishEditing,
+        onRunAi = viewModel::runAi,
+        onReplaceTextWithAi = viewModel::replaceTextWithAiSuggestion,
+        onAppendAiToText = viewModel::appendAiSuggestionToText,
+        onUseAiAsTitle = viewModel::useAiSuggestionAsTitle,
+        onDismissAiSuggestion = viewModel::clearAiSuggestion,
+        onAddImage = viewModel::addImage,
+        onRetryImageUpload = viewModel::retryImageUpload,
+        onRemoveImage = viewModel::removeImage,
+        onUseRemoteConflict = { viewModel.resolveConflictUsingRemote(onDeleted = onBack) },
+        onKeepLocalConflict = viewModel::resolveConflictKeepingLocal,
         onBack = {
             scope.launch {
-                viewModel
-                    .flushAndCleanup()
-
+                viewModel.flushAndCleanup()
                 onBack()
             }
         },
     )
 }
 
-@OptIn(
-    ExperimentalMaterial3Api::class,
-)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NoteEditorScreen(
     state: NoteEditorUiState,
@@ -238,20 +154,9 @@ fun NoteEditorScreen(
     onKeepLocalConflict: () -> Unit,
     onBack: () -> Unit,
 ) {
-    var showConflictDialog by
-    remember {
-        mutableStateOf(
-            false,
-        )
-    }
-
-    val hasConflict =
-        state.syncState ==
-                NoteSyncState.Conflict
-
-    val canResolveConflict =
-        hasConflict &&
-                state.conflict != null
+    var showConflictDialog by remember { mutableStateOf(false) }
+    val hasConflict = state.syncState == NoteSyncState.Conflict
+    val canResolveConflict = hasConflict && state.conflict != null
 
     /*
      * Conflict 被外部解决或者状态发生变化后，
@@ -261,12 +166,8 @@ fun NoteEditorScreen(
         hasConflict,
         canResolveConflict,
     ) {
-        if (
-            !hasConflict ||
-            !canResolveConflict
-        ) {
-            showConflictDialog =
-                false
+        if (!hasConflict || !canResolveConflict) {
+            showConflictDialog = false
         }
     }
 
@@ -275,33 +176,19 @@ fun NoteEditorScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text =
-                            when {
-                                state.onlyDay ->
-                                    state.dayKey
-                                        ?: "日记"
-
-                                state.dayKey != null ->
-                                    state.dayKey
-
-                                else ->
-                                    "记录"
-                            },
+                        text = when {
+                            state.onlyDay -> state.dayKey ?: "日记"
+                            state.dayKey != null -> state.dayKey
+                            else -> "记录"
+                        },
                     )
                 },
 
                 navigationIcon = {
-                    IconButton(
-                        onClick =
-                            onBack,
-                    ) {
+                    IconButton( onClick = onBack ) {
                         Icon(
-                            imageVector =
-                                Icons.AutoMirrored
-                                    .Filled.ArrowBack,
-
-                            contentDescription =
-                                "返回",
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "返回",
                         )
                     }
                 },
@@ -310,35 +197,16 @@ fun NoteEditorScreen(
                     /*
                      * Conflict 期间冻结一切本地 mutation。
                      */
-                    if (
-                        state.canEdit &&
-                        !hasConflict
-                    ) {
-                        IconButton(
-                            onClick = {
-                                onPinnedChange(
-                                    !state.pinned,
-                                )
-                            },
+                    if (state.canEdit && !hasConflict) {
+                        IconButton(onClick = { onPinnedChange(!state.pinned)},
                         ) {
                             Icon(
-                                imageVector =
-                                    if (
-                                        state.pinned
-                                    ) {
-                                        Icons.Filled.PushPin
-                                    } else {
-                                        Icons.Outlined.PushPin
-                                    },
-
-                                contentDescription =
-                                    if (
-                                        state.pinned
-                                    ) {
-                                        "取消置顶"
-                                    } else {
-                                        "置顶"
-                                    },
+                                imageVector = if (state.pinned) {
+                                    Icons.Filled.PushPin
+                                } else {
+                                    Icons.Outlined.PushPin
+                                },
+                                contentDescription = if (state.pinned) {"取消置顶"} else {"置顶"},
                             )
                         }
                     }
@@ -352,38 +220,24 @@ fun NoteEditorScreen(
                         !state.isEditing &&
                         !hasConflict
                     ) {
-                        IconButton(
-                            onClick =
-                                onStartEditing,
-                        ) {
+                        IconButton(onClick = onStartEditing) {
                             Icon(
-                                imageVector =
-                                    Icons.Default.Edit,
-
-                                contentDescription =
-                                    "编辑",
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "编辑",
                             )
                         }
                     }
 
                     /*
-                     * Editing：
-                     * 显示完成。
-                     *
-                     * Conflict 一旦出现，
-                     * 这个入口也立即冻结。
+                     * Editing：显示完成。
+                     * Conflict 一旦出现，这个入口也立即冻结。
                      */
-                    if (
-                        state.isEditing &&
-                        !hasConflict
-                    ) {
+                    if (state.isEditing && !hasConflict) {
                         TextButton(
-                            onClick =
-                                onFinishEditing,
+                            onClick = onFinishEditing,
                         ) {
                             Text(
-                                text =
-                                    "完成",
+                                text = "完成",
                             )
                         }
                     }
@@ -394,15 +248,8 @@ fun NoteEditorScreen(
         when {
             state.loading -> {
                 Box(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .padding(
-                                innerPadding,
-                            ),
-
-                    contentAlignment =
-                        Alignment.Center,
+                    modifier = Modifier.fillMaxSize().padding(innerPadding),
+                    contentAlignment = Alignment.Center,
                 ) {
                     CircularProgressIndicator()
                 }
@@ -410,35 +257,20 @@ fun NoteEditorScreen(
 
             /*
              * 真正 fatal load error。
-             *
              * Archived / Conflict 都可能 canEdit=false，
              * 所以不能再用 canEdit 判断错误页。
              */
-            state.errorMessage != null &&
-                    state.localKey == null -> {
-
+            state.errorMessage != null && state.localKey == null -> {
                 Box(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .padding(
-                                innerPadding,
-                            )
-                            .padding(
-                                24.dp,
-                            ),
-
-                    contentAlignment =
-                        Alignment.Center,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text =
-                            state.errorMessage,
-
-                        color =
-                            MaterialTheme
-                                .colorScheme
-                                .error,
+                        text = state.errorMessage,
+                        color = MaterialTheme.colorScheme.error,
                     )
                 }
             }
@@ -451,24 +283,15 @@ fun NoteEditorScreen(
              */
             hasConflict -> {
                 NoteReadingContent(
-                    state =
-                        state,
-
+                    state = state,
                     onOpenConflict = {
-                        if (
-                            canResolveConflict
-                        ) {
-                            showConflictDialog =
-                                true
+                        if ( canResolveConflict ) {
+                            showConflictDialog = true
                         }
                     },
-
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .padding(
-                                innerPadding,
-                            ),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
                 )
             }
 
@@ -477,84 +300,46 @@ fun NoteEditorScreen(
                     state = state,
                     onTitleChange = onTitleChange,
                     onTextChange = onTextChange,
-
                     onRunAi = onRunAi,
                     onReplaceTextWithAi = onReplaceTextWithAi,
-                    onAppendAiToText= onAppendAiToText,
+                    onAppendAiToText = onAppendAiToText,
                     onUseAiAsTitle = onUseAiAsTitle,
                     onDismissAiSuggestion = onDismissAiSuggestion,
-
                     onAddImage = onAddImage,
                     onRetryImageUpload = onRetryImageUpload,
                     onRemoveImage = onRemoveImage,
-
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .padding(
-                                innerPadding,
-                            ),
+                    modifier = Modifier.fillMaxSize().padding(innerPadding),
                 )
             }
 
             else -> {
                 NoteReadingContent(
-                    state =
-                        state,
-
+                    state = state,
                     onOpenConflict = {
-                        if (
-                            canResolveConflict
-                        ) {
-                            showConflictDialog =
-                                true
+                        if (canResolveConflict) {
+                            showConflictDialog = true
                         }
                     },
-
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .padding(
-                                innerPadding,
-                            ),
+                    modifier = Modifier.fillMaxSize().padding(innerPadding),
                 )
             }
         }
     }
 
-    val conflict =
-        state.conflict
+    val conflict = state.conflict
 
-    if (
-        showConflictDialog &&
-        conflict != null
-    ) {
+    if (showConflictDialog && conflict != null) {
         NoteConflictDialog(
-            localTitle =
-                state.title,
-
-            localText =
-                state.text,
-
-            remote =
-                conflict,
-
-            onDismiss = {
-                showConflictDialog =
-                    false
-            },
-
+            localTitle = state.title,
+            localText = state.text,
+            remote = conflict,
+            onDismiss = { showConflictDialog = false },
             onUseRemote = {
-                showConflictDialog =
-                    false
-
+                showConflictDialog = false
                 onUseRemoteConflict()
             },
-
             onKeepLocal = {
-                showConflictDialog =
-                    false
-
+                showConflictDialog = false
                 onKeepLocalConflict()
             },
         )
@@ -574,64 +359,28 @@ private fun NoteReadingContent(
     onOpenConflict: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val hasConflict =
-        state.syncState ==
-                NoteSyncState.Conflict
+    val hasConflict = state.syncState == NoteSyncState.Conflict
 
     Column(
-        modifier =
-            modifier
-                .padding(
-                    horizontal =
-                        20.dp,
-
-                    vertical =
-                        12.dp,
-                ),
-
-        verticalArrangement =
-            Arrangement.Top,
+        modifier = modifier
+            .verticalScroll(rememberScrollState())
+            .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 80.dp),
+        verticalArrangement = Arrangement.Top,
     ) {
-        EditorMetaRow(
-            state =
-                state,
-        )
-
+        EditorMetaRow(state = state)
         /*
          * 非 fatal 错误也需要有可见出口。
          */
-        if (
-            !state.errorMessage.isNullOrBlank()
-        ) {
-            Spacer(
-                modifier =
-                    Modifier.height(
-                        10.dp,
-                    ),
-            )
-
-            EditorInlineError(
-                message =
-                    state.errorMessage,
-            )
+        if (!state.errorMessage.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(10.dp,))
+            EditorInlineError(message = state.errorMessage)
         }
 
-        if (
-            hasConflict
-        ) {
-            Spacer(
-                modifier =
-                    Modifier.height(
-                        12.dp,
-                    ),
-            )
-
+        if (hasConflict) {
+            Spacer(modifier = Modifier.height(12.dp))
             ConflictBanner(
-                canResolve =
-                    state.conflict != null,
-
-                onClick =
-                    onOpenConflict,
+                canResolve = state.conflict != null,
+                onClick = onOpenConflict,
             )
         }
 
@@ -642,116 +391,44 @@ private fun NoteReadingContent(
          *
          * 所以这里显示的是本地当前真实 lifecycle。
          */
-        if (
-            state.remoteStatus ==
-            NoteRemoteStatus.Archived
-        ) {
-            Spacer(
-                modifier =
-                    Modifier.height(
-                        12.dp,
-                    ),
-            )
-
+        if (state.remoteStatus == NoteRemoteStatus.Archived) {
+            Spacer(modifier = Modifier.height(12.dp,),)
             Text(
-                text =
-                    "已归档 · 取消归档后可继续编辑",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .labelMedium,
-
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .onSurfaceVariant,
+                text = "已归档 · 取消归档后可继续编辑",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
-        Spacer(
-            modifier =
-                Modifier.height(
-                    20.dp,
-                ),
-        )
+        Spacer(modifier = Modifier.height(20.dp))
 
         Text(
-            text =
-                state.title
-                    .takeIf {
-                        it.isNotBlank()
-                    }
-                    ?: "无标题",
-
-            style =
-                MaterialTheme
-                    .typography
-                    .headlineSmall,
-
-            fontWeight =
-                FontWeight.SemiBold,
-
-            color =
-                MaterialTheme
-                    .colorScheme
-                    .onSurface,
+            text = state.title.takeIf { it.isNotBlank() } ?: "无标题",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
         )
 
-        if (
-            state.images.isNotEmpty()
-        ) {
-            Spacer(
-                modifier =
-                    Modifier.height(
-                        20.dp,
-                    ),
-            )
-
+        if (state.images.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(20.dp))
             NoteImageReading(
-                images =
-                    state.images,
+                images = state.images,
             )
         }
 
-        if (
-            state.text.isNotBlank()
-        ) {
-            Spacer(
-                modifier =
-                    Modifier.height(
-                        18.dp,
-                    ),
-            )
+        if (state.text.isNotBlank()) {
+            Spacer(modifier = Modifier.height(18.dp))
 
             Text(
-                text =
-                    state.text,
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodyLarge,
-
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .onSurface,
+                text = state.text,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
             )
         } else {
             Text(
-                text =
-                    "暂无正文",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodyLarge,
-
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .onSurfaceVariant,
+                text = "暂无正文",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
