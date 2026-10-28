@@ -25,6 +25,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material.icons.outlined.Add
 
 import androidx.compose.runtime.Composable
 
@@ -97,6 +98,7 @@ fun MainTopBar(
     state: MainShellState,
     onBack: () -> Unit,
     onLibrary: () -> Unit,
+    onRichText: () -> Unit,
     onAccount: () -> Unit,
     onFriends: () -> Unit,
     onAddFriend: () -> Unit,
@@ -140,22 +142,23 @@ fun MainTopBar(
              * ------------------------------------------------
              */
 
-            if (
-                state.showLibrary
-            ) {
+            if (state.showLibrary) {
                 IconButton(
-                    onClick =
-                        onLibrary,
+                    onClick = onLibrary,
                 ) {
                     Icon(
                         imageVector =
-                            Icons
-                                .AutoMirrored
-                                .Outlined
-                                .LibraryBooks,
+                            Icons.AutoMirrored.Outlined.LibraryBooks,
+                        contentDescription = "记录库",
+                    )
+                }
 
-                        contentDescription =
-                            "记录",
+                IconButton(
+                    onClick = onRichText,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Add,
+                        contentDescription = "富文本编辑器",
                     )
                 }
             }

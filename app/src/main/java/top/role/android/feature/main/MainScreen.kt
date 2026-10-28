@@ -321,6 +321,12 @@ fun MainScreen(
                             MarketOrderListRoute.route
                         )
                     },
+
+                    onRichText = {
+                        navController.navigate(
+                            "note/rich-text-playground"
+                        )
+                    },
                 )
             }
         },

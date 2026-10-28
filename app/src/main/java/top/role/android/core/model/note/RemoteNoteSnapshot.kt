@@ -1,6 +1,7 @@
 package top.role.android.core.model.note
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 @Serializable
 data class RemoteNoteSnapshot(
@@ -21,6 +22,8 @@ data class RemoteNoteSnapshot(
 
     val createdAt: Double,
     val updatedAt: Double,
+
+    val content: JsonElement? = null,
 ) {
     val remoteStatus: NoteRemoteStatus
         get() =

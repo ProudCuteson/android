@@ -4,6 +4,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
+import androidx.compose.runtime.DisposableEffect
 
 import top.role.android.app.navigation.AccountPasswordRoute
 import top.role.android.app.navigation.AccountRoute
@@ -36,22 +37,65 @@ fun NavGraphBuilder.accountNavGraph(
     onSignOut: () -> Unit,
 ) {
 
+
     composable(route = AccountRoute.route) {
-        val viewModel: AccountViewModel = viewModel(
-            factory = AccountViewModel.factory(
-                repository = dependencies.accountRepository,
+
+        val authenticated = dependencies.remoteAuthenticated
+
+        val accountViewModel: AccountViewModel =
+            viewModel(
+                key = "account:${dependencies.localOwnerUserId}",
+                factory = AccountViewModel.factory(
+                    repository =
+                        dependencies.accountRepository,
                 ),
             )
 
+        DisposableEffect(
+            accountViewModel,
+            authenticated,
+        ) {
+            accountViewModel.setActive(
+                authenticated
+            )
+
+            onDispose {
+                accountViewModel.setActive(false)
+            }
+        }
+
         AccountScreen(
-            viewModel = viewModel,
+            viewModel = if (authenticated) {
+                    accountViewModel
+                } else {
+                    null
+                },
+
+            remoteAuthenticated = authenticated,
+
             appearance = appearance,
             weekStart = weekStart,
-            onAppearanceChange = onAppearanceChange,
-            onWeekStartChange = onWeekStartChange,
+
+            onAppearanceChange =
+                onAppearanceChange,
+
+            onWeekStartChange =
+                onWeekStartChange,
+
             versionName = "1.0",
-            onOpenCredits = {navController.navigate(CreditsRoute.route)},
-            onOpenPassword = {navController.navigate(AccountPasswordRoute.route)},
+
+            onOpenCredits = {
+                navController.navigate(
+                    CreditsRoute.route
+                )
+            },
+
+            onOpenPassword = {
+                navController.navigate(
+                    AccountPasswordRoute.route
+                )
+            },
+
             onOpenTerms = {
                 navController.navigate(
                     InAppBrowserRoute.create(
@@ -60,6 +104,7 @@ fun NavGraphBuilder.accountNavGraph(
                     )
                 )
             },
+
             onOpenPrivacy = {
                 navController.navigate(
                     InAppBrowserRoute.create(
@@ -68,13 +113,13 @@ fun NavGraphBuilder.accountNavGraph(
                     )
                 )
             },
+
+            onReSignIn = onReSignIn,
             onSignOut = onSignOut,
         )
     }
 
-    composable(
-        route = CreditsRoute.route,
-    ) {
+    composable(route = CreditsRoute.route) {
         val viewModel: CreditsViewModel = viewModel(
             factory = CreditsViewModel.factory(
                 repository = dependencies.creditsRepository,

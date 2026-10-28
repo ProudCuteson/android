@@ -6,6 +6,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.runtime.DisposableEffect
@@ -14,6 +15,8 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.filter
@@ -24,10 +27,8 @@ import top.role.android.feature.auth.SignInViewModel
 import top.role.android.feature.auth.SignInViewModelFactory
 import top.role.android.feature.main.MainScreen
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.launch
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -40,122 +41,107 @@ fun AppRoot(
     appContainer: AppContainer,
     appPreferencesViewModel: AppPreferencesViewModel
 ) {
-    val sessionViewModel: AppSessionViewModel =
-        viewModel(
-            factory =
-                AppSessionViewModelFactory(
-                    sessionStorage =
-                        appContainer
-                            .sessionStorage,
 
-                    convexClient =
-                        appContainer
-                            .convexClient,
-                )
+    val sessionViewModel: AppSessionViewModel = viewModel(
+        factory = AppSessionViewModelFactory(
+            sessionStorage = appContainer.sessionStorage,
+            convexClient = appContainer.convexClient,
         )
+    )
 
-    val authState by
-    sessionViewModel
+    val authState by sessionViewModel
         .authState
         .collectAsStateWithLifecycle()
 
-    val localOwnerUserId by
-    sessionViewModel
+    val localOwnerUserId by  sessionViewModel
         .localOwnerUserId
         .collectAsStateWithLifecycle()
 
-    var showRemoteSignIn by
-    rememberSaveable {
+    var showRemoteSignIn by rememberSaveable {
         mutableStateOf(false)
     }
 
-    val scope =
-        rememberCoroutineScope()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
-    val appearance by
-    appPreferencesViewModel
+    val appearance by appPreferencesViewModel
         .appearance
         .collectAsStateWithLifecycle()
 
-    val weekStart by
-    appPreferencesViewModel
+    val weekStart by appPreferencesViewModel
         .weekStart
         .collectAsStateWithLifecycle()
 
-    val hasAcceptedAuthAgreement by
-    appPreferencesViewModel
+    val hasAcceptedAuthAgreement by appPreferencesViewModel
         .hasAcceptedAuthAgreement
         .collectAsStateWithLifecycle()
 
-    val isOnline by
-    appContainer
+    val isOnline by appContainer
         .networkMonitor
         .isOnline
-        .collectAsStateWithLifecycle(
-            initialValue = false,
-        )
+        .collectAsStateWithLifecycle( initialValue = false )
+
+    val syncOwnerUserId = (authState as? AuthState.SignedIn)
+        ?.session
+        ?.userId
+        ?.takeIf { userId ->
+            userId == localOwnerUserId
+        }
 
     LaunchedEffect(
-        authState,
-        localOwnerUserId,
+        syncOwnerUserId,
+        isOnline,
     ) {
         val ownerUserId =
-            localOwnerUserId
+            syncOwnerUserId
                 ?: return@LaunchedEffect
 
-        if (
-            authState !is
-                    AuthState.SignedIn
-        ) {
+        if (!isOnline) {
             return@LaunchedEffect
         }
 
         appContainer
             .noteSyncCoordinator
             .sync(
-                ownerUserId =
-                    ownerUserId,
+                ownerUserId = ownerUserId,
             )
-            .onFailure {
+            .onSuccess { result ->
+                android.util.Log.d(
+                    "NoteSync",
+                    "initial/reconnect sync: " +
+                            "push=${result.pushSucceededCount}/" +
+                            "${result.pushAttemptedCount}, " +
+                            "failed=${result.pushFailedCount}",
+                )
+            }
+            .onFailure { error ->
                 android.util.Log.e(
                     "NoteSync",
-                    "initial sync failed",
-                    it,
+                    "initial/reconnect sync failed",
+                    error,
                 )
             }
     }
 
     LaunchedEffect(
-        authState,
-        localOwnerUserId,
+        syncOwnerUserId,
+        isOnline,
     ) {
-        val ownerUserId =
-            localOwnerUserId
-                ?: return@LaunchedEffect
+        val ownerUserId = syncOwnerUserId?: return@LaunchedEffect
 
-        if (
-            authState !is
-                    AuthState.SignedIn
-        ) {
+        if (!isOnline) {
             return@LaunchedEffect
         }
 
         appContainer
             .noteLocalRepository
             .syncRequests
-            .filter {
-                it == ownerUserId
-            }
-            .debounce(
-                1_500.milliseconds
-            )
+            .filter {it == ownerUserId}
+            .debounce(1_500.milliseconds)
             .collect {
                 appContainer
                     .noteSyncCoordinator
-                    .sync(
-                        ownerUserId =
-                            ownerUserId,
-                    )
+                    .sync(ownerUserId = ownerUserId)
                     .onSuccess { result ->
                         android.util.Log.d(
                             "NoteSync",
@@ -167,11 +153,11 @@ fun AppRoot(
                                     "pull2=${result.finalPullMergedCount}",
                         )
                     }
-                    .onFailure {
+                    .onFailure { error ->
                         android.util.Log.e(
                             "NoteSync",
                             "continuous sync failed",
-                            it,
+                            error,
                         )
                     }
             }
@@ -182,238 +168,147 @@ fun AppRoot(
         localOwnerUserId == null
     ) {
         Box(
-            modifier =
-                Modifier.fillMaxSize(),
-
-            contentAlignment =
-                Alignment.Center,
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
         ) {
             CircularProgressIndicator()
         }
-
         return
     }
 
     if (localOwnerUserId == null) {
         SignedOutContent(
-            appContainer =
-                appContainer,
-
-            hasAcceptedAuthAgreement =
-                hasAcceptedAuthAgreement,
-
-            onAcceptAuthAgreement =
-                appPreferencesViewModel::acceptAuthAgreement,
+            appContainer = appContainer,
+            hasAcceptedAuthAgreement = hasAcceptedAuthAgreement,
+            onAcceptAuthAgreement = appPreferencesViewModel::acceptAuthAgreement,
         )
 
         return
     }
 
-    val lifecycleOwner =
-        LocalLifecycleOwner.current
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     DisposableEffect(
         lifecycleOwner,
-        authState,
-        localOwnerUserId,
+        sessionViewModel,
+        appContainer,
     ) {
         val observer =
-            LifecycleEventObserver {
-                    _,
-                    event ->
+            LifecycleEventObserver { _, event ->
 
                 if (
-                    event ==
-                    Lifecycle.Event.ON_START
+                    event == Lifecycle.Event.ON_START
                 ) {
-                    val ownerUserId =
-                        localOwnerUserId
+                    scope.launch {
 
-                    if (
-                        ownerUserId != null &&
-                        authState is
-                                AuthState.SignedIn
-                    ) {
-                        appContainer
-                            .noteLocalRepository
-                            .requestSync(
-                                ownerUserId =
-                                    ownerUserId,
-                            )
+                        val authenticatedUserId =
+                            sessionViewModel
+                                .checkSessionOnForeground(
+                                    context = context
+                                )
+
+                        val ownerUserId =
+                            sessionViewModel
+                                .localOwnerUserId.value
+
+                        if (
+                            authenticatedUserId != null &&
+                            authenticatedUserId == ownerUserId
+                        ) {
+                            appContainer
+                                .noteLocalRepository
+                                .requestSync(
+                                    ownerUserId =
+                                        authenticatedUserId,
+                                )
+                        }
                     }
                 }
             }
 
         lifecycleOwner.lifecycle
-            .addObserver(
-                observer,
-            )
+            .addObserver(observer)
 
         onDispose {
             lifecycleOwner.lifecycle
-                .removeObserver(
-                    observer,
-                )
+                .removeObserver(observer)
         }
     }
 
-    LaunchedEffect(
-        authState,
-        showRemoteSignIn,
-    ) {
+    LaunchedEffect(authState) {
         if (
             showRemoteSignIn &&
             authState is AuthState.SignedIn
         ) {
-            showRemoteSignIn =
-                false
+            showRemoteSignIn = false
         }
     }
 
     if (showRemoteSignIn) {
-
         SignedOutContent(
-            appContainer =
-                appContainer,
-
-            hasAcceptedAuthAgreement =
-                hasAcceptedAuthAgreement,
-
-            onAcceptAuthAgreement =
-                appPreferencesViewModel::acceptAuthAgreement,
+            appContainer = appContainer,
+            hasAcceptedAuthAgreement = hasAcceptedAuthAgreement,
+            onAcceptAuthAgreement = appPreferencesViewModel::acceptAuthAgreement,
         )
-
     } else {
 
         MainScreen(
-            localOwnerUserId =
-                localOwnerUserId!!,
+            localOwnerUserId = localOwnerUserId!!,
+            remoteAuthenticated = authState is AuthState.SignedIn,
+            remoteOnline = isOnline,
 
-            remoteAuthenticated =
-                authState is
-                        AuthState.SignedIn,
+            noteLocalRepository = appContainer.noteLocalRepository,
+            noteAiRemoteDataSource = appContainer.noteAiRemoteDataSource,
+            noteImageService = appContainer.noteImageService,
+            imageRepository = appContainer.imageRepository,
 
-            remoteOnline =
-                isOnline,
+            discoverRepository = appContainer.discoverRepository,
+            spaceListRepository = appContainer.spaceListRepository,
+            topicListRepository = appContainer.topicListRepository,
+            contentListRepository = appContainer.contentListRepository,
+            entityDetailRepository = appContainer.entityDetailRepository,
+            topicDetailRepository = appContainer.topicDetailRepository,
+            docDetailRepository = appContainer.docDetailRepository,
+            slideDetailRepository = appContainer.slideDetailRepository,
 
-            noteLocalRepository =
-                appContainer.noteLocalRepository,
+            chatConversationListRepository = appContainer.chatConversationListRepository,
+            chatConversationRepository = appContainer.chatConversationRepository,
+            chatImagePreviewRepository = appContainer.chatImagePreviewRepository,
+            chatFriendsRepository = appContainer.chatFriendsRepository,
+            chatGroupRepository = appContainer.chatGroupRepository,
 
-            noteAiRemoteDataSource =
-                appContainer.noteAiRemoteDataSource,
+            engageRepository = appContainer.engageRepository,
+            surveyListRepository = appContainer.surveyListRepository,
+            surveyDetailRepository = appContainer.surveyDetailRepository,
+            bountyListRepository = appContainer.bountyListRepository,
+            bountyDetailRepository = appContainer.bountyDetailRepository,
 
-            noteImageService =
-                appContainer.noteImageService,
+            marketListRepository = appContainer.marketListRepository,
+            marketDetailRepository = appContainer.marketDetailRepository,
+            marketOrderListRepository = appContainer.marketOrderListRepository,
+            marketOrderDetailRepository = appContainer.marketOrderDetailRepository,
 
-            imageRepository =
-                appContainer.imageRepository,
+            membershipRepository = appContainer.membershipRepository,
+            wechatPayLauncher = appContainer.wechatPayLauncher,
+            accountRepository = appContainer.accountRepository,
+            accountPasswordRepository = appContainer.accountPasswordRepository,
 
-            discoverRepository =
-                appContainer.discoverRepository,
-
-            spaceListRepository =
-                appContainer.spaceListRepository,
-
-            topicListRepository =
-                appContainer.topicListRepository,
-
-            contentListRepository =
-                appContainer.contentListRepository,
-
-            entityDetailRepository =
-                appContainer.entityDetailRepository,
-
-            topicDetailRepository =
-                appContainer.topicDetailRepository,
-
-            docDetailRepository =
-                appContainer.docDetailRepository,
-
-            slideDetailRepository =
-                appContainer.slideDetailRepository,
-
-            chatConversationListRepository =
-                appContainer.chatConversationListRepository,
-
-            chatConversationRepository =
-                appContainer.chatConversationRepository,
-
-            chatImagePreviewRepository =
-                appContainer.chatImagePreviewRepository,
-
-            chatFriendsRepository =
-                appContainer.chatFriendsRepository,
-
-            chatGroupRepository =
-                appContainer.chatGroupRepository,
-
-            engageRepository =
-                appContainer.engageRepository,
-
-            surveyListRepository =
-                appContainer.surveyListRepository,
-
-            surveyDetailRepository =
-                appContainer.surveyDetailRepository,
-
-            bountyListRepository =
-                appContainer.bountyListRepository,
-
-            bountyDetailRepository =
-                appContainer.bountyDetailRepository,
-
-            marketListRepository =
-                appContainer.marketListRepository,
-
-            marketDetailRepository =
-                appContainer.marketDetailRepository,
-
-            marketOrderListRepository =
-                appContainer.marketOrderListRepository,
-
-            marketOrderDetailRepository =
-                appContainer.marketOrderDetailRepository,
-
-            membershipRepository =
-                appContainer.membershipRepository,
-
-            wechatPayLauncher =
-                appContainer.wechatPayLauncher,
-
-            accountRepository =
-                appContainer.accountRepository,
-
-            accountPasswordRepository =
-                appContainer.accountPasswordRepository,
-
-            appearance =
-                appearance,
-
-            weekStart =
-                weekStart,
-
-            onAppearanceChange =
-                appPreferencesViewModel::setAppearance,
-
-            onWeekStartChange =
-                appPreferencesViewModel::setWeekStart,
-
-            creditsRepository =
-                appContainer.creditsRepository,
+            appearance = appearance,
+            weekStart = weekStart,
+            onAppearanceChange = appPreferencesViewModel::setAppearance,
+            onWeekStartChange = appPreferencesViewModel::setWeekStart,
+            creditsRepository = appContainer.creditsRepository,
 
             onReSignIn = {
-                scope.launch {
-                    appContainer
-                        .sessionStorage
-                        .clearRemoteSession()
-
-                    showRemoteSignIn =
-                        true
-                }
+                sessionViewModel.signOut(
+                    context = context,
+                    onComplete = {showRemoteSignIn = true},
+                )
             },
 
-            onSignOut =
-                sessionViewModel::signOut,
+            onSignOut = {
+                sessionViewModel.signOut(context = context)
+            },
         )
     }
 
@@ -425,62 +320,35 @@ private fun SignedOutContent(
     hasAcceptedAuthAgreement: Boolean,
     onAcceptAuthAgreement: () -> Unit,
 ) {
-    val signInViewModel: SignInViewModel =
-        viewModel(
-            factory = SignInViewModelFactory(
-                authRepository =
-                    appContainer.authRepository,
-                sessionStorage =
-                    appContainer.sessionStorage,
-            )
+    val signInViewModel: SignInViewModel = viewModel(
+        factory = SignInViewModelFactory(
+            authRepository = appContainer.authRepository,
+            sessionStorage = appContainer.sessionStorage,
         )
+    )
 
-    val state by
-    signInViewModel.uiState
+    val state by signInViewModel.uiState
         .collectAsStateWithLifecycle()
-
-    val navController =
-        rememberNavController()
+    val navController = rememberNavController()
 
     NavHost(
         navController = navController,
         startDestination = "sign_in",
     ) {
-
         composable(
             route = "sign_in",
         ) {
-
             SignInScreen(
                 state = state,
-
-                hasAcceptedAgreement =
-                    hasAcceptedAuthAgreement,
-
-                onAcceptAgreement =
-                    onAcceptAuthAgreement,
-
-                onPhoneChange =
-                    signInViewModel::updatePhone,
-
-                onCodeChange =
-                    signInViewModel::updateCode,
-
-                onPasswordChange =
-                    signInViewModel::updatePassword,
-
-                onSendOtp =
-                    signInViewModel::sendOtp,
-
-                onSignIn =
-                    signInViewModel::verifyAndSignIn,
-
-                onPasswordSignIn =
-                    signInViewModel::signInWithPassword,
-
-                onBackToPhone =
-                    signInViewModel::backToPhone,
-
+                hasAcceptedAgreement = hasAcceptedAuthAgreement,
+                onAcceptAgreement = onAcceptAuthAgreement,
+                onPhoneChange = signInViewModel::updatePhone,
+                onCodeChange = signInViewModel::updateCode,
+                onPasswordChange = signInViewModel::updatePassword,
+                onSendOtp = signInViewModel::sendOtp,
+                onSignIn = signInViewModel::verifyAndSignIn,
+                onPasswordSignIn = signInViewModel::signInWithPassword,
+                onBackToPhone = signInViewModel::backToPhone,
                 onOpenTerms = {
                     navController.navigate(
                         InAppBrowserRoute.create(
@@ -489,7 +357,6 @@ private fun SignedOutContent(
                         )
                     )
                 },
-
                 onOpenPrivacy = {
                     navController.navigate(
                         InAppBrowserRoute.create(
@@ -503,8 +370,7 @@ private fun SignedOutContent(
 
         // 这里注册现有 InAppBrowserScreen
         browserNavGraph(
-            navController =
-                navController,
+            navController = navController,
         )
     }
 }

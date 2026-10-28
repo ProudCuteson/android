@@ -1,5 +1,7 @@
 package top.role.android.app
 
+import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -8,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import top.role.android.core.auth.AuthState
 import top.role.android.core.convex.ConvexMobileClient
 import top.role.android.core.storage.SessionStorage
@@ -94,12 +97,78 @@ class AppSessionViewModel(
         }
     }
 
-    fun signOut() {
+    // ConvexMobileClient.logout() 调用 SDK 的退出流程，
+    // 由 SDK 调用 BridgeJwtAuthProvider.logout() 清理远端凭证。
+    // 既清理 DataStore 中的远端 Session，也让 Convex SDK 更新自身认证状态，而不只是删除 Token。
+    fun signOut(
+        context: Context,
+        onComplete: (() -> Unit)? = null,
+    ) {
         viewModelScope.launch {
-            sessionStorage
-                .clearSession()
+            convexClient
+                .logout(context.applicationContext)
+                .onSuccess {
+                    onComplete?.invoke()
+                }
+                .onFailure { error ->
+                    Log.e(
+                        "AppSession",
+                        "Sign out failed",
+                        error,
+                    )
+                }
         }
     }
+
+    suspend fun checkSessionOnForeground(
+        context: Context,
+    ): String? {
+
+        val storedSession =
+            sessionStorage.session.first()
+                ?: return null
+
+        if (storedSession.isExpired) {
+
+            // 立即停止将远端视为已登录
+            _authState.value =
+                AuthState.SignedOut
+
+            // 同步清理 Convex SDK 的认证状态
+            val result =
+                convexClient.logout(
+                    context.applicationContext
+                )
+
+            result.exceptionOrNull()?.let { error ->
+                Log.e(
+                    "AppSession",
+                    "Expired session logout failed",
+                    error,
+                )
+
+                // SDK 退出失败时，至少清除已过期凭证
+                sessionStorage.clearRemoteSession()
+            }
+
+            return null
+        }
+
+        val signedIn =
+            _authState.value as? AuthState.SignedIn
+                ?: return null
+
+        // 必须是当前存储的同一用户
+        if (
+            signedIn.session.userId !=
+            storedSession.userId
+        ) {
+            return null
+        }
+
+        return storedSession.userId
+    }
+
 }
 
 class AppSessionViewModelFactory(

@@ -41,9 +41,11 @@ import top.role.android.feature.account.components.AccountProfileSection
 import top.role.android.feature.account.components.AccountSecuritySection
 
 
+
 @Composable
 fun AccountScreen(
-    viewModel: AccountViewModel,
+    viewModel: AccountViewModel?,
+    remoteAuthenticated: Boolean,
 
     appearance: AppAppearance,
     weekStart: WeekStart,
@@ -59,31 +61,48 @@ fun AccountScreen(
     onOpenTerms: () -> Unit,
     onOpenPrivacy: () -> Unit,
 
+    onReSignIn: () -> Unit,
     onSignOut: () -> Unit,
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val uiState =
+        viewModel
+            ?.uiState
+            ?.collectAsStateWithLifecycle()
+            ?.value
 
     AccountScreenContent(
         uiState = uiState,
-        onRetry = viewModel::retry,
+        remoteAuthenticated = remoteAuthenticated,
+
+        onRetry = {
+            viewModel?.retry()
+        },
+
         appearance = appearance,
         weekStart = weekStart,
+
         onAppearanceChange = onAppearanceChange,
         onWeekStartChange = onWeekStartChange,
+
         versionName = versionName,
+
         onOpenCredits = onOpenCredits,
         onOpenPassword = onOpenPassword,
+
         onOpenTerms = onOpenTerms,
         onOpenPrivacy = onOpenPrivacy,
+
+        onReSignIn = onReSignIn,
         onSignOut = onSignOut,
     )
 }
 
-
 @Composable
 private fun AccountScreenContent(
-    uiState: AccountUiState,
+    uiState: AccountUiState?,
+    remoteAuthenticated: Boolean,
     onRetry: () -> Unit,
+
     appearance: AppAppearance,
     weekStart: WeekStart,
 
@@ -98,16 +117,37 @@ private fun AccountScreenContent(
     onOpenTerms: () -> Unit,
     onOpenPrivacy: () -> Unit,
 
+    onReSignIn: () -> Unit,
     onSignOut: () -> Unit,
 ) {
-    when {
-        uiState.loading && uiState.account == null -> {
-            AccountLoadingState()
+    val account =
+        if (remoteAuthenticated) {
+            uiState?.account
+        } else {
+            null
         }
 
-        uiState.account != null -> {
+    when {
+        !remoteAuthenticated -> {
+            AccountFallbackContent(
+                title = "当前未登录",
+                message = "登录后可查看账户信息、积分及使用在线服务。本地笔记仍可正常使用。",
+                actionLabel = "登录账户",
+                onAction = onReSignIn,
+
+                appearance = appearance,
+                weekStart = weekStart,
+                onAppearanceChange = onAppearanceChange,
+                onWeekStartChange = onWeekStartChange,
+                versionName = versionName,
+                onOpenTerms = onOpenTerms,
+                onOpenPrivacy = onOpenPrivacy,
+            )
+        }
+
+        account != null -> {
             AccountContent(
-                account =  uiState.account,
+                account = account,
                 appearance = appearance,
                 weekStart = weekStart,
                 onAppearanceChange = onAppearanceChange,
@@ -122,14 +162,144 @@ private fun AccountScreenContent(
         }
 
         else -> {
-            AccountErrorState(
-                message = uiState.errorMessage ?: "账户信息暂时不可用。",
-                onRetry = onRetry,
+            val loading =
+                uiState == null || uiState.loading
+
+            AccountFallbackContent(
+                title =
+                    if (loading) {
+                        "正在加载账户信息"
+                    } else {
+                        "无法加载账户"
+                    },
+
+                message =
+                    if (loading) {
+                        "正在获取您的账户资料…"
+                    } else {
+                        uiState.errorMessage
+                            ?: "账户信息暂时不可用。"
+                    },
+
+                loading = loading,
+
+                actionLabel =
+                    if (loading) null else "重试",
+
+                onAction =
+                    if (loading) null else onRetry,
+
+                appearance = appearance,
+                weekStart = weekStart,
+                onAppearanceChange = onAppearanceChange,
+                onWeekStartChange = onWeekStartChange,
+                versionName = versionName,
+                onOpenTerms = onOpenTerms,
+                onOpenPrivacy = onOpenPrivacy,
             )
         }
     }
 }
 
+@Composable
+private fun AccountFallbackContent(
+    title: String,
+    message: String,
+
+    loading: Boolean = false,
+
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
+
+    appearance: AppAppearance,
+    weekStart: WeekStart,
+
+    onAppearanceChange: (AppAppearance) -> Unit,
+    onWeekStartChange: (WeekStart) -> Unit,
+
+    versionName: String,
+
+    onOpenTerms: () -> Unit,
+    onOpenPrivacy: () -> Unit,
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+
+        contentPadding = PaddingValues(
+            horizontal = 20.dp,
+            vertical = 20.dp,
+        ),
+
+        verticalArrangement =
+            Arrangement.spacedBy(24.dp),
+    ) {
+
+        item {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement =
+                    Arrangement.spacedBy(12.dp),
+            ) {
+                if (loading) {
+                    CircularProgressIndicator()
+                }
+
+                Text(
+                    text = title,
+                    style =
+                        MaterialTheme.typography.titleMedium,
+                )
+
+                Text(
+                    text = message,
+                    style =
+                        MaterialTheme.typography.bodyMedium,
+                    color =
+                        MaterialTheme.colorScheme
+                            .onSurfaceVariant,
+                )
+
+                if (
+                    actionLabel != null &&
+                    onAction != null
+                ) {
+                    Button(
+                        onClick = onAction,
+                    ) {
+                        Text(actionLabel)
+                    }
+                }
+            }
+        }
+
+        item {
+            AccountPreferencesSection(
+                appearance = appearance,
+                weekStart = weekStart,
+
+                onAppearanceChange =
+                    onAppearanceChange,
+
+                onWeekStartChange =
+                    onWeekStartChange,
+            )
+        }
+
+        item {
+            AccountAboutSection(
+                versionName = versionName,
+                onOpenTerms = onOpenTerms,
+                onOpenPrivacy = onOpenPrivacy,
+            )
+        }
+
+        item {
+            Spacer(
+                modifier = Modifier.height(16.dp)
+            )
+        }
+    }
+}
 
 @Composable
 private fun AccountLoadingState() {

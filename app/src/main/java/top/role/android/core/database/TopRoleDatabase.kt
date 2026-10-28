@@ -22,7 +22,7 @@ import top.role.android.core.database.note.NoteTypeConverters
         LocalNoteImageEntity::class,
         LocalNoteMediaSyncEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
 )
 @TypeConverters(
@@ -375,6 +375,44 @@ abstract class TopRoleDatabase :
                 }
             }
 
+        /*
+         * version 6 → 7
+         *
+         * 为 Android Note 增加 BlockContent v1 存储。
+         *
+         * 当前内容：
+         * contentJson
+         *
+         * 服务端确认基线：
+         * syncedContentJson
+         *
+         * 本次仅扩展 schema。
+         *
+         * 旧 text / syncedText 继续保留，
+         * Pending / Conflict / Media 均不修改。
+         */
+        private val MIGRATION_6_7 =
+            object : Migration(6, 7) {
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase,
+                ) {
+                    db.execSQL(
+                        """
+                ALTER TABLE local_notes
+                ADD COLUMN contentJson TEXT
+                """.trimIndent()
+                    )
+
+                    db.execSQL(
+                        """
+                ALTER TABLE local_notes
+                ADD COLUMN syncedContentJson TEXT
+                """.trimIndent()
+                    )
+                }
+            }
+
         fun create(
             context: Context,
         ): TopRoleDatabase {
@@ -390,6 +428,7 @@ abstract class TopRoleDatabase :
                     MIGRATION_3_4,
                     MIGRATION_4_5,
                     MIGRATION_5_6,
+                    MIGRATION_6_7,
                 )
                 .build()
         }

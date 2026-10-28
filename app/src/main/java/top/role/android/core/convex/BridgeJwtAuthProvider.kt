@@ -26,11 +26,12 @@ class BridgeJwtAuthProvider(
         return loadAuthResultFromStore()
     }
 
+    // 不再使用 clearSession()，避免清除 USER_ID。
     override suspend fun logout(
         context: Context,
     ): Result<Void?> {
         return runCatching {
-            sessionStorage.clearSession()
+            sessionStorage.clearRemoteSession()
             null
         }
     }
