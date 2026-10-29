@@ -14,6 +14,9 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 import top.role.android.core.data.note.NoteLocalRepository
+import kotlinx.serialization.json.Json
+import top.role.android.core.model.note.content.BlockContent
+import top.role.android.core.model.note.content.NoteContentCodec
 import top.role.android.core.database.note.LocalNoteEntity
 import top.role.android.core.model.note.NoteSyncState
 import top.role.android.core.data.image.NoteImageService
@@ -35,6 +38,11 @@ class NoteEditorViewModel(
     private val createAsNormal: Boolean = false,
     private val createAsDated: Boolean = false,
 ) : ViewModel() {
+
+    private val richContentJson = Json {
+        encodeDefaults = true
+        explicitNulls = false
+    }
 
     private val _uiState =
         MutableStateFlow(
@@ -523,6 +531,12 @@ class NoteEditorViewModel(
                     text =
                         previousState.text,
 
+                    contentJson =
+                        previousState.contentJson,
+
+                    editorResetVersion =
+                        previousState.editorResetVersion,
+
                     images =
                         previousState.images,
 
@@ -550,6 +564,12 @@ class NoteEditorViewModel(
 
                     text =
                         previousState.text,
+
+                    contentJson =
+                        previousState.contentJson,
+
+                    editorResetVersion =
+                        previousState.editorResetVersion,
 
                     images =
                         previousState.images,
@@ -1227,38 +1247,51 @@ class NoteEditorViewModel(
         scheduleSave()
     }
 
-    fun updateText(
-        value: String,
-    ) {
-        if (
-            !isEditingCurrentNote()
-        ) {
-            return
-        }
+    /**
+     * Legacy plain-text path (currently used by AI replace/append).
+     * It deliberately creates a plain BlockContent and refreshes the rich editor.
+     */
+    fun updateText(value: String) {
+        if (!isEditingCurrentNote()) return
+        if (_uiState.value.syncState == NoteSyncState.Conflict) return
 
-        if (
-            _uiState.value.syncState ==
-            NoteSyncState.Conflict
-        ) {
-            return
-        }
+        val current = _uiState.value
+        if (current.text == value) return
 
-        if (
-            _uiState.value.text ==
-            value
-        ) {
-            return
-        }
+        val nextContentJson = NoteContentCodec.stringify(
+            NoteContentCodec.fromPlainText(value)
+        )
+        _uiState.value = current.copy(
+            text = value,
+            contentJson = nextContentJson,
+            editorResetVersion = current.editorResetVersion + 1,
+            errorMessage = null,
+        )
+        scheduleSave()
+    }
 
-        _uiState.value =
-            _uiState.value.copy(
-                text =
-                    value,
+    /**
+     * Native rich-editor path. Text is always a projection of Content.
+     * The editor handles IME and selection; VM only receives committed snapshots.
+     */
+    fun updateRichContent(content: BlockContent) {
+        if (!isEditingCurrentNote()) return
+        if (_uiState.value.syncState == NoteSyncState.Conflict) return
+        require(content.v == 1) { "Unsupported BlockContent version" }
 
-                errorMessage =
-                    null,
-            )
+        val element = richContentJson.encodeToJsonElement(
+            BlockContent.serializer(), content
+        )
+        val encoded = NoteContentCodec.stringify(element)
+        val plainText = NoteContentCodec.extractText(element)
+        val current = _uiState.value
+        if (current.contentJson == encoded && current.text == plainText) return
 
+        _uiState.value = current.copy(
+            text = plainText,
+            contentJson = encoded,
+            errorMessage = null,
+        )
         scheduleSave()
     }
 
@@ -1267,14 +1300,7 @@ class NoteEditorViewModel(
     fun setPinned(
         value: Boolean,
     ) {
-        /*
-         * Pin 不要求进入 Editing，
-         * Active Reading 也可以直接操作。
-         *
-         * 但 Conflict 期间完全冻结本地 mutation。
-         */
-        val state =
-            _uiState.value
+        val state = _uiState.value
 
         if (
             !state.canEdit ||
@@ -1284,78 +1310,39 @@ class NoteEditorViewModel(
             return
         }
 
-        if (
-            state.pinned ==
-            value
-        ) {
+        if (state.pinned == value) {
             return
         }
 
-        _uiState.value =
-            state.copy(
-                pinned =
-                    value,
-
-                errorMessage =
-                    null,
-            )
+        _uiState.value = state.copy(
+            pinned = value,
+            errorMessage = null,
+        )
 
         viewModelScope.launch {
             try {
-                val note =
-                    currentNote
-                        ?: return@launch
-
-                /*
-                 * Editing 时先落盘 title/text。
-                 *
-                 * Reading 时 saveCurrentContent()
-                 * 直接返回 currentNote。
-                 */
-                saveJob
-                    ?.cancel()
-
-                saveJob =
-                    null
-
-                val latestNote =
-                    saveCurrentContent()
-                        ?: note
-
-                val updated =
-                    noteLocalRepository
-                        .setPinned(
-                            note =
-                                latestNote,
-
-                            pinned =
-                                value,
-                        )
-
-                currentNote =
-                    updated
-
-                _uiState.value =
-                    _uiState.value.copy(
-                        pinned =
-                            updated.pinned,
-
-                        syncState =
-                            updated.syncState,
-
-                        errorMessage =
-                            null,
+                val note = currentNote ?: return@launch
+                saveJob ?.cancel()
+                saveJob = null
+                val latestNote = saveCurrentContent() ?: note
+                val updated = noteLocalRepository
+                    .setPinned(
+                        note = latestNote,
+                        pinned = value,
                     )
+                currentNote = updated
 
+                _uiState.value = _uiState.value.copy(
+                    pinned = updated.pinned,
+                    syncState = updated.syncState,
+                    errorMessage = null,
+                )
             } catch (
                 error: Throwable
             ) {
-                _uiState.value =
-                    _uiState.value.copy(
-                        errorMessage =
-                            error.message
-                                ?: "更新置顶状态失败",
-                    )
+                _uiState.value = _uiState.value.copy(
+                    errorMessage = error.message ?: "更新置顶状态失败",
+                )
             }
         }
     }
@@ -1590,24 +1577,28 @@ class NoteEditorViewModel(
             note.title ==
             state.title &&
             note.text ==
-            state.text
+            state.text &&
+            note.contentJson ==
+            state.contentJson
         ) {
             return note
         }
 
         return try {
-            val updated =
-                noteLocalRepository
-                    .updateContent(
-                        note =
-                            note,
-
-                        title =
-                            state.title,
-
-                        text =
-                            state.text,
-                    )
+            val updated = if (state.contentJson != null) {
+                noteLocalRepository.updateRichContent(
+                    note = note,
+                    title = state.title,
+                    text = state.text,
+                    contentJson = state.contentJson,
+                )
+            } else {
+                noteLocalRepository.updateContent(
+                    note = note,
+                    title = state.title,
+                    text = state.text,
+                )
+            }
 
             currentNote =
                 updated
@@ -2035,6 +2026,5 @@ class NoteEditorViewModel(
             }
         }
     }
-
 
 }

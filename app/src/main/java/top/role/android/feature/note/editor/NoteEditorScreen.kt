@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
@@ -23,6 +25,7 @@ import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -51,6 +54,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import top.role.android.core.data.image.ImageRepository
 import top.role.android.core.data.image.NoteImageService
@@ -59,6 +63,11 @@ import top.role.android.core.data.note.ai.NoteAiMode
 import top.role.android.core.data.note.ai.NoteAiRemoteDataSource
 import top.role.android.core.model.note.NoteRemoteStatus
 import top.role.android.core.model.note.NoteSyncState
+import top.role.android.core.model.note.content.BlockContent
+import top.role.android.core.model.note.content.NoteContentCodec
+import top.role.android.feature.note.editor.richtext.RichTextEditorField
+import top.role.android.feature.note.editor.richtext.RichTextEditorState
+import top.role.android.feature.note.editor.richtext.RichTextToolbar
 
 @Composable
 fun NoteEditorRoute(
@@ -107,7 +116,7 @@ fun NoteEditorRoute(
     NoteEditorScreen(
         state = state,
         onTitleChange = viewModel::updateTitle,
-        onTextChange = viewModel::updateText,
+        onRichContentChange = viewModel::updateRichContent,
         onPinnedChange = viewModel::setPinned,
         onStartEditing = viewModel::startEditing,
         onFinishEditing = viewModel::finishEditing,
@@ -135,7 +144,7 @@ fun NoteEditorRoute(
 fun NoteEditorScreen(
     state: NoteEditorUiState,
     onTitleChange: (String) -> Unit,
-    onTextChange: (String) -> Unit,
+    onRichContentChange: (BlockContent) -> Unit,
     onPinnedChange: (Boolean) -> Unit,
     onStartEditing: () -> Unit,
     onFinishEditing: () -> Unit,
@@ -171,7 +180,80 @@ fun NoteEditorScreen(
         }
     }
 
+    // One editor session per note/editing entry or explicit AI text replacement.
+    // Room auto-save changes do not recreate TextFieldState and disturb IME/selection.
+    val richEditor = remember(
+        state.localKey,
+        state.editorResetVersion,
+        state.isEditing,
+    ) {
+        RichTextEditorState(
+            localEditorContent(state.contentJson, state.text)
+        )
+    }
+
+    LaunchedEffect(richEditor, state.isEditing) {
+        if (!state.isEditing) return@LaunchedEffect
+        snapshotFlow {
+            Triple(
+                richEditor.field.text.toString(),
+                richEditor.field.selection,
+                richEditor.field.composition,
+            )
+        }.collect { richEditor.onNativeStateChanged() }
+    }
+
+    LaunchedEffect(richEditor, state.isEditing) {
+        if (!state.isEditing) return@LaunchedEffect
+        var lastDelivered = richEditor.export()
+        snapshotFlow {
+            // An IME composing range is not committed note content.
+            if (richEditor.field.composition == null) richEditor.export() else null
+        }.filterNotNull().collect { current ->
+            if (current != lastDelivered) {
+                lastDelivered = current
+                onRichContentChange(current)
+            }
+        }
+    }
+
+    val commitEditor: () -> Unit = {
+        if (state.isEditing && !hasConflict) {
+            onRichContentChange(richEditor.export())
+        }
+    }
+
     Scaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .imePadding(),
+
+        bottomBar = {
+            if (state.isEditing && !hasConflict) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding(),
+                    color = MaterialTheme.colorScheme.surface,
+                ) {
+                    Column {
+                        HorizontalDivider()
+
+                        RichTextToolbar(
+                            editor = richEditor,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    horizontal = 8.dp,
+                                    vertical = 8.dp,
+                                ),
+                        )
+
+                        Spacer(Modifier.height(12.dp))
+                    }
+                }
+            }
+        },
         topBar = {
             TopAppBar(
                 title = {
@@ -185,7 +267,7 @@ fun NoteEditorScreen(
                 },
 
                 navigationIcon = {
-                    IconButton( onClick = onBack ) {
+                    IconButton( onClick = { commitEditor(); onBack() } ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "返回",
@@ -234,7 +316,7 @@ fun NoteEditorScreen(
                      */
                     if (state.isEditing && !hasConflict) {
                         TextButton(
-                            onClick = onFinishEditing,
+                            onClick = { commitEditor(); onFinishEditing() },
                         ) {
                             Text(
                                 text = "完成",
@@ -299,7 +381,7 @@ fun NoteEditorScreen(
                 NoteEditingContent(
                     state = state,
                     onTitleChange = onTitleChange,
-                    onTextChange = onTextChange,
+                    richEditor = richEditor,
                     onRunAi = onRunAi,
                     onReplaceTextWithAi = onReplaceTextWithAi,
                     onAppendAiToText = onAppendAiToText,
@@ -416,8 +498,22 @@ private fun NoteReadingContent(
             )
         }
 
-        if (state.text.isNotBlank()) {
-            Spacer(modifier = Modifier.height(18.dp))
+        if (!state.contentJson.isNullOrBlank()) {
+            Spacer(Modifier.height(18.dp))
+
+            val reader = remember(state.localKey, state.contentJson) {
+                RichTextEditorState(
+                    localEditorContent(state.contentJson, state.text)
+                )
+            }
+
+            RichTextEditorField(
+                editor = reader,
+                readOnly = true,
+                minHeight = 0.dp,
+            )
+        } else if (state.text.isNotBlank()) {
+            Spacer(Modifier.height(18.dp))
 
             Text(
                 text = state.text,
@@ -439,7 +535,7 @@ private fun NoteReadingContent(
 private fun NoteEditingContent(
     state: NoteEditorUiState,
     onTitleChange: (String) -> Unit,
-    onTextChange: (String) -> Unit,
+    richEditor: RichTextEditorState,
 
     onRunAi: (NoteAiMode) -> Unit,
     onReplaceTextWithAi: () -> Unit,
@@ -456,12 +552,6 @@ private fun NoteEditingContent(
         rememberTextFieldState(
             initialText =
                 state.title,
-        )
-
-    val bodyState =
-        rememberTextFieldState(
-            initialText =
-                state.text,
         )
 
     /*
@@ -486,28 +576,10 @@ private fun NoteEditingContent(
         }
     }
 
-    LaunchedEffect(
-        bodyState,
-    ) {
-        snapshotFlow {
-            bodyState
-                .text
-                .toString()
-        }.collectLatest { value ->
-            if (
-                value !=
-                state.text
-            ) {
-                onTextChange(
-                    value,
-                )
-            }
-        }
-    }
-
     Column(
         modifier =
             modifier
+                .verticalScroll(rememberScrollState())
                 .padding(
                     horizontal =
                         20.dp,
@@ -609,67 +681,7 @@ private fun NoteEditingContent(
                 ),
         )
 
-        BasicTextField(
-            state =
-                bodyState,
-
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .weight(
-                        1f,
-                    ),
-
-            textStyle =
-                MaterialTheme
-                    .typography
-                    .bodyLarge
-                    .copy(
-                        color =
-                            MaterialTheme
-                                .colorScheme
-                                .onSurface,
-                    ),
-
-            cursorBrush =
-                SolidColor(
-                    MaterialTheme
-                        .colorScheme
-                        .primary,
-                ),
-
-            lineLimits =
-                TextFieldLineLimits.MultiLine(),
-
-            decorator = { innerTextField ->
-                Box(
-                    modifier =
-                        Modifier.fillMaxSize(),
-                ) {
-                    if (
-                        bodyState.text
-                            .isEmpty()
-                    ) {
-                        Text(
-                            text =
-                                "开始记录……",
-
-                            style =
-                                MaterialTheme
-                                    .typography
-                                    .bodyLarge,
-
-                            color =
-                                MaterialTheme
-                                    .colorScheme
-                                    .onSurfaceVariant,
-                        )
-                    }
-
-                    innerTextField()
-                }
-            },
-        )
+        RichTextEditorField(editor = richEditor)
 
         Spacer(
             modifier =
@@ -1150,4 +1162,15 @@ private fun remoteStatusLabel(
         NoteRemoteStatus.Deleted ->
             "云端状态 · 已删除"
     }
+}
+
+/** Legacy Note without contentJson can still be opened using its plain-text projection. */
+private fun localEditorContent(contentJson: String?, fallbackText: String): BlockContent {
+    val parsed = contentJson?.takeIf { it.isNotBlank() }?.let { raw ->
+        runCatching {
+            val element = requireNotNull(NoteContentCodec.parse(raw))
+            NoteContentCodec.readModel(element)
+        }.getOrNull()
+    }
+    return parsed ?: NoteContentCodec.readModel(NoteContentCodec.fromPlainText(fallbackText))
 }

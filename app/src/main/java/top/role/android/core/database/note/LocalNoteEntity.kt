@@ -5,6 +5,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import top.role.android.core.model.note.NoteRemoteStatus
 import top.role.android.core.model.note.NoteSyncState
+import top.role.android.core.model.note.content.NoteContentCodec
 
 @Entity(
     tableName = "local_notes",
@@ -92,32 +93,38 @@ data class LocalNoteEntity(
 )
 
 val LocalNoteEntity.hasOwner: Boolean
-    get() =
-        !ownerUserId.isNullOrBlank()
+    get() = !ownerUserId.isNullOrBlank()
+
+val LocalNoteEntity.hasUnsyncedContentChanges: Boolean
+    get() {
+        if (
+            title != syncedTitle ||
+            text != syncedText ||
+            dayKey != syncedDayKey ||
+            onlyDay != syncedOnlyDay
+        ) return true
+
+        val current = NoteContentCodec.parse(contentJson)
+        val baseline = NoteContentCodec.parse(syncedContentJson)
+
+        return when {
+            current == null && baseline == null -> false
+            current == null || baseline == null -> true
+            else -> current != baseline
+        }
+    }
 
 val LocalNoteEntity.hasUnsyncedChanges: Boolean
-    get() =
-        title != syncedTitle ||
-                text != syncedText ||
-                dayKey != syncedDayKey ||
-                onlyDay != syncedOnlyDay ||
-                pinned != syncedPinned
+    get() = hasUnsyncedContentChanges || pinned != syncedPinned
 
 val LocalNoteEntity.hasPendingSnapshot: Boolean
-    get() =
-        !pendingSnapshotJson.isNullOrBlank()
+    get() = !pendingSnapshotJson.isNullOrBlank()
 
 val LocalNoteEntity.hasConflictSnapshot: Boolean
-    get() =
-        !conflictSnapshotJson.isNullOrBlank()
+    get() = !conflictSnapshotJson.isNullOrBlank()
 
-val LocalNoteEntity.hasContent: Boolean
-    get() =
-        title.isNotBlank() ||
-                text.isNotBlank()
+val LocalNoteEntity.hasTextContent: Boolean
+    get() = title.isNotBlank() || text.isNotBlank()
 
-val LocalNoteEntity.effectiveRemoteStatus:
-        NoteRemoteStatus
-    get() =
-        pendingRemoteStatus
-            ?: remoteStatus
+val LocalNoteEntity.effectiveRemoteStatus: NoteRemoteStatus
+    get() = pendingRemoteStatus ?: remoteStatus

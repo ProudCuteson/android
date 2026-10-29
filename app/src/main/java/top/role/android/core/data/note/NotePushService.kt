@@ -3,6 +3,8 @@ package top.role.android.core.data.note
 import top.role.android.core.database.note.hasUnsyncedChanges
 import top.role.android.core.model.note.NoteRemoteStatus
 import top.role.android.core.model.note.NoteSyncFailure
+import top.role.android.core.database.note.LocalNoteEntity
+import top.role.android.core.database.note.hasUnsyncedContentChanges
 
 class NotePushService(
     private val noteLocalRepository:
@@ -17,13 +19,7 @@ class NotePushService(
         localKey: String,
     ): Result<Unit> {
         return runCatching {
-            /*
-             * 每次真正执行 push 前，
-             * 都重新读取 Room 的最新状态。
-             *
-             * Coordinator 之前拿到的 entity
-             * 可能已经因为编辑或 lifecycle 操作而过期。
-             */
+
             val note =
                 noteLocalRepository
                     .findByLocalKey(
@@ -38,16 +34,7 @@ class NotePushService(
             when (
                 note.pendingRemoteStatus
             ) {
-                /*
-                 * ------------------------------------------------
-                 * Delete
-                 *
-                 * Delete 是最高优先级 lifecycle。
-                 *
-                 * 用户已经明确删除，
-                 * 不需要再发送尚未同步的 content。
-                 * ------------------------------------------------
-                 */
+
                 NoteRemoteStatus.Deleted -> {
                     pushDelete(
                         ownerUserId =
@@ -64,69 +51,32 @@ class NotePushService(
                     )
                 }
 
-                /*
-                 * ------------------------------------------------
-                 * Archive
-                 *
-                 * Archive 不能丢失尚未同步的内容。
-                 *
-                 * 如果还有 content work：
-                 *
-                 *   先 upsert
-                 *   → applyPushSuccess
-                 *   → 保留 pendingRemoteStatus = Archived
-                 *   → requestSync()
-                 *   → 下一轮 archive
-                 *
-                 * 如果内容已经 clean：
-                 *   直接 archive
-                 * ------------------------------------------------
-                 */
                 NoteRemoteStatus.Archived -> {
-                    if (
-                        note.hasUnsyncedChanges ||
-                        note.pendingSnapshotJson !=
-                        null
-                    ) {
-                        pushContent(
-                            ownerUserId =
-                                ownerUserId,
+                    when {
+                        hasPendingContentWork(note) -> {
+                            pushContent(ownerUserId, localKey)
+                        }
 
-                            localKey =
-                                localKey,
-                        )
-                    } else {
-                        pushArchive(
-                            ownerUserId =
-                                ownerUserId,
+                        note.pinned != note.syncedPinned -> {
+                            pushPinned(
+                                ownerUserId = ownerUserId,
+                                localKey = localKey,
+                                noteId = requireNotNull(note.noteId),
+                                pinned = note.pinned,
+                            )
+                        }
 
-                            localKey =
-                                localKey,
-
-                            noteId =
-                                note.noteId,
-
-                            baseVersion =
-                                note.remoteVersion,
-                        )
+                        else -> {
+                            pushArchive(
+                                ownerUserId = ownerUserId,
+                                localKey = localKey,
+                                noteId = note.noteId,
+                                baseVersion = note.remoteVersion,
+                            )
+                        }
                     }
                 }
 
-                /*
-                 * ------------------------------------------------
-                 * Restore
-                 *
-                 * pendingRemoteStatus = Active 表示：
-                 *
-                 * remoteStatus = Archived
-                 * → 恢复为 Active
-                 *
-                 * Restore 本身先完成 lifecycle。
-                 *
-                 * 如果未来允许直接编辑 archived Note，
-                 * 可以在 restore 成功后再进入普通 content push。
-                 * ------------------------------------------------
-                 */
                 NoteRemoteStatus.Active -> {
                     pushRestore(
                         ownerUserId =
@@ -149,16 +99,57 @@ class NotePushService(
                  * ------------------------------------------------
                  */
                 null -> {
-                    pushContent(
-                        ownerUserId =
-                            ownerUserId,
+                    when {
+                        hasPendingContentWork(note) -> {
+                            pushContent(ownerUserId, localKey)
+                        }
 
-                        localKey =
-                            localKey,
-                    )
+                        note.pinned != note.syncedPinned -> {
+                            pushPinned(
+                                ownerUserId = ownerUserId,
+                                localKey = localKey,
+                                noteId = requireNotNull(note.noteId),
+                                pinned = note.pinned,
+                            )
+                        }
+                    }
                 }
             }
         }
+    }
+
+    private fun hasPendingContentWork(note: LocalNoteEntity): Boolean {
+        return note.noteId == null ||
+                note.pendingSnapshotJson != null ||
+                note.hasUnsyncedContentChanges
+    }
+
+    private suspend fun pushPinned(
+        ownerUserId: String,
+        localKey: String,
+        noteId: String,
+        pinned: Boolean,
+    ) {
+        noteRemoteDataSource.setPinned(
+            noteId = noteId,
+            pinned = pinned,
+        ).getOrElse { error ->
+            noteLocalRepository.applyPinnedFailure(
+                ownerUserId = ownerUserId,
+                localKey = localKey,
+                noteId = noteId,
+                sentPinned = pinned,
+                failure = classifyFailure(error),
+            )
+            throw error
+        }
+
+        noteLocalRepository.applyPinnedSuccess(
+            ownerUserId = ownerUserId,
+            localKey = localKey,
+            noteId = noteId,
+            sentPinned = pinned,
+        )
     }
 
     // MARK: - Content

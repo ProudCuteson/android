@@ -5,8 +5,6 @@ import top.role.android.core.model.note.NoteRemoteStatus
 import top.role.android.core.model.note.NoteSyncState
 import top.role.android.core.model.note.RemoteNoteSnapshot
 import top.role.android.core.model.note.content.NoteContentCodec
-import top.role.android.core.database.note.hasUnsyncedChanges
-import top.role.android.core.database.note.hasPendingSnapshot
 
 class NoteRemoteMergeService(
     private val noteLocalRepository:
@@ -105,6 +103,7 @@ class NoteRemoteMergeService(
         val remoteVersion = snapshot.version.toLong()
         val remoteUpdatedAt = snapshot.updatedAt.toLong()
         val contentJson = remoteContentJson(snapshot)
+        val plainText = remotePlainText(snapshot)
 
         val note = LocalNoteEntity(
             rowId = 0,
@@ -124,7 +123,7 @@ class NoteRemoteMergeService(
             dayKey = snapshot.dayKey,
             onlyDay = snapshot.onlyDay,
             title = snapshot.title,
-            text = snapshot.text,
+            text = plainText,
             contentJson = contentJson,
             pinned = snapshot.pinned,
             remoteStatus = snapshot.remoteStatus,
@@ -133,7 +132,7 @@ class NoteRemoteMergeService(
             syncedDayKey = snapshot.dayKey,
             syncedOnlyDay = snapshot.onlyDay,
             syncedTitle = snapshot.title,
-            syncedText = snapshot.text,
+            syncedText = plainText,
             syncedContentJson = contentJson,
             syncedPinned = snapshot.pinned,
             remoteVersion = remoteVersion,
@@ -157,257 +156,183 @@ class NoteRemoteMergeService(
         local: LocalNoteEntity,
         snapshot: RemoteNoteSnapshot,
     ) {
-        /*
-         * 从这里开始进入 Android domain，
-         * version / timestamp 统一转成 Long。
-         */
         val remoteVersion = snapshot.version.toLong()
         val remoteUpdatedAt = snapshot.updatedAt.toLong()
+        val knownVersion = local.remoteVersion
+        val knownUpdatedAt = local.remoteUpdatedAt ?: 0L
+        val incomingText = remotePlainText(snapshot)
         val incomingContentJson = remoteContentJson(snapshot)
 
-        val knownRemoteVersion = local.remoteVersion
+        // A late Pull must never roll back an already known content version.
+        if (knownVersion != null && remoteVersion < knownVersion) return
 
-        /*
-         * 本地已经见过更高的远端版本，
-         * 当前 snapshot 属于旧数据。
-         */
-        if (
-            knownRemoteVersion != null &&
-            remoteVersion < knownRemoteVersion
-        ) {
+        val contentDirty = hasLocalContentWork(local)
+        val pinnedDirty = local.pinned != local.syncedPinned
+        val lifecycleDirty = local.pendingRemoteStatus != null
+        val otherUnsyncedState = local.syncState != NoteSyncState.Synced &&
+                !contentDirty && !pinnedDirty && !lifecycleDirty
+        val hasLocalWork = contentDirty || pinnedDirty ||
+                lifecycleDirty || otherUnsyncedState
+
+        if (snapshot.remoteStatus == NoteRemoteStatus.Deleted) {
+            mergeRemoteDeleted(local, snapshot, hasLocalWork)
             return
         }
 
-        val hasLocalWork =
-            hasLocalWork(
-                local,
-            )
-
-        /*
-         * deleted tombstone 单独处理。
-         */
-        if (
-            snapshot.remoteStatus ==
-            NoteRemoteStatus.Deleted
-        ) {
-            mergeRemoteDeleted(
-                local =
-                    local,
-                snapshot =
-                    snapshot,
-                hasLocalWork =
-                    hasLocalWork,
-            )
-
-            return
-        }
-
-        /*
-         * ------------------------------------------------
-         * Lifecycle goal 已经由远端达成
-         * ------------------------------------------------
-         */
-        val hasContentWork = local.hasUnsyncedChanges || local.hasPendingSnapshot
         val pendingLifecycle = local.pendingRemoteStatus
-
         if (
             pendingLifecycle != null &&
-            pendingLifecycle !=
-            NoteRemoteStatus.Deleted &&
-            pendingLifecycle ==
-            snapshot.remoteStatus &&
-            !hasContentWork
+            pendingLifecycle != NoteRemoteStatus.Deleted &&
+            pendingLifecycle == snapshot.remoteStatus &&
+            !contentDirty && !pinnedDirty
         ) {
-            val ownerUserId = local.ownerUserId ?: return
-
-            noteLocalRepository
-                .applyLifecycleSuccess(
-                    ownerUserId = ownerUserId,
-                    localKey = local.localKey,
-                    expectedStatus = pendingLifecycle,
-                    remote = snapshot,
-                )
-
+            val owner = local.ownerUserId ?: return
+            noteLocalRepository.applyLifecycleSuccess(
+                ownerUserId = owner,
+                localKey = local.localKey,
+                expectedStatus = pendingLifecycle,
+                remote = snapshot,
+            )
             return
         }
 
-        /*
-         * 本地还有未同步工作：
-         *
-         * - 不覆盖 title / text
-         * - 不覆盖 dayKey / onlyDay
-         * - 不覆盖 pinned
-         * - 不覆盖 synced baseline
-         * - 不清 pending snapshot
-         * - 不推进 remoteVersion
-         *
-         * 这里只允许吸收远端 identity 和 lifecycle 信息。
-         */
-        if (
-            hasLocalWork
-        ) {
-            val identified =
-                adoptRemoteIdentity(
-                    local = local,
-                    snapshot = snapshot,
-                )
-
-            /*
-             * ------------------------------------------------
-             * 真正的 remote newer Conflict
-             * ------------------------------------------------
-             */
+        // Content/lifecycle conflict protection is independent of pinned.
+        // Do not overwrite a pending rich-text edit or its baseline.
+        if (contentDirty || lifecycleDirty || otherUnsyncedState) {
+            val identified = adoptRemoteIdentity(local, snapshot)
             if (
-                knownRemoteVersion != null &&
-                remoteVersion >
-                knownRemoteVersion
+                knownVersion != null && remoteVersion > knownVersion
             ) {
-                noteLocalRepository
-                    .markConflictFromRemote(
-                        note =
-                            identified,
-
-                        remote =
-                            snapshot,
-
-                        message =
-                            "云端记录已更新，本机仍有未同步修改",
-                    )
-
+                noteLocalRepository.markConflictFromRemote(
+                    note = identified,
+                    remote = snapshot,
+                    message = "云端正文已更新，本机仍有未同步修改",
+                )
                 return
             }
 
-            /*
-             * 没有看到更高 remoteVersion。
-             */
-            noteLocalRepository
-                .upsertLocal(
-                    identified.copy(
-                        remoteUpdatedAt =
-                            maxOfNullable(
-                                identified.remoteUpdatedAt,
-                                remoteUpdatedAt,
-                            ),
-                    )
-                )
-
+            // Pinned can hydrate independently while content is pending,
+            // provided this device has no pending pinned change.
+            val newerState = remoteUpdatedAt > knownUpdatedAt
+            val updated = identified.copy(
+                pinned = if (newerState && !pinnedDirty) {
+                    snapshot.pinned
+                } else {
+                    identified.pinned
+                },
+                syncedPinned = if (newerState && !pinnedDirty) {
+                    snapshot.pinned
+                } else {
+                    identified.syncedPinned
+                },
+                remoteUpdatedAt = maxOfNullable(
+                    identified.remoteUpdatedAt,
+                    remoteUpdatedAt,
+                ),
+            )
+            if (updated != local) noteLocalRepository.upsertLocal(updated)
             return
         }
 
-        /*
-         * clean local + 同版本
-         */
-        if (
-            knownRemoteVersion != null &&
-            remoteVersion == knownRemoteVersion
-        ) {
-            val identified = adoptRemoteIdentity(
-                local = local,
-                snapshot = snapshot,
-            )
+        val identified = adoptRemoteIdentity(local, snapshot)
+        val newerState = remoteUpdatedAt > knownUpdatedAt
+        val newerContent = knownVersion == null || remoteVersion > knownVersion
+        val missingContent = identified.contentJson == null ||
+                identified.syncedContentJson == null
 
-            val newerState = remoteUpdatedAt > (identified.remoteUpdatedAt ?: 0L)
-
-            val needsContentHydration = incomingContentJson != null &&
-                (identified.contentJson == null || identified.syncedContentJson == null)
-
-            val updated =
-                identified.copy(
-                    contentJson =
-                        if (needsContentHydration) {
-                            incomingContentJson
-                        } else {
-                            identified.contentJson
-                        },
-
-                    syncedContentJson =
-                        if (needsContentHydration) {
-                            incomingContentJson
-                        } else {
-                            identified.syncedContentJson
-                        },
-
-                    pinned =
-                        if (newerState) {
-                            snapshot.pinned
-                        } else {
-                            identified.pinned
-                        },
-
-                    syncedPinned =
-                        if (newerState) {
-                            snapshot.pinned
-                        } else {
-                            identified.syncedPinned
-                        },
-
-                    remoteStatus =
-                        if (newerState) {
-                            snapshot.remoteStatus
-                        } else {
-                            identified.remoteStatus
-                        },
-
-                    remoteUpdatedAt =
-                        maxOfNullable(
-                            identified.remoteUpdatedAt,
-                            remoteUpdatedAt,
-                        ),
-
-                    localUpdatedAt =
-                        if (newerState) {
-                            maxOf(
-                                identified.localUpdatedAt,
-                                remoteUpdatedAt,
-                            )
-                        } else {
-                            identified.localUpdatedAt
-                        },
-                )
-
-            if (updated != local) {
-                noteLocalRepository.upsertLocal(updated)
+        // A pinned-only local change does not block remote Content updates.
+        // Preserve the local pinned choice until setPinned or a newer Pull
+        // confirms that same choice on the server.
+        if (pinnedDirty) {
+            val confirmedPinned = if (newerState) {
+                snapshot.pinned
+            } else {
+                identified.syncedPinned
             }
+            val stillPinnedDirty = identified.pinned != confirmedPinned
 
+            val updated = identified.copy(
+                dayKey = if (newerContent) snapshot.dayKey else identified.dayKey,
+                onlyDay = if (newerContent) snapshot.onlyDay else identified.onlyDay,
+                title = if (newerContent) snapshot.title else identified.title,
+                text = if (newerContent) incomingText else identified.text,
+                contentJson = if (newerContent || missingContent) {
+                    incomingContentJson
+                } else {
+                    identified.contentJson
+                },
+                syncedDayKey = if (newerContent) snapshot.dayKey else identified.syncedDayKey,
+                syncedOnlyDay = if (newerContent) snapshot.onlyDay else identified.syncedOnlyDay,
+                syncedTitle = if (newerContent) snapshot.title else identified.syncedTitle,
+                syncedText = if (newerContent) incomingText else identified.syncedText,
+                syncedContentJson = if (newerContent || missingContent) {
+                    incomingContentJson
+                } else {
+                    identified.syncedContentJson
+                },
+                // Do not write pinned: keep the local desired value.
+                syncedPinned = confirmedPinned,
+                remoteStatus = if (newerContent || newerState) {
+                    snapshot.remoteStatus
+                } else {
+                    identified.remoteStatus
+                },
+                remoteVersion = remoteVersion,
+                remoteUpdatedAt = maxOfNullable(
+                    identified.remoteUpdatedAt,
+                    remoteUpdatedAt,
+                ),
+                localUpdatedAt = maxOf(identified.localUpdatedAt, remoteUpdatedAt),
+                syncState = if (stillPinnedDirty) NoteSyncState.Pending else NoteSyncState.Synced,
+                lastSyncError = if (stillPinnedDirty) identified.lastSyncError else null,
+            )
+            if (updated != local) noteLocalRepository.upsertLocal(updated)
             return
         }
 
-        /*
-         * clean local + remote newer：
-         *
-         * 远端 snapshot 成为新的本地基线。
-         */
-        val identified = adoptRemoteIdentity(
-            local = local,
-            snapshot = snapshot,
+        // No local changes: a newer remote version fully replaces Content.
+        // With the same content version, only hydrate missing content and
+        // absorb updatedAt-based pinned/status changes.
+        val updated = identified.copy(
+            dayKey = if (newerContent) snapshot.dayKey else identified.dayKey,
+            onlyDay = if (newerContent) snapshot.onlyDay else identified.onlyDay,
+            title = if (newerContent) snapshot.title else identified.title,
+            text = if (newerContent) incomingText else identified.text,
+            contentJson = if (newerContent || missingContent) {
+                incomingContentJson
+            } else {
+                identified.contentJson
+            },
+            syncedDayKey = if (newerContent) snapshot.dayKey else identified.syncedDayKey,
+            syncedOnlyDay = if (newerContent) snapshot.onlyDay else identified.syncedOnlyDay,
+            syncedTitle = if (newerContent) snapshot.title else identified.syncedTitle,
+            syncedText = if (newerContent) incomingText else identified.syncedText,
+            syncedContentJson = if (newerContent || missingContent) {
+                incomingContentJson
+            } else {
+                identified.syncedContentJson
+            },
+            pinned = if (newerState) snapshot.pinned else identified.pinned,
+            syncedPinned = if (newerState) snapshot.pinned else identified.syncedPinned,
+            remoteStatus = if (newerContent || newerState) {
+                snapshot.remoteStatus
+            } else {
+                identified.remoteStatus
+            },
+            remoteVersion = remoteVersion,
+            remoteUpdatedAt = maxOfNullable(identified.remoteUpdatedAt, remoteUpdatedAt),
+            localUpdatedAt = if (newerContent || newerState) {
+                maxOf(identified.localUpdatedAt, remoteUpdatedAt)
+            } else {
+                identified.localUpdatedAt
+            },
+            pendingRemoteStatus = null,
+            pendingSnapshotJson = null,
+            conflictSnapshotJson = null,
+            syncState = NoteSyncState.Synced,
+            lastSyncError = null,
         )
-
-        noteLocalRepository
-            .upsertLocal(
-                identified.copy(
-                    dayKey = snapshot.dayKey,
-                    onlyDay = snapshot.onlyDay,
-                    title = snapshot.title,
-                    text = snapshot.text,
-                    contentJson = incomingContentJson,
-                    pinned = snapshot.pinned,
-                    remoteStatus = snapshot.remoteStatus,
-                    pendingRemoteStatus = null,
-                    syncedDayKey = snapshot.dayKey,
-                    syncedOnlyDay = snapshot.onlyDay,
-                    syncedTitle = snapshot.title,
-                    syncedText = snapshot.text,
-                    syncedContentJson = incomingContentJson,
-                    syncedPinned = snapshot.pinned,
-                    remoteVersion = remoteVersion,
-                    remoteUpdatedAt = remoteUpdatedAt,
-                    pendingSnapshotJson = null,
-                    conflictSnapshotJson = null,
-                    localUpdatedAt = remoteUpdatedAt,
-                    syncState = NoteSyncState.Synced,
-                    lastSyncError = null,
-                )
-            )
+        if (updated != local) noteLocalRepository.upsertLocal(updated)
     }
 
     private suspend fun mergeRemoteDeleted(
@@ -478,15 +403,23 @@ class NoteRemoteMergeService(
             )
     }
 
-    private fun hasLocalWork(
-        note: LocalNoteEntity,
-    ): Boolean {
-        return note.pendingRemoteStatus !=
-                null ||
-                note.hasUnsyncedChanges ||
-                note.hasPendingSnapshot ||
-                note.syncState !=
-                NoteSyncState.Synced
+    // Content and pinned have independent sync baselines.
+    private fun hasLocalContentWork(note: LocalNoteEntity): Boolean {
+        return note.noteId == null ||
+                note.pendingSnapshotJson != null ||
+                note.dayKey != note.syncedDayKey ||
+                note.onlyDay != note.syncedOnlyDay ||
+                note.title != note.syncedTitle ||
+                note.text != note.syncedText ||
+                !sameContentBaseline(note)
+    }
+
+    private fun sameContentBaseline(note: LocalNoteEntity): Boolean {
+        val current = NoteContentCodec.parse(note.contentJson)
+            ?: NoteContentCodec.fromPlainText(note.text)
+        val synced = NoteContentCodec.parse(note.syncedContentJson)
+            ?: NoteContentCodec.fromPlainText(note.syncedText)
+        return current == synced
     }
 
     /**
@@ -559,12 +492,14 @@ class NoteRemoteMergeService(
         }
     }
 
-    private fun remoteContentJson(
-        snapshot: RemoteNoteSnapshot,
-    ): String? {
-        return snapshot.content?.let {
-            NoteContentCodec.stringify(it)
-        }
+    private fun remotePlainText(snapshot: RemoteNoteSnapshot): String {
+        return snapshot.content?.let(NoteContentCodec::extractText)
+            ?: snapshot.text
     }
 
+    private fun remoteContentJson(snapshot: RemoteNoteSnapshot): String {
+        val content = snapshot.content
+            ?: NoteContentCodec.fromPlainText(snapshot.text)
+        return NoteContentCodec.stringify(content)
+    }
 }

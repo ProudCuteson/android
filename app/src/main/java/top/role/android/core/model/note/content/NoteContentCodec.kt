@@ -8,30 +8,26 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.doubleOrNull
 
 object NoteContentCodec {
 
     private val json = Json {
         ignoreUnknownKeys = true
         explicitNulls = false
-        encodeDefaults = false
+        encodeDefaults = true
     }
 
     // MARK: - JSON
 
-    fun parse(
-        raw: String?,
-    ): JsonElement? {
-        if (raw.isNullOrBlank()) {
-            return null
-        }
+    fun parse(raw: String?): JsonElement? {
+        if (raw.isNullOrBlank()) return null
 
-        val element =
-            json.parseToJsonElement(raw)
-
-        return element.takeUnless {
-            it == JsonNull
-        }
+        return json.parseToJsonElement(raw)
+            .takeUnless { it == JsonNull }
+            ?.let(::normalizeVersion)
     }
 
     fun stringify(
@@ -50,7 +46,7 @@ object NoteContentCodec {
     ): BlockContent {
         val model =
             json.decodeFromJsonElement<BlockContent>(
-                content,
+                normalizeVersion(content),
             )
 
         require(model.v == 1) {
@@ -121,4 +117,16 @@ object NoteContentCodec {
         return parse(leftJson) ==
                 parse(rightJson)
     }
+
+    private fun normalizeVersion(element: JsonElement): JsonElement {
+        val obj = element as? JsonObject ?: return element
+        val version = obj["v"] as? JsonPrimitive ?: return element
+
+        if (version.doubleOrNull != 1.0) return element
+
+        return JsonObject(
+            obj + ("v" to JsonPrimitive(1))
+        )
+    }
+
 }

@@ -8,30 +8,16 @@ import top.role.android.core.data.image.note.NoteMediaRefreshService
 import top.role.android.core.storage.NoteSyncCheckpointStorage
 
 class NoteSyncCoordinator(
-    private val noteRefreshService:
-    NoteRefreshService,
-
-    private val notePushService:
-    NotePushService,
-
-    private val noteLocalRepository:
-    NoteLocalRepository,
-
-    private val noteImageService:
-    NoteImageService,
-
-    private val noteMediaRefreshService:
-    NoteMediaRefreshService,
-
-    private val noteMediaPushService:
-    NoteMediaPushService,
-
-    private val checkpointStorage:
-    NoteSyncCheckpointStorage,
+    private val noteRefreshService: NoteRefreshService,
+    private val notePushService: NotePushService,
+    private val noteLocalRepository: NoteLocalRepository,
+    private val noteImageService: NoteImageService,
+    private val noteMediaRefreshService: NoteMediaRefreshService,
+    private val noteMediaPushService: NoteMediaPushService,
+    private val checkpointStorage: NoteSyncCheckpointStorage,
 ) {
 
-    private val syncMutex =
-        Mutex()
+    private val syncMutex = Mutex()
 
     /**
      * 执行一轮完整 Note 同步。
@@ -95,11 +81,8 @@ class NoteSyncCoordinator(
                  */
                 val firstPull =
                     refreshAndPersistCheckpoint(
-                        ownerUserId =
-                            ownerUserId,
-
-                        pageLimit =
-                            pageLimit,
+                        ownerUserId = ownerUserId,
+                        pageLimit = pageLimit,
                     )
                         .getOrThrow()
 
@@ -113,15 +96,11 @@ class NoteSyncCoordinator(
                 val notesToPush =
                     noteLocalRepository
                         .findNotesNeedingSync(
-                            ownerUserId =
-                                ownerUserId,
+                            ownerUserId = ownerUserId,
                         )
 
-                var pushSucceededCount =
-                    0
-
-                var pushFailedCount =
-                    0
+                var pushSucceededCount = 0
+                var pushFailedCount = 0
 
                 /*
                  * 第一版继续顺序 Push。
@@ -136,21 +115,16 @@ class NoteSyncCoordinator(
                 for (
                 note in notesToPush
                 ) {
-                    val result =
-                        notePushService
-                            .pushOne(
-                                ownerUserId =
-                                    ownerUserId,
-
-                                localKey =
-                                    note.localKey,
-                            )
+                    val result = notePushService
+                        .pushOne(
+                            ownerUserId = ownerUserId,
+                            localKey = note.localKey,
+                        )
 
                     if (
                         result.isSuccess
                     ) {
-                        pushSucceededCount +=
-                            1
+                        pushSucceededCount += 1
 
                         /*
                          * Content Push 成功以后，
@@ -163,15 +137,11 @@ class NoteSyncCoordinator(
                          * clientKey 在 identity 收敛过程中稳定，
                          * 所以重新读取最新 Room Note。
                          */
-                        val syncedNote =
-                            noteLocalRepository
-                                .findByClientKey(
-                                    ownerUserId =
-                                        ownerUserId,
-
-                                    clientKey =
-                                        note.clientKey,
-                                )
+                        val syncedNote = noteLocalRepository
+                            .findByClientKey(
+                                ownerUserId = ownerUserId,
+                                clientKey = note.clientKey,
+                            )
 
                         val noteId =
                             syncedNote

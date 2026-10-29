@@ -1,732 +1,323 @@
 package top.role.android.core.data.note
 
 import java.util.UUID
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.serialization.json.Json
-
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.encodeToJsonElement
 import top.role.android.core.database.note.LocalNoteDao
 import top.role.android.core.database.note.LocalNoteEntity
+import top.role.android.core.database.note.hasPendingSnapshot
 import top.role.android.core.database.note.hasUnsyncedChanges
+import top.role.android.core.database.note.hasUnsyncedContentChanges
 import top.role.android.core.model.note.DayKey
 import top.role.android.core.model.note.NoteRemoteStatus
+import top.role.android.core.model.note.NoteSyncFailure
 import top.role.android.core.model.note.NoteSyncState
+import top.role.android.core.model.note.PersistedNoteConflictSnapshot
 import top.role.android.core.model.note.PersistedNoteSyncSnapshot
 import top.role.android.core.model.note.RemoteNoteSnapshot
-import top.role.android.core.model.note.NoteSyncFailure
-import top.role.android.core.model.note.PersistedNoteConflictSnapshot
 import top.role.android.core.model.note.content.NoteContentCodec
 
-class NoteLocalRepository(
-    private val dao: LocalNoteDao,
-) {
-    private val json =
-        Json {
-            ignoreUnknownKeys = true
-        }
+class NoteLocalRepository(private val dao: LocalNoteDao) {
+    private val json = Json { ignoreUnknownKeys = true }
+    private val _syncRequests = MutableSharedFlow<String>(
+        extraBufferCapacity = 32,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val syncRequests: SharedFlow<String> = _syncRequests.asSharedFlow()
 
-    private val _syncRequests =
-        MutableSharedFlow<String>(
-            extraBufferCapacity = 32,
-            onBufferOverflow =
-                BufferOverflow.DROP_OLDEST,
-        )
-
-    val syncRequests: SharedFlow<String> =
-        _syncRequests.asSharedFlow()
-
-    fun requestSync(
-        ownerUserId: String,
-    ) {
-        if (
-            ownerUserId.isBlank()
-        ) {
-            return
-        }
-
-        _syncRequests.tryEmit(
-            ownerUserId,
-        )
+    fun requestSync(ownerUserId: String) {
+        if (ownerUserId.isNotBlank()) _syncRequests.tryEmit(ownerUserId)
     }
 
-    // MARK: - Observe
+    // MARK: - Observe / Read
 
-    fun observeRecentNotes(
-        ownerUserId: String,
-    ): Flow<List<LocalNoteEntity>> {
-        return dao.observeRecentNotes(
-            ownerUserId = ownerUserId,
-        )
-    }
-
-    fun observePinnedNotes(
-        ownerUserId: String,
-    ): Flow<List<LocalNoteEntity>> {
-        return dao.observePinnedNotes(
-            ownerUserId = ownerUserId,
-        )
-    }
-
-    fun observeDiaryNotes(
-        ownerUserId: String,
-    ): Flow<List<LocalNoteEntity>> {
-        return dao.observeDiaryNotes(
-            ownerUserId = ownerUserId,
-        )
-    }
-
+    fun observeRecentNotes(ownerUserId: String): Flow<List<LocalNoteEntity>> = dao.observeRecentNotes(ownerUserId)
+    fun observePinnedNotes(ownerUserId: String): Flow<List<LocalNoteEntity>> = dao.observePinnedNotes(ownerUserId)
+    fun observeDiaryNotes(ownerUserId: String): Flow<List<LocalNoteEntity>> = dao.observeDiaryNotes(ownerUserId)
+    fun observeArchivedNotes(ownerUserId: String): Flow<List<LocalNoteEntity>> = dao.observeArchivedNotes(ownerUserId)
     fun observeMonthNotesForDayHome(
         ownerUserId: String,
         startDayKey: String,
         endDayKeyExclusive: String,
-    ): Flow<List<LocalNoteEntity>> {
-        return dao.observeMonthNotesForDayHome(
-            ownerUserId = ownerUserId,
-            startDayKey = startDayKey,
-            endDayKeyExclusive = endDayKeyExclusive,
+    ): Flow<List<LocalNoteEntity>> = dao.observeMonthNotesForDayHome(
+        ownerUserId, startDayKey, endDayKeyExclusive
+    )
+    fun observeNotesForDay(ownerUserId: String, dayKey: String): Flow<List<LocalNoteEntity>> =
+        dao.observeNotesForDay(ownerUserId, dayKey)
+    fun observeDayOnlyNote(ownerUserId: String, dayKey: String): Flow<LocalNoteEntity?> =
+        dao.observeDayOnlyNote(ownerUserId, dayKey)
+    fun observeByLocalKey(ownerUserId: String, localKey: String): Flow<LocalNoteEntity?> =
+        dao.observeByLocalKey(ownerUserId, localKey)
+    fun searchNotes(ownerUserId: String, query: String): Flow<List<LocalNoteEntity>> =
+        dao.searchNotes(ownerUserId, query.trim())
+
+    suspend fun findByLocalKey(ownerUserId: String, localKey: String): LocalNoteEntity? =
+        dao.findByLocalKey(ownerUserId, localKey)
+    suspend fun findByNoteId(ownerUserId: String, noteId: String): LocalNoteEntity? =
+        dao.findByNoteId(ownerUserId, noteId)
+    suspend fun findByClientKey(ownerUserId: String, clientKey: String): LocalNoteEntity? =
+        dao.findByClientKey(ownerUserId, clientKey)
+    suspend fun findDayOnlyNote(ownerUserId: String, dayKey: String): LocalNoteEntity? =
+        dao.findDayOnlyNote(ownerUserId, normalizeDayKey(dayKey))
+    suspend fun findRemoteBackedNotes(ownerUserId: String): List<LocalNoteEntity> {
+        require(ownerUserId.isNotBlank()) { "OWNER_USER_ID_REQUIRED" }
+        return dao.findRemoteBackedNotes(ownerUserId)
+    }
+    suspend fun findNotesNeedingSync(ownerUserId: String): List<LocalNoteEntity> =
+        dao.findNotesNeedingSync(ownerUserId)
+
+    // MARK: - Create / Edit
+
+    suspend fun createNormalNote(ownerUserId: String): LocalNoteEntity =
+        insertNewNote(ownerUserId, dayKey = null, onlyDay = false)
+
+    suspend fun createDatedNote(ownerUserId: String, dayKey: String): LocalNoteEntity =
+        insertNewNote(ownerUserId, dayKey = normalizeDayKey(dayKey), onlyDay = false)
+
+    suspend fun getOrCreateDayOnlyNote(ownerUserId: String, dayKey: String): LocalNoteEntity {
+        val key = normalizeDayKey(dayKey)
+        dao.findDayOnlyNote(ownerUserId, key)?.let { return it }
+        return insertNewNote(
+            ownerUserId, key, onlyDay = true,
+            localKey = LocalNoteKeys.day(ownerUserId = ownerUserId, dayKey = key),
         )
     }
 
-    fun observeByLocalKey(
+    private suspend fun insertNewNote(
         ownerUserId: String,
-        localKey: String,
-    ): Flow<LocalNoteEntity?> {
-        return dao.observeByLocalKey(
-            ownerUserId =
-                ownerUserId,
-
-            localKey =
-                localKey,
-        )
-    }
-
-    fun observeArchivedNotes(
-        ownerUserId: String,
-    ): Flow<List<LocalNoteEntity>> {
-        return dao.observeArchivedNotes(
-            ownerUserId =
-                ownerUserId,
-        )
-    }
-
-    fun searchNotes(
-        ownerUserId: String,
-        query: String,
-    ): Flow<List<LocalNoteEntity>> {
-        return dao.searchNotes(
-            ownerUserId = ownerUserId,
-            query = query.trim(),
-        )
-    }
-
-    // MARK: - Read
-
-    suspend fun findByLocalKey(
-        ownerUserId: String,
-        localKey: String,
-    ): LocalNoteEntity? {
-        return dao.findByLocalKey(
-            ownerUserId = ownerUserId,
-            localKey = localKey,
-        )
-    }
-
-    suspend fun findByNoteId(
-        ownerUserId: String,
-        noteId: String,
-    ): LocalNoteEntity? {
-        return dao.findByNoteId(
-            ownerUserId = ownerUserId,
-            noteId = noteId,
-        )
-    }
-
-    suspend fun findByClientKey(
-        ownerUserId: String,
-        clientKey: String,
-    ): LocalNoteEntity? {
-        return dao.findByClientKey(
-            ownerUserId = ownerUserId,
-            clientKey = clientKey,
-        )
-    }
-
-    suspend fun findDayOnlyNote(
-        ownerUserId: String,
-        dayKey: String,
-    ): LocalNoteEntity? {
-        return dao.findDayOnlyNote(
-            ownerUserId = ownerUserId,
-            dayKey = normalizeDayKey(dayKey),
-        )
-    }
-
-    suspend fun findRemoteBackedNotes(
-        ownerUserId: String,
-    ): List<LocalNoteEntity> {
-        require(
-            ownerUserId.isNotBlank(),
-        ) {
-            "OWNER_USER_ID_REQUIRED"
-        }
-
-        return dao.findRemoteBackedNotes(
-            ownerUserId =
-                ownerUserId,
-        )
-    }
-
-    // MARK: - Create
-
-    suspend fun createNormalNote(
-        ownerUserId: String,
+        dayKey: String?,
+        onlyDay: Boolean,
+        localKey: String = LocalNoteKeys.new(ownerUserId = ownerUserId),
     ): LocalNoteEntity {
-        val note =
-            makeNewLocalNote(
-                ownerUserId = ownerUserId,
-                dayKey = null,
-                onlyDay = false,
-            )
-
-        val rowId =
-            dao.insert(
-                note = note,
-            )
-
-        return note.copy(
-            rowId = rowId,
-        )
+        val note = makeNewLocalNote(ownerUserId, dayKey, onlyDay, localKey)
+        return note.copy(rowId = dao.insert(note))
     }
 
-    suspend fun createDatedNote(
-        ownerUserId: String,
-        dayKey: String,
-    ): LocalNoteEntity {
-        val normalizedDayKey =
-            normalizeDayKey(dayKey)
+    suspend fun upsertLocal(note: LocalNoteEntity) = dao.upsert(note)
 
-        require(normalizedDayKey.isNotEmpty()) {
-            "dayKey is required"
+    /** 旧的纯文本入口（如 AI 替换）：正文变化时同步重建 BlockContent，不留下旧格式。 */
+    suspend fun updateContent(note: LocalNoteEntity, title: String, text: String): LocalNoteEntity {
+        if (note.title == title && note.text == text) return note
+        val nextContentJson = if (note.text != text) {
+            NoteContentCodec.stringify(NoteContentCodec.fromPlainText(text))
+        } else {
+            note.contentJson
         }
-
-        val note =
-            makeNewLocalNote(
-                ownerUserId = ownerUserId,
-                dayKey = normalizedDayKey,
-                onlyDay = false,
-            )
-
-        val rowId =
-            dao.insert(
-                note = note,
-            )
-
-        return note.copy(
-            rowId = rowId,
+        val updated = note.copy(
+            title = title, text = text, contentJson = nextContentJson,
+            localUpdatedAt = System.currentTimeMillis(),
+            syncState = nextPendingState(note), lastSyncError = null,
         )
+        dao.update(updated)
+        return updated
     }
 
-    suspend fun getOrCreateDayOnlyNote(
-        ownerUserId: String,
-        dayKey: String,
-    ): LocalNoteEntity {
-        val normalizedDayKey =
-            normalizeDayKey(dayKey)
-
-        require(normalizedDayKey.isNotEmpty()) {
-            "dayKey is required"
-        }
-
-        val existing =
-            dao.findDayOnlyNote(
-                ownerUserId = ownerUserId,
-                dayKey = normalizedDayKey,
-            )
-
-        if (existing != null) {
-            return existing
-        }
-
-        val note =
-            makeNewLocalNote(
-                ownerUserId = ownerUserId,
-                dayKey = normalizedDayKey,
-                onlyDay = true,
-                localKey =
-                    LocalNoteKeys.day(
-                        ownerUserId = ownerUserId,
-                        dayKey = normalizedDayKey,
-                    ),
-            )
-
-        val rowId =
-            dao.insert(
-                note = note,
-            )
-
-        return note.copy(
-            rowId = rowId,
-        )
-    }
-
-    // MARK: - Edit
-
-    suspend fun upsertLocal(
-        note: LocalNoteEntity,
-    ) {
-        dao.upsert(
-            note,
-        )
-    }
-
-    suspend fun updateContent(
+    /** 富文本是正文权威；text 始终由 BlockContent 提取。 */
+    suspend fun updateRichContent(
         note: LocalNoteEntity,
         title: String,
         text: String,
+        contentJson: String,
     ): LocalNoteEntity {
-        val updated =
-            note.copy(
-                title = title,
-                text = text,
-                localUpdatedAt =
-                    System.currentTimeMillis(),
-                syncState =
-                    nextPendingState(
-                        note = note,
-                    ),
-                lastSyncError = null,
-            )
+        val content = requireNotNull(NoteContentCodec.parse(contentJson)) { "NOTE_CONTENT_REQUIRED" }
+        val extractedText = NoteContentCodec.extractText(content)
+        val normalizedText = if (text == extractedText) text else extractedText
+        val normalizedJson = NoteContentCodec.stringify(content)
+        if (note.title == title && note.text == normalizedText &&
+            NoteContentCodec.sameContent(note.contentJson, normalizedJson)
+        ) return note
 
-        dao.update(
-            note = updated,
+        val updated = note.copy(
+            title = title, text = normalizedText, contentJson = normalizedJson,
+            localUpdatedAt = System.currentTimeMillis(),
+            syncState = nextPendingState(note), lastSyncError = null,
         )
-
+        dao.update(updated)
         return updated
     }
 
-    suspend fun setPinned(
-        note: LocalNoteEntity,
-        pinned: Boolean,
-    ): LocalNoteEntity {
-        if (note.pinned == pinned) {
-            return note
-        }
-
-        val updated =
-            note.copy(
-                pinned = pinned,
-                localUpdatedAt =
-                    System.currentTimeMillis(),
-                syncState =
-                    nextPendingState(
-                        note = note,
-                    ),
-                lastSyncError = null,
-            )
-
-        dao.update(
-            note = updated,
+    suspend fun setPinned(note: LocalNoteEntity, pinned: Boolean): LocalNoteEntity {
+        if (note.pinned == pinned) return note
+        val updated = note.copy(
+            pinned = pinned, localUpdatedAt = System.currentTimeMillis(),
+            syncState = nextPendingState(note), lastSyncError = null,
         )
-
-        updated.ownerUserId
-            ?.let {
-                requestSync(
-                    ownerUserId = it,
-                )
-            }
-
+        dao.update(updated)
+        updated.ownerUserId?.let(::requestSync)
         return updated
     }
 
-    suspend fun setPlacement(
-        note: LocalNoteEntity,
-        dayKey: String?,
-        onlyDay: Boolean,
-    ): LocalNoteEntity {
-        val normalizedDayKey =
-            dayKey
-                ?.trim()
-                ?.takeIf {
-                    it.isNotEmpty()
-                }
-                ?.let {
-                    normalizeDayKey(it)
-                }
-
-        require(
-            !onlyDay ||
-                    normalizedDayKey != null
-        ) {
-            "dayKey is required for day-only note"
-        }
-
-        if (
-            onlyDay &&
-            normalizedDayKey != null
-        ) {
-            val existingDayNote =
-                dao.findDayOnlyNote(
-                    ownerUserId =
-                        requireNotNull(
-                            note.ownerUserId,
-                        ) {
-                            "ownerUserId is required"
-                        },
-                    dayKey =
-                        normalizedDayKey,
-                )
-
-            require(
-                existingDayNote == null ||
-                        existingDayNote.rowId ==
-                        note.rowId
-            ) {
-                "A day-only note already exists for $normalizedDayKey"
+    suspend fun setPlacement(note: LocalNoteEntity, dayKey: String?, onlyDay: Boolean): LocalNoteEntity {
+        val key = dayKey?.trim()?.takeIf(String::isNotEmpty)?.let(::normalizeDayKey)
+        require(!onlyDay || key != null) { "dayKey is required for day-only note" }
+        if (onlyDay && key != null) {
+            val owner = requireNotNull(note.ownerUserId) { "ownerUserId is required" }
+            val existing = dao.findDayOnlyNote(owner, key)
+            require(existing == null || existing.rowId == note.rowId) {
+                "A day-only note already exists for $key"
             }
         }
-
-        val updated =
-            note.copy(
-                dayKey = normalizedDayKey,
-                onlyDay = onlyDay,
-                localUpdatedAt =
-                    System.currentTimeMillis(),
-                syncState =
-                    nextPendingState(
-                        note = note,
-                    ),
-                lastSyncError = null,
-            )
-
-        dao.update(
-            note = updated,
+        if (note.dayKey == key && note.onlyDay == onlyDay) return note
+        val updated = note.copy(
+            dayKey = key, onlyDay = onlyDay, localUpdatedAt = System.currentTimeMillis(),
+            syncState = nextPendingState(note), lastSyncError = null,
         )
-
-        updated.ownerUserId
-            ?.let {
-                requestSync(
-                    ownerUserId = it,
-                )
-            }
-
+        dao.update(updated)
+        updated.ownerUserId?.let(::requestSync)
         return updated
     }
 
-    // MARK: - Lifecycle
+    // MARK: - Pinned confirmation
 
-    suspend fun markForArchive(
-        note: LocalNoteEntity,
-    ): LocalNoteEntity? {
-        return markForLifecycle(
-            note = note,
-            targetStatus =
-                NoteRemoteStatus.Archived,
-        )
+    suspend fun applyPinnedSuccess(
+        ownerUserId: String, localKey: String, noteId: String, sentPinned: Boolean,
+    ) {
+        val current = findByLocalKey(ownerUserId, localKey) ?: return
+        if (current.noteId != noteId || current.syncState == NoteSyncState.Conflict) return
+
+        // 本次 mutation 确认的是 sentPinned，而不是请求返回时的 current.pinned。
+        val stillPending = current.pinned != sentPinned || hasPendingContentWork(current) ||
+                current.pendingRemoteStatus != null
+        dao.update(current.copy(
+            syncedPinned = sentPinned,
+            syncState = if (stillPending) NoteSyncState.Pending else NoteSyncState.Synced,
+            lastSyncError = null,
+        ))
+        if (stillPending) requestSync(ownerUserId)
     }
 
-    suspend fun markForRestore(
-        note: LocalNoteEntity,
-    ): LocalNoteEntity? {
-        return markForLifecycle(
-            note = note,
-            targetStatus =
-                NoteRemoteStatus.Active,
-        )
+    suspend fun applyPinnedFailure(
+        ownerUserId: String, localKey: String, noteId: String,
+        sentPinned: Boolean, failure: NoteSyncFailure,
+    ) {
+        val current = findByLocalKey(ownerUserId, localKey) ?: return
+        if (current.noteId != noteId || current.pinned != sentPinned ||
+            current.syncState == NoteSyncState.Conflict
+        ) return
+        dao.update(applyFailure(current, failure))
     }
 
-    suspend fun markForDelete(
-        note: LocalNoteEntity,
-    ): LocalNoteEntity? {
-        /*
-         * 从未存在于远端的新 Note。
-         *
-         * Delete 不需要为它制造一个远端 tombstone，
-         * 直接删掉 Room 即可。
-         */
-        if (
-            note.noteId == null &&
-            note.remoteVersion == null
-        ) {
-            dao.delete(
-                note = note,
-            )
+    // MARK: - Lifecycle intent
 
+    suspend fun markForArchive(note: LocalNoteEntity): LocalNoteEntity? =
+        markForLifecycle(note, NoteRemoteStatus.Archived)
+
+    suspend fun markForRestore(note: LocalNoteEntity): LocalNoteEntity? =
+        markForLifecycle(note, NoteRemoteStatus.Active)
+
+    suspend fun markForDelete(note: LocalNoteEntity): LocalNoteEntity? {
+        if (note.noteId == null && note.remoteVersion == null) {
+            dao.delete(note)
             return null
         }
-
-        /*
-         * 服务器已经确认 deleted。
-         */
-        if (
-            note.remoteStatus ==
-            NoteRemoteStatus.Deleted
-        ) {
-            dao.delete(
-                note = note,
-            )
-
+        if (note.remoteStatus == NoteRemoteStatus.Deleted) {
+            dao.delete(note)
             return null
         }
-
-        val updated =
-            note.copy(
-                pendingRemoteStatus =
-                    NoteRemoteStatus.Deleted,
-
-                localUpdatedAt =
-                    System.currentTimeMillis(),
-
-                syncState =
-                    NoteSyncState.Pending,
-
-                /*
-                 * Delete 是终止性操作。
-                 *
-                 * 用户已经决定删除 Note，
-                 * 尚未上传的 content snapshot
-                 * 不再需要继续上传。
-                 */
-                pendingSnapshotJson =
-                    null,
-
-                lastSyncError =
-                    null,
-            )
-
-        dao.update(
-            note = updated,
+        // 删除是终止操作，旧 Content snapshot 不再需要上传。
+        val updated = note.copy(
+            pendingRemoteStatus = NoteRemoteStatus.Deleted,
+            pendingSnapshotJson = null,
+            localUpdatedAt = System.currentTimeMillis(),
+            syncState = NoteSyncState.Pending, lastSyncError = null,
         )
-
+        dao.update(updated)
+        updated.ownerUserId?.let(::requestSync)
         return updated
     }
 
-    /**
-     * Archive / Restore 共用的 lifecycle target。
-     *
-     * Delete 有特殊语义，因此不走这里。
-     */
     private suspend fun markForLifecycle(
-        note: LocalNoteEntity,
-        targetStatus: NoteRemoteStatus,
+        note: LocalNoteEntity, targetStatus: NoteRemoteStatus,
     ): LocalNoteEntity? {
-        require(
-            targetStatus ==
-                    NoteRemoteStatus.Active ||
-                    targetStatus ==
-                    NoteRemoteStatus.Archived
-        ) {
+        require(targetStatus == NoteRemoteStatus.Active || targetStatus == NoteRemoteStatus.Archived) {
             "Unsupported lifecycle target: $targetStatus"
         }
+        require(note.remoteStatus != NoteRemoteStatus.Deleted &&
+                note.pendingRemoteStatus != NoteRemoteStatus.Deleted
+        ) { "Deleted Note cannot change lifecycle state" }
 
-        /*
-         * Deleted 是终态。
-         */
-        require(
-            note.remoteStatus !=
-                    NoteRemoteStatus.Deleted &&
-                    note.pendingRemoteStatus !=
-                    NoteRemoteStatus.Deleted
-        ) {
-            "Deleted Note cannot change lifecycle state"
-        }
-
-        if (
-            note.remoteStatus ==
-            targetStatus
-        ) {
-            if (
-                note.pendingRemoteStatus ==
-                null
-            ) {
-                return note
+        if (note.remoteStatus == targetStatus) {
+            if (note.pendingRemoteStatus == null) return note
+            // 已发出的归档可能先于本地确认到达服务器。对于有远端身份的 Note，
+            // “恢复”保留为 Active 目标，而不只是取消本地 Archived Pending。
+            if (targetStatus == NoteRemoteStatus.Active && note.noteId != null) {
+                val updated = note.copy(
+                    pendingRemoteStatus = NoteRemoteStatus.Active,
+                    localUpdatedAt = System.currentTimeMillis(),
+                    syncState = NoteSyncState.Pending, lastSyncError = null,
+                )
+                dao.update(updated)
+                updated.ownerUserId?.let(::requestSync)
+                return updated
             }
-
-            return cancelPendingLifecycle(
-                note = note,
-            )
+            return cancelPendingLifecycle(note)
         }
-
-        val updated =
-            note.copy(
-                pendingRemoteStatus =
-                    targetStatus,
-
-                localUpdatedAt =
-                    System.currentTimeMillis(),
-
-                syncState =
-                    NoteSyncState.Pending,
-
-                lastSyncError =
-                    null,
-            )
-
-        dao.update(
-            note = updated,
+        if (note.pendingRemoteStatus == targetStatus) return note
+        val updated = note.copy(
+            pendingRemoteStatus = targetStatus,
+            localUpdatedAt = System.currentTimeMillis(),
+            syncState = NoteSyncState.Pending, lastSyncError = null,
         )
-
+        dao.update(updated)
+        updated.ownerUserId?.let(::requestSync)
         return updated
     }
 
-    suspend fun cancelPendingLifecycle(
-        note: LocalNoteEntity,
-    ): LocalNoteEntity {
-        if (
-            note.pendingRemoteStatus ==
-            null
-        ) {
-            return note
-        }
-
-        val updated =
-            note.copy(
-                pendingRemoteStatus =
-                    null,
-
-                syncState =
-                    if (
-                        note.hasUnsyncedChanges ||
-                        note.pendingSnapshotJson !=
-                        null
-                    ) {
-                        NoteSyncState.Pending
-                    } else {
-                        NoteSyncState.Synced
-                    },
-
-                lastSyncError =
-                    null,
-            )
-
-        dao.update(
-            note = updated,
+    suspend fun cancelPendingLifecycle(note: LocalNoteEntity): LocalNoteEntity {
+        if (note.pendingRemoteStatus == null) return note
+        val updated = note.copy(
+            pendingRemoteStatus = null,
+            syncState = when {
+                note.syncState == NoteSyncState.Conflict -> NoteSyncState.Conflict
+                note.noteId == null || note.hasPendingSnapshot || note.hasUnsyncedChanges -> NoteSyncState.Pending
+                else -> NoteSyncState.Synced
+            },
+            lastSyncError = if (note.syncState == NoteSyncState.Conflict) note.lastSyncError else null,
         )
-
+        dao.update(updated)
+        // 取消未确认的操作也重新 Pull，以便吸收已经到达远端的状态。
+        updated.ownerUserId?.let(::requestSync)
         return updated
     }
 
-    // MARK: - Sync support
+    // MARK: - Content Push / baseline
 
-    suspend fun preparePendingSnapshot(
-        ownerUserId: String,
-        localKey: String,
-    ): PreparedNotePush? {
+    suspend fun preparePendingSnapshot(ownerUserId: String, localKey: String): PreparedNotePush? {
+        val note = findByLocalKey(ownerUserId, localKey) ?: return null
+        if (note.pendingRemoteStatus == NoteRemoteStatus.Deleted ||
+            note.pendingRemoteStatus == NoteRemoteStatus.Active
+        ) return null
 
-        val note =
-            findByLocalKey(
-                ownerUserId =
-                    ownerUserId,
-                localKey =
-                    localKey,
-            )
-                ?: return null
-
-        if (
-            note.pendingRemoteStatus ==
-            NoteRemoteStatus.Deleted ||
-            note.pendingRemoteStatus ==
-            NoteRemoteStatus.Active
-        ) {
-            return null
-        }
-
-        val existingSnapshot =
-            decodePendingSnapshot(
-                note.pendingSnapshotJson,
-            )
-
-        if (
-            existingSnapshot != null
-        ) {
-            val syncing =
-                note.copy(
-                    syncState =
-                        NoteSyncState.Syncing,
-
-                    lastSyncError =
-                        null,
-                )
-
-            if (
-                syncing != note
-            ) {
-                dao.update(
-                    syncing,
-                )
-            }
-
-            return PreparedNotePush(
-                note =
-                    syncing,
-
-                snapshot =
-                    existingSnapshot,
-            )
-        }
-
-        val snapshot =
+        val existing = decodePendingSnapshot(note.pendingSnapshotJson)
+        // 兼容旧持久化 snapshot：仅补足冻结的 Content，不换 requestId。
+        val snapshot = if (existing != null) {
+            if (existing.content == null) existing.copy(
+                content = NoteContentCodec.fromPlainText(existing.text)
+            ) else existing
+        } else {
             PersistedNoteSyncSnapshot(
-                requestId =
-                    UUID
-                        .randomUUID()
-                        .toString(),
-
-                noteId =
-                    note.noteId,
-
-                clientKey =
-                    note.clientKey,
-
-                baseVersion =
-                    note.remoteVersion,
-
-                dayKey =
-                    note.dayKey,
-
-                onlyDay =
-                    note.onlyDay,
-
-                title =
-                    note.title,
-
-                text =
-                    note.text,
-
-                pinned =
-                    note.pinned,
+                requestId = UUID.randomUUID().toString(),
+                noteId = note.noteId, clientKey = note.clientKey,
+                baseVersion = note.remoteVersion,
+                dayKey = note.dayKey, onlyDay = note.onlyDay,
+                title = note.title, text = note.text, pinned = note.pinned,
+                content = NoteContentCodec.parse(note.contentJson)
+                    ?: NoteContentCodec.fromPlainText(note.text),
             )
-
-        val encoded =
-            json.encodeToString(
-                snapshot,
-            )
-
-        val syncing =
-            note.copy(
-                pendingSnapshotJson =
-                    encoded,
-
-                syncState =
-                    NoteSyncState.Syncing,
-
-                lastSyncError =
-                    null,
-            )
-
-        dao.update(
-            syncing,
+        }
+        val syncing = note.copy(
+            pendingSnapshotJson = json.encodeToString(snapshot),
+            syncState = NoteSyncState.Syncing, lastSyncError = null,
         )
-
-        return PreparedNotePush(
-            note =
-                syncing,
-
-            snapshot =
-                snapshot,
-        )
+        if (syncing != note) dao.update(syncing)
+        return PreparedNotePush(note = syncing, snapshot = snapshot)
     }
 
     suspend fun applyPushSuccess(
@@ -736,1207 +327,354 @@ class NoteLocalRepository(
         outcome: String,
         remote: RemoteNoteSnapshot,
     ) {
+        val current = findByLocalKey(ownerUserId, localKey) ?: return
+        if (decodePendingSnapshot(current.pendingSnapshotJson)?.requestId != sentSnapshot.requestId) return
 
-        val current =
-            findByLocalKey(
-                ownerUserId =
-                    ownerUserId,
-                localKey =
-                    localKey,
-            )
-                ?: return
+        val applied = outcome != "identity_resolved"
+        val unchanged = contentMatchesSnapshot(current, sentSnapshot)
+        val sentContent = sentSnapshot.content ?: NoteContentCodec.fromPlainText(sentSnapshot.text)
+        val sentJson = NoteContentCodec.stringify(sentContent)
+        val sentText = NoteContentCodec.extractText(sentContent)
+        val remoteJson = remoteContentJson(remote)
+        val remoteText = remotePlainText(remote)
+        val committedJson = remoteJson ?: sentJson
+        val committedText = if (remote.content != null) remoteText else sentText
+        val officialKey = remoteLocalKey(ownerUserId, remote.noteId)
+        val clientKey = remote.clientKey?.takeIf(String::isNotBlank) ?: current.clientKey
 
-        val currentPending =
-            decodePendingSnapshot(
-                current.pendingSnapshotJson,
-            )
-
-        if (
-            currentPending?.requestId !=
-            sentSnapshot.requestId
-        ) {
+        if (applied && unchanged) {
+            val hasRemainingWork = current.pendingRemoteStatus != null ||
+                    current.pinned != current.syncedPinned
+            dao.update(current.copy(
+                localKey = officialKey, noteId = remote.noteId, clientKey = clientKey,
+                dayKey = remote.dayKey, onlyDay = remote.onlyDay, title = remote.title,
+                text = committedText, contentJson = committedJson, remoteStatus = remote.remoteStatus,
+                syncedDayKey = remote.dayKey, syncedOnlyDay = remote.onlyDay,
+                syncedTitle = remote.title, syncedText = committedText,
+                syncedContentJson = committedJson,
+                remoteVersion = remote.version.toLong(), remoteUpdatedAt = remote.updatedAt.toLong(),
+                pendingSnapshotJson = null,
+                syncState = if (hasRemainingWork) NoteSyncState.Pending else NoteSyncState.Synced,
+                lastSyncError = null,
+            ))
+            if (hasRemainingWork) requestSync(ownerUserId)
             return
         }
 
-        val remoteVersion =
-            remote.version.toLong()
-
-        val remoteUpdatedAt =
-            remote.updatedAt.toLong()
-
-        val unchangedSinceSend =
-            contentMatchesSnapshot(
-                note =
-                    current,
-                snapshot =
-                    sentSnapshot,
-            )
-
-        val requestWasApplied =
-            outcome != "identity_resolved"
-
-        val officialLocalKey =
-            remoteLocalKey(
-                ownerUserId =
-                    ownerUserId,
-                noteId =
-                    remote.noteId,
-            )
-
-        val remoteClientKey =
-            remote.clientKey
-                ?.takeIf {
-                    it.isNotBlank()
-                }
-                ?: current.clientKey
-
-        if (
-            unchangedSinceSend &&
-            requestWasApplied
-        ) {
-
-            val synced =
-                current.copy(
-                    localKey =
-                        officialLocalKey,
-
-                    noteId =
-                        remote.noteId,
-
-                    clientKey =
-                        remoteClientKey,
-
-                    /*
-                     * 当前内容和服务器确认内容一致，
-                     * 所以直接采用服务器返回的标准状态。
-                     */
-                    dayKey =
-                        remote.dayKey,
-
-                    onlyDay =
-                        remote.onlyDay,
-
-                    title =
-                        remote.title,
-
-                    text =
-                        remote.text,
-
-                    pinned =
-                        remote.pinned,
-
-                    remoteStatus =
-                        remote.remoteStatus,
-
-                    /*
-                     * 服务器确认后的内容
-                     * 成为新的 synced baseline。
-                     */
-                    syncedDayKey =
-                        remote.dayKey,
-
-                    syncedOnlyDay =
-                        remote.onlyDay,
-
-                    syncedTitle =
-                        remote.title,
-
-                    syncedText =
-                        remote.text,
-
-                    syncedPinned =
-                        remote.pinned,
-
-                    remoteVersion =
-                        remoteVersion,
-
-                    remoteUpdatedAt =
-                        remoteUpdatedAt,
-
-                    /*
-                     * 这一轮已经确认完成。
-                     */
-                    pendingSnapshotJson =
-                        null,
-
-                    syncState =
-                        if (
-                            current.pendingRemoteStatus !=
-                            null
-                        ) {
-                            NoteSyncState.Pending
-                        } else {
-                            NoteSyncState.Synced
-                        },
-
-                    lastSyncError =
-                        null,
-                )
-
-            dao.update(
-                synced,
-            )
-
-            if (
-                synced.pendingRemoteStatus !=
-                null
-            ) {
-                requestSync(
-                    ownerUserId =
-                        ownerUserId,
-                )
-            }
-
-            return
-        }
-
-        val stillPending =
-            current.copy(
-                localKey =
-                    officialLocalKey,
-
-                noteId =
-                    remote.noteId,
-
-                clientKey =
-                    remoteClientKey,
-
-                remoteStatus =
-                    remote.remoteStatus,
-
-                syncedDayKey =
-                    remote.dayKey,
-
-                syncedOnlyDay =
-                    remote.onlyDay,
-
-                syncedTitle =
-                    remote.title,
-
-                syncedText =
-                    remote.text,
-
-                syncedPinned =
-                    remote.pinned,
-
-                remoteVersion =
-                    remoteVersion,
-
-                remoteUpdatedAt =
-                    remoteUpdatedAt,
-
-                pendingSnapshotJson =
-                    null,
-
-                syncState =
-                    NoteSyncState.Pending,
-
-                lastSyncError =
-                    null,
-            )
-
-        dao.update(
-            stillPending,
-        )
-    }
-
-    suspend fun applyLifecycleSuccess(
-        ownerUserId: String,
-        localKey: String,
-        expectedStatus: NoteRemoteStatus,
-        remote: RemoteNoteSnapshot,
-    ) {
-        val current =
-            findByLocalKey(
-                ownerUserId =
-                    ownerUserId,
-
-                localKey =
-                    localKey,
-            )
-                ?: return
-
-        /*
-         * lifecycle response 晚到了。
-         *
-         * 当前用户已经改变了 lifecycle target，
-         * 旧 response 不能再修改当前 Note。
-         *
-         * 例如：
-         *
-         * pending = Archived
-         * archive request 发出
-         *
-         * 用户随后又取消归档：
-         * pending = null / Active
-         *
-         * 此时旧 archive response 回来，
-         * 必须忽略。
-         */
-        if (
-            current.pendingRemoteStatus !=
-            expectedStatus
-        ) {
-            return
-        }
-
-        /*
-         * 服务端最终状态必须符合
-         * 当前 lifecycle mutation 的目标。
-         *
-         * 如果不一致，
-         * 现在已经有完整 remote snapshot，
-         * 应保存为真正的 Conflict，
-         * 而不是只留下一个错误字符串。
-         */
-        if (
-            remote.remoteStatus !=
-            expectedStatus
-        ) {
-            markConflictFromRemote(
-                note =
-                    current,
-
-                remote =
-                    remote,
-
-                message =
-                    "生命周期操作返回的远端状态不符合预期：" +
-                            "expected=${expectedStatus.rawValue}, " +
-                            "actual=${remote.remoteStatus.rawValue}",
-            )
-
-            return
-        }
-
-        /*
-         * ------------------------------------------------
-         * Delete
-         * ------------------------------------------------
-         *
-         * Deleted 是终态。
-         *
-         * 服务端 tombstone 已确认，
-         * Room cache 可以直接删除。
-         */
-        if (
-            expectedStatus ==
-            NoteRemoteStatus.Deleted
-        ) {
-            dao.delete(
-                note =
-                    current,
-            )
-
-            return
-        }
-
-        val remoteVersion =
-            remote.version.toLong()
-
-        val remoteUpdatedAt =
-            remote.updatedAt.toLong()
-
-        /*
-         * lifecycle mutation 本身不会修改 Note 内容。
-         *
-         * 比较 lifecycle response 返回的 remote snapshot
-         * 与当前本地内容，
-         * 判断 lifecycle 请求期间是否仍存在本地内容差异。
-         */
-        val hasLocalContentChanges =
-            current.dayKey !=
-                    remote.dayKey ||
-                    current.onlyDay !=
-                    remote.onlyDay ||
-                    current.title !=
-                    remote.title ||
-                    current.text !=
-                    remote.text ||
-                    current.pinned !=
-                    remote.pinned
-
-        /*
-         * ------------------------------------------------
-         * Archive safety
-         * ------------------------------------------------
-         *
-         * Archive 的正常 pipeline 是：
-         *
-         * local content dirty
-         * → 先 upsert
-         * → content clean
-         * → 再 archive
-         *
-         * 所以 archive 成功时，
-         * current 和 remote 理论上必须一致。
-         *
-         * 如果这里仍然发现内容不同，
-         * 说明 lifecycle 请求期间发生了异常竞态，
-         * 不能直接标记 Synced，
-         * 因为 Archived Note 又不能继续普通 upsert。
-         *
-         * 这种情况进入 Conflict 最安全。
-         */
-        if (
-            expectedStatus ==
-            NoteRemoteStatus.Archived &&
-            hasLocalContentChanges
-        ) {
-            markConflictFromRemote(
-                note =
-                    current,
-
-                remote =
-                    remote,
-
-                message =
-                    "记录已在云端归档，但本机仍存在未同步修改",
-            )
-
-            return
-        }
-
-        /*
-         * ------------------------------------------------
-         * Archive / Restore success
-         * ------------------------------------------------
-         *
-         * 这里有一个非常重要的原则：
-         *
-         * lifecycle mutation 只负责 lifecycle，
-         * 不负责覆盖当前用户正在保留的本地内容。
-         *
-         * 所以：
-         *
-         * current title/text/dayKey/pinned
-         * → 全部保持不动
-         *
-         * remote snapshot
-         * → 更新 synced baseline
-         *
-         * 这对 Conflict 的：
-         *
-         * Remote Archived
-         * → Keep Local
-         * → Restore
-         *
-         * 尤其重要。
-         */
-        val nextSyncState =
-            if (
-                expectedStatus ==
-                NoteRemoteStatus.Active &&
-                hasLocalContentChanges
-            ) {
-                /*
-                 * Restore 成功，
-                 * 但 current local 内容仍不同于 remote。
-                 *
-                 * 说明这是：
-                 *
-                 * restore 完成
-                 * → 接下来还要继续 push 本地内容。
-                 */
-                NoteSyncState.Pending
-            } else {
-                NoteSyncState.Synced
-            }
-
-        val updated =
-            current.copy(
-                noteId =
-                    remote.noteId,
-
-                clientKey =
-                    remote.clientKey
-                        ?.takeIf {
-                            it.isNotBlank()
-                        }
-                        ?: current.clientKey,
-
-                /*
-                 * lifecycle 已经由服务器确认。
-                 */
-                remoteStatus =
-                    remote.remoteStatus,
-
-                pendingRemoteStatus =
-                    null,
-
-                /*
-                 * current 内容故意不覆盖。
-                 *
-                 * 服务器 snapshot 只成为
-                 * 新的 synced baseline。
-                 */
-                syncedDayKey =
-                    remote.dayKey,
-
-                syncedOnlyDay =
-                    remote.onlyDay,
-
-                syncedTitle =
-                    remote.title,
-
-                syncedText =
-                    remote.text,
-
-                syncedPinned =
-                    remote.pinned,
-
-                remoteVersion =
-                    remoteVersion,
-
-                remoteUpdatedAt =
-                    remoteUpdatedAt,
-
-                /*
-                 * lifecycle 成功以后，
-                 * 旧 content frozen request
-                 * 不应该继续保留。
-                 *
-                 * 如果仍有本地修改，
-                 * 下一轮会基于新的 remoteVersion
-                 * 重新冻结 snapshot。
-                 */
-                pendingSnapshotJson =
-                    null,
-
-                /*
-                 * 当前 lifecycle 已经明确成功，
-                 * 之前的 conflict remote snapshot
-                 * 也已经失效。
-                 */
-                conflictSnapshotJson =
-                    null,
-
-                syncState =
-                    nextSyncState,
-
-                lastSyncError =
-                    null,
-            )
-
-        dao.update(
-            note =
-                updated,
-        )
-
-        /*
-         * Restore 后如果仍有本地内容，
-         * 立即唤醒下一轮 content sync。
-         *
-         * 例如：
-         *
-         * remote Archived C / v6
-         * local B
-         *
-         * 用户选择“保留本地”
-         *
-         * → restore v7 Active
-         * → current B 保留
-         * → baseline = remote C
-         * → Pending
-         * → requestSync
-         * → upsert B based on v7
-         */
-        if (
-            updated.syncState ==
-            NoteSyncState.Pending
-        ) {
-            requestSync(
-                ownerUserId =
-                    ownerUserId,
-            )
-        }
+        // 请求期间有本地编辑，或服务端只完成 identity_resolved。
+        // 本地 current 保留；baseline 按服务端实际确认结果更新。
+        dao.update(current.copy(
+            localKey = officialKey, noteId = remote.noteId, clientKey = clientKey,
+            remoteStatus = remote.remoteStatus,
+            syncedDayKey = remote.dayKey, syncedOnlyDay = remote.onlyDay,
+            syncedTitle = remote.title,
+            syncedText = if (applied) committedText else remoteText,
+            syncedContentJson = if (applied) committedJson else remoteJson,
+            remoteVersion = remote.version.toLong(), remoteUpdatedAt = remote.updatedAt.toLong(),
+            pendingSnapshotJson = null, syncState = NoteSyncState.Pending,
+            lastSyncError = null,
+        ))
+        requestSync(ownerUserId)
     }
 
     suspend fun applyPushFailure(
-        ownerUserId: String,
-        localKey: String,
-        sentSnapshot: PersistedNoteSyncSnapshot,
-        failure: NoteSyncFailure,
+        ownerUserId: String, localKey: String,
+        sentSnapshot: PersistedNoteSyncSnapshot, failure: NoteSyncFailure,
     ) {
-        val current =
-            findByLocalKey(
-                ownerUserId = ownerUserId,
-                localKey = localKey,
-            )
-                ?: return
+        val current = findByLocalKey(ownerUserId, localKey) ?: return
+        if (decodePendingSnapshot(current.pendingSnapshotJson)?.requestId != sentSnapshot.requestId) return
+        // Frozen snapshot 保留，下一轮使用相同 requestId。
+        dao.update(applyFailure(current, failure))
+    }
 
-        val currentPending =
-            decodePendingSnapshot(
-                current.pendingSnapshotJson,
-            )
+    // MARK: - Lifecycle confirmation
 
-        /*
-         * 迟到的旧请求不能修改新一轮状态。
-         */
-        if (
-            currentPending?.requestId !=
-            sentSnapshot.requestId
-        ) {
+    suspend fun applyLifecycleSuccess(
+        ownerUserId: String, localKey: String,
+        expectedStatus: NoteRemoteStatus, remote: RemoteNoteSnapshot,
+    ) {
+        val current = findByLocalKey(ownerUserId, localKey) ?: return
+        if (current.pendingRemoteStatus != expectedStatus) return
+        if (remote.remoteStatus != expectedStatus) {
+            markConflictFromRemote(
+                current, remote,
+                "生命周期返回状态不符合预期：expected=${expectedStatus.rawValue}, " +
+                        "actual=${remote.remoteStatus.rawValue}",
+            )
+            return
+        }
+        if (expectedStatus == NoteRemoteStatus.Deleted) {
+            dao.delete(current)
             return
         }
 
-        val updated =
-            when (failure) {
-                is NoteSyncFailure.Retryable ->
-                    current.copy(
-                        syncState =
-                            NoteSyncState.Waiting,
+        val localContentDirty = hasPendingContentWork(current)
+        val pinnedDirty = current.pinned != current.syncedPinned
+        val remoteJson = remoteContentJson(remote)
+        val remoteText = remotePlainText(remote)
 
-                        /*
-                         * 保留 pendingSnapshotJson。
-                         * 下一轮继续使用相同 requestId。
-                         */
-                        lastSyncError =
-                            failure.message,
-                    )
+        // 归档时若并发产生本地正文修改，不能将其误判为已上传。
+        if (expectedStatus == NoteRemoteStatus.Archived && localContentDirty) {
+            markConflictFromRemote(current, remote, "记录已在云端归档，但本机仍存在未同步正文")
+            return
+        }
 
-                is NoteSyncFailure.Conflict ->
-                    current.copy(
-                        syncState =
-                            NoteSyncState.Conflict,
-
-                        /*
-                         * Conflict 暂时也保留 snapshot，
-                         * 后续 conflict resolver 会用到。
-                         */
-                        lastSyncError =
-                            failure.message,
-                    )
-
-                is NoteSyncFailure.RemoteDeleted ->
-                    current.copy(
-                        remoteStatus =
-                            NoteRemoteStatus.Deleted,
-
-                        syncState =
-                            NoteSyncState.Conflict,
-
-                        lastSyncError =
-                            failure.message,
-                    )
-
-                is NoteSyncFailure.RemoteArchived ->
-                    current.copy(
-                        remoteStatus =
-                            NoteRemoteStatus.Archived,
-
-                        syncState =
-                            NoteSyncState.Conflict,
-
-                        lastSyncError =
-                            failure.message,
-                    )
-            }
-
-        dao.update(
-            updated,
+        val stillPending = localContentDirty || pinnedDirty
+        val updated = current.copy(
+            noteId = remote.noteId,
+            clientKey = remote.clientKey?.takeIf(String::isNotBlank) ?: current.clientKey,
+            remoteStatus = remote.remoteStatus, pendingRemoteStatus = null,
+            dayKey = if (localContentDirty) current.dayKey else remote.dayKey,
+            onlyDay = if (localContentDirty) current.onlyDay else remote.onlyDay,
+            title = if (localContentDirty) current.title else remote.title,
+            text = if (localContentDirty) current.text else remoteText,
+            contentJson = if (localContentDirty) current.contentJson else remoteJson,
+            syncedDayKey = remote.dayKey, syncedOnlyDay = remote.onlyDay,
+            syncedTitle = remote.title, syncedText = remoteText,
+            syncedContentJson = remoteJson,
+            // pinned / syncedPinned 由独立的 setPinned 处理。
+            remoteVersion = remote.version.toLong(), remoteUpdatedAt = remote.updatedAt.toLong(),
+            pendingSnapshotJson = if (localContentDirty) current.pendingSnapshotJson else null,
+            conflictSnapshotJson = null,
+            syncState = if (stillPending) NoteSyncState.Pending else NoteSyncState.Synced,
+            lastSyncError = null,
         )
+        dao.update(updated)
+        if (stillPending) requestSync(ownerUserId)
     }
 
     suspend fun applyLifecycleFailure(
-        ownerUserId: String,
-        localKey: String,
-        expectedStatus: NoteRemoteStatus,
-        failure: NoteSyncFailure,
+        ownerUserId: String, localKey: String,
+        expectedStatus: NoteRemoteStatus, failure: NoteSyncFailure,
     ) {
-        val current =
-            findByLocalKey(
-                ownerUserId =
-                    ownerUserId,
-
-                localKey =
-                    localKey,
-            )
-                ?: return
-
-        /*
-         * 只处理仍然对应当前 lifecycle intent 的响应。
-         */
-        if (
-            current.pendingRemoteStatus !=
-            expectedStatus
-        ) {
+        val current = findByLocalKey(ownerUserId, localKey) ?: return
+        if (current.pendingRemoteStatus != expectedStatus) return
+        if (failure is NoteSyncFailure.RemoteDeleted && expectedStatus == NoteRemoteStatus.Deleted) {
+            dao.delete(current)
             return
         }
-
-        val updated =
-            when (failure) {
-                is NoteSyncFailure.Retryable ->
-                    current.copy(
-                        syncState =
-                            NoteSyncState.Waiting,
-
-                        lastSyncError =
-                            failure.message,
-                    )
-
-                is NoteSyncFailure.Conflict ->
-                    current.copy(
-                        syncState =
-                            NoteSyncState.Conflict,
-
-                        lastSyncError =
-                            failure.message,
-                    )
-
-                is NoteSyncFailure.RemoteDeleted -> {
-                    /*
-                     * 本地本来就是要删除，
-                     * 服务端已经 deleted，
-                     * lifecycle goal 已经达成。
-                     */
-                    if (
-                        expectedStatus ==
-                        NoteRemoteStatus.Deleted
-                    ) {
-                        dao.delete(
-                            note =
-                                current,
-                        )
-
-                        return
-                    }
-
-                    current.copy(
-                        remoteStatus =
-                            NoteRemoteStatus.Deleted,
-
-                        syncState =
-                            NoteSyncState.Conflict,
-
-                        lastSyncError =
-                            failure.message,
-                    )
-                }
-
-                is NoteSyncFailure.RemoteArchived ->
-                    current.copy(
-                        remoteStatus =
-                            NoteRemoteStatus.Archived,
-
-                        syncState =
-                            NoteSyncState.Conflict,
-
-                        lastSyncError =
-                            failure.message,
-                    )
-            }
-
-        dao.update(
-            note =
-                updated,
-        )
+        dao.update(applyFailure(current, failure))
     }
 
-    // MARK: - Conflict resolution
+    // MARK: - Conflict
 
-    suspend fun resolveConflictUsingRemote(
-        note: LocalNoteEntity,
-    ): LocalNoteEntity? {
-        val conflict = decodeConflictSnapshot(
-            note.conflictSnapshotJson,
-        )
-            ?: return note
-
-        if (
-            conflict.parsedRemoteStatus == NoteRemoteStatus.Deleted
-        ) {
-            dao.delete(note = note)
+    suspend fun resolveConflictUsingRemote(note: LocalNoteEntity): LocalNoteEntity? {
+        val conflict = decodeConflictSnapshot(note.conflictSnapshotJson) ?: return note
+        if (conflict.parsedRemoteStatus == NoteRemoteStatus.Deleted) {
+            dao.delete(note)
             return null
         }
-
-        val clientKey = conflict.clientKey
-            ?.takeIf { it.isNotBlank() }
-            ?: note.clientKey
-
-        val remoteContentJson = conflict.content?.let {
-            NoteContentCodec.stringify(it)
-        }
-
+        val contentJson = conflictContentJson(note, conflict)
+        val text = conflictPlainText(note, conflict)
         val updated = note.copy(
             noteId = conflict.noteId,
-            clientKey = clientKey,
-            dayKey = conflict.dayKey,
-            onlyDay = conflict.onlyDay,
-            title = conflict.title,
-            contentJson = remoteContentJson,
-            text = conflict.text,
+            clientKey = conflict.clientKey?.takeIf(String::isNotBlank) ?: note.clientKey,
+            dayKey = conflict.dayKey, onlyDay = conflict.onlyDay,
+            title = conflict.title, text = text, contentJson = contentJson,
             pinned = conflict.pinned,
-            remoteStatus = conflict.parsedRemoteStatus,
-            pendingRemoteStatus = null,
-            syncedDayKey = conflict.dayKey,
-            syncedOnlyDay = conflict.onlyDay,
-            syncedTitle = conflict.title,
-            syncedText = conflict.text,
-            syncedContentJson = remoteContentJson,
+            remoteStatus = conflict.parsedRemoteStatus, pendingRemoteStatus = null,
+            syncedDayKey = conflict.dayKey, syncedOnlyDay = conflict.onlyDay,
+            syncedTitle = conflict.title, syncedText = text, syncedContentJson = contentJson,
             syncedPinned = conflict.pinned,
-            remoteVersion = conflict.version,
-            remoteUpdatedAt = conflict.updatedAt,
-            pendingSnapshotJson = null,
-            conflictSnapshotJson = null,
+            remoteVersion = conflict.version, remoteUpdatedAt = conflict.updatedAt,
+            pendingSnapshotJson = null, conflictSnapshotJson = null,
             localUpdatedAt = System.currentTimeMillis(),
-            syncState = NoteSyncState.Synced,
-            lastSyncError = null,
+            syncState = NoteSyncState.Synced, lastSyncError = null,
         )
-
-        dao.update(
-            note = updated,
-        )
-
+        dao.update(updated)
         return updated
     }
 
-    suspend fun resolveConflictKeepingLocal(
-        note: LocalNoteEntity,
-    ): LocalNoteEntity? {
-        val conflict =
-            decodeConflictSnapshot(
-                note.conflictSnapshotJson,
-            )
-                ?: return note
-
-        return when (
-            conflict.parsedRemoteStatus
-        ) {
-            NoteRemoteStatus.Active ->
-                resolveKeepLocalAgainstActiveRemote(
-                    note =
-                        note,
-
-                    conflict =
-                        conflict,
-                )
-
-            NoteRemoteStatus.Archived ->
-                resolveKeepLocalAgainstArchivedRemote(
-                    note =
-                        note,
-
-                    conflict =
-                        conflict,
-                )
-
-            NoteRemoteStatus.Deleted ->
-                resolveKeepLocalAgainstDeletedRemote(
-                    note =
-                        note,
-
-                    conflict =
-                        conflict,
-                )
+    suspend fun resolveConflictKeepingLocal(note: LocalNoteEntity): LocalNoteEntity? {
+        val conflict = decodeConflictSnapshot(note.conflictSnapshotJson) ?: return note
+        return when (conflict.parsedRemoteStatus) {
+            NoteRemoteStatus.Active -> resolveKeepLocalAgainstActiveRemote(note, conflict)
+            NoteRemoteStatus.Archived -> resolveKeepLocalAgainstArchivedRemote(note, conflict)
+            NoteRemoteStatus.Deleted -> resolveKeepLocalAgainstDeletedRemote(note)
         }
     }
 
     private suspend fun resolveKeepLocalAgainstActiveRemote(
-        note: LocalNoteEntity,
-        conflict: PersistedNoteConflictSnapshot,
+        note: LocalNoteEntity, conflict: PersistedNoteConflictSnapshot,
     ): LocalNoteEntity {
-
         val updated = note.copy(
             noteId = conflict.noteId,
-
-            clientKey = conflict.clientKey
-                ?.takeIf { it.isNotBlank() }
-                ?: note.clientKey,
-
-            remoteStatus = NoteRemoteStatus.Active,
-            pendingRemoteStatus = null,
-            syncedDayKey = conflict.dayKey,
-            syncedOnlyDay = conflict.onlyDay,
-            syncedTitle = conflict.title,
-            syncedText = conflict.text,
-
-            syncedContentJson = conflict.content?.let {
-                NoteContentCodec.stringify(it)
-            },
-
-            syncedPinned = conflict.pinned,
-            remoteVersion = conflict.version,
-            remoteUpdatedAt = conflict.updatedAt,
-            pendingSnapshotJson = null,
-            conflictSnapshotJson = null,
+            clientKey = conflict.clientKey?.takeIf(String::isNotBlank) ?: note.clientKey,
+            remoteStatus = NoteRemoteStatus.Active, pendingRemoteStatus = null,
+            syncedDayKey = conflict.dayKey, syncedOnlyDay = conflict.onlyDay,
+            syncedTitle = conflict.title, syncedText = conflictPlainText(note, conflict),
+            syncedContentJson = conflictContentJson(note, conflict), syncedPinned = conflict.pinned,
+            remoteVersion = conflict.version, remoteUpdatedAt = conflict.updatedAt,
+            pendingSnapshotJson = null, conflictSnapshotJson = null,
             localUpdatedAt = System.currentTimeMillis(),
-            syncState = NoteSyncState.Pending,
-            lastSyncError = null,
+            syncState = NoteSyncState.Pending, lastSyncError = null,
         )
-
-        dao.update(
-            note = updated,
-        )
-
-        updated.ownerUserId
-            ?.let { owner ->
-                requestSync( ownerUserId = owner )
-            }
-
+        dao.update(updated)
+        updated.ownerUserId?.let(::requestSync)
         return updated
     }
 
     private suspend fun resolveKeepLocalAgainstArchivedRemote(
-        note: LocalNoteEntity,
-        conflict: PersistedNoteConflictSnapshot,
+        note: LocalNoteEntity, conflict: PersistedNoteConflictSnapshot,
     ): LocalNoteEntity {
-
         val updated = note.copy(
             noteId = conflict.noteId,
-
-            clientKey = conflict.clientKey
-                ?.takeIf { it.isNotBlank() }
-                ?: note.clientKey,
-
+            clientKey = conflict.clientKey?.takeIf(String::isNotBlank) ?: note.clientKey,
             remoteStatus = NoteRemoteStatus.Archived,
             pendingRemoteStatus = NoteRemoteStatus.Active,
-
-            /*
-             * baseline 使用最新云端 Archived snapshot。
-             *
-             * current 本地内容不动，
-             * 所以本地修改仍然存在。
-             */
-            syncedDayKey = conflict.dayKey,
-            syncedOnlyDay = conflict.onlyDay,
-            syncedTitle = conflict.title,
-            syncedText = conflict.text,
-
-            syncedContentJson = conflict.content?.let {
-                NoteContentCodec.stringify(it)
-            },
-
-            syncedPinned = conflict.pinned,
-            remoteVersion = conflict.version,
-            remoteUpdatedAt = conflict.updatedAt,
-
-            pendingSnapshotJson = null,
-            conflictSnapshotJson = null,
+            syncedDayKey = conflict.dayKey, syncedOnlyDay = conflict.onlyDay,
+            syncedTitle = conflict.title, syncedText = conflictPlainText(note, conflict),
+            syncedContentJson = conflictContentJson(note, conflict), syncedPinned = conflict.pinned,
+            remoteVersion = conflict.version, remoteUpdatedAt = conflict.updatedAt,
+            pendingSnapshotJson = null, conflictSnapshotJson = null,
             localUpdatedAt = System.currentTimeMillis(),
-            syncState = NoteSyncState.Pending,
-            lastSyncError = null,
+            syncState = NoteSyncState.Pending, lastSyncError = null,
         )
-
-        dao.update(
-            note = updated,
-        )
-
-        updated.ownerUserId
-            ?.let { owner ->
-                requestSync(ownerUserId = owner)
-            }
-
+        dao.update(updated)
+        updated.ownerUserId?.let(::requestSync)
         return updated
     }
 
-    private suspend fun resolveKeepLocalAgainstDeletedRemote(
-        note: LocalNoteEntity,
-        conflict: PersistedNoteConflictSnapshot,
-    ): LocalNoteEntity {
-        val owner = requireNotNull(
-            note.ownerUserId,
-        ) {
-            "ownerUserId is required"
-        }
-
-        val newLocalKey = LocalNoteKeys.new(
-            ownerUserId = owner,
-        )
-
+    private suspend fun resolveKeepLocalAgainstDeletedRemote(note: LocalNoteEntity): LocalNoteEntity {
+        val owner = requireNotNull(note.ownerUserId) { "ownerUserId is required" }
         val updated = note.copy(
-            localKey = newLocalKey,
-            noteId = null,
+            localKey = LocalNoteKeys.new(ownerUserId = owner), noteId = null,
             clientKey = UUID.randomUUID().toString(),
-            remoteStatus = NoteRemoteStatus.Active,
-            pendingRemoteStatus = null,
-
-            syncedDayKey = null,
-            syncedOnlyDay = false,
-            syncedTitle = "",
-            syncedText = "",
-            syncedContentJson = null,
-            syncedPinned = false,
-
-            remoteVersion = null,
-            remoteUpdatedAt = null,
-
-            pendingSnapshotJson = null,
-            conflictSnapshotJson = null,
-
+            remoteStatus = NoteRemoteStatus.Active, pendingRemoteStatus = null,
+            syncedDayKey = null, syncedOnlyDay = false,
+            syncedTitle = "", syncedText = "", syncedContentJson = null,
+            syncedPinned = false, remoteVersion = null, remoteUpdatedAt = null,
+            pendingSnapshotJson = null, conflictSnapshotJson = null,
             localUpdatedAt = System.currentTimeMillis(),
-            syncState = NoteSyncState.Pending,
-            lastSyncError = null,
+            syncState = NoteSyncState.Pending, lastSyncError = null,
         )
-
-        dao.update(
-            note = updated,
-        )
-
-        requestSync(
-            ownerUserId = owner,
-        )
-
+        dao.update(updated)
+        requestSync(owner)
         return updated
     }
 
     suspend fun markConflictFromRemote(
-        note: LocalNoteEntity,
-        remote: RemoteNoteSnapshot,
-        message: String,
+        note: LocalNoteEntity, remote: RemoteNoteSnapshot, message: String,
     ): LocalNoteEntity {
-        val remoteVersion =
-            remote.version.toLong()
+        val version = remote.version.toLong()
+        val updatedAt = remote.updatedAt.toLong()
+        val existing = decodeConflictSnapshot(note.conflictSnapshotJson)
+        if (existing != null && existing.version > version) return note
 
-        val remoteUpdatedAt =
-            remote.updatedAt.toLong()
-
-        val existingConflict =
-            decodeConflictSnapshot(
-                note.conflictSnapshotJson,
-            )
-
-        if (
-            existingConflict != null &&
-            existingConflict.version >
-            remoteVersion
-        ) {
-            return note
-        }
-
-        val conflictSnapshot = PersistedNoteConflictSnapshot(
-            noteId = remote.noteId,
-            clientKey = remote.clientKey,
-            dayKey = remote.dayKey,
-            onlyDay = remote.onlyDay,
-            title = remote.title,
-            text = remote.text,
-            content = remote.content,
-            pinned = remote.pinned,
+        // PersistedNoteConflictSnapshot 现有 DTO 仍只有 text；将 content 同存入 JSON，
+        // decodeConflictSnapshot(ignoreUnknownKeys=true) 可兼容旧数据，冲突解决时再读取。
+        val snapshot = PersistedNoteConflictSnapshot(
+            noteId = remote.noteId, clientKey = remote.clientKey,
+            dayKey = remote.dayKey, onlyDay = remote.onlyDay,
+            title = remote.title, text = remotePlainText(remote), pinned = remote.pinned,
             remoteStatus = remote.remoteStatus.rawValue,
-            version = remoteVersion,
-            updatedAt = remoteUpdatedAt,
+            version = version, updatedAt = updatedAt,
         )
-
-        val encoded = json.encodeToString(
-            conflictSnapshot,
+        val base = json.encodeToJsonElement(snapshot) as JsonObject
+        val payload = remote.content?.let { JsonObject(base + ("content" to it)) } ?: base
+        val updated = note.copy(
+            conflictSnapshotJson = NoteContentCodec.stringify(payload),
+            remoteUpdatedAt = maxOf(note.remoteUpdatedAt ?: 0L, updatedAt),
+            syncState = NoteSyncState.Conflict, lastSyncError = message,
         )
-
-        /*
-         * 注意这里故意不更新：
-         *
-         * - current title/text
-         * - synced baseline
-         * - remoteVersion
-         * - remoteStatus
-         * - pendingSnapshotJson
-         *
-         * 因为冲突尚未解决。
-         *
-         * remote 的真正状态保存在
-         * conflictSnapshotJson 中。
-         */
-        val updated =
-            note.copy(
-                conflictSnapshotJson =
-                    encoded,
-
-                remoteUpdatedAt =
-                    maxOf(
-                        note.remoteUpdatedAt
-                            ?: 0L,
-                        remoteUpdatedAt,
-                    ),
-
-                syncState =
-                    NoteSyncState.Conflict,
-
-                lastSyncError =
-                    message,
-            )
-
-        dao.upsert(
-            updated,
-        )
-
+        dao.upsert(updated)
         return updated
     }
 
-    fun decodeConflictSnapshot(
-        value: String?,
-    ): PersistedNoteConflictSnapshot? {
-        if (
-            value.isNullOrBlank()
-        ) {
-            return null
-        }
+    fun decodeConflictSnapshot(value: String?): PersistedNoteConflictSnapshot? =
+        value?.takeIf(String::isNotBlank)?.let { json.decodeFromString<PersistedNoteConflictSnapshot>(it) }
 
-        return json.decodeFromString<
-                PersistedNoteConflictSnapshot
-                >(
-            value,
-        )
-    }
+    // MARK: - Persistence / Helpers
 
-    private fun decodePendingSnapshot(
-        value: String?,
-    ): PersistedNoteSyncSnapshot? {
-        if (
-            value.isNullOrBlank()
-        ) {
-            return null
-        }
+    suspend fun updateForSync(note: LocalNoteEntity) = dao.update(note)
+    suspend fun deleteLocal(note: LocalNoteEntity) = dao.delete(note)
 
-        return json.decodeFromString<
-                PersistedNoteSyncSnapshot
-                >(
-            value
-        )
-    }
+    private fun decodePendingSnapshot(value: String?): PersistedNoteSyncSnapshot? =
+        value?.takeIf(String::isNotBlank)?.let { json.decodeFromString<PersistedNoteSyncSnapshot>(it) }
 
+    /** 新建 Note、冻结请求和正文未同步变化统一视为待处理 Content。 */
+    private fun hasPendingContentWork(note: LocalNoteEntity): Boolean =
+        note.noteId == null || note.hasPendingSnapshot || note.hasUnsyncedContentChanges
+
+    /** 避免临时 fromPlainText() 生成不同 UUID，误判未修改。 */
     private fun contentMatchesSnapshot(
-        note:
-        LocalNoteEntity,
-        snapshot:
-        PersistedNoteSyncSnapshot,
+        note: LocalNoteEntity, snapshot: PersistedNoteSyncSnapshot,
     ): Boolean {
-        return note.dayKey ==
-                snapshot.dayKey &&
-                note.onlyDay ==
-                snapshot.onlyDay &&
-                note.title ==
-                snapshot.title &&
-                note.text ==
-                snapshot.text &&
-                note.pinned ==
-                snapshot.pinned
+        if (note.dayKey != snapshot.dayKey || note.onlyDay != snapshot.onlyDay ||
+            note.title != snapshot.title || note.text != snapshot.text
+        ) return false
+        val current = NoteContentCodec.parse(note.contentJson) ?: return true
+        val sent = snapshot.content ?: return false
+        return current == NoteContentCodec.parse(NoteContentCodec.stringify(sent))
     }
 
-    suspend fun findNotesNeedingSync(
-        ownerUserId: String,
-    ): List<LocalNoteEntity> {
-        return dao.findNotesNeedingSync(
-            ownerUserId = ownerUserId,
-        )
+    private fun remotePlainText(remote: RemoteNoteSnapshot): String =
+        remote.content?.let(NoteContentCodec::extractText) ?: remote.text
+
+    private fun remoteContentJson(remote: RemoteNoteSnapshot): String? =
+        remote.content?.let(NoteContentCodec::stringify)
+
+    private fun conflictContentJson(note: LocalNoteEntity, conflict: PersistedNoteConflictSnapshot): String {
+        val obj = NoteContentCodec.parse(note.conflictSnapshotJson) as? JsonObject
+        val content = obj?.get("content")?.takeUnless { it == JsonNull }
+        return content?.let(NoteContentCodec::stringify)
+            ?: NoteContentCodec.stringify(NoteContentCodec.fromPlainText(conflict.text))
     }
 
-    private fun remoteLocalKey(
-        ownerUserId: String,
-        noteId: String,
-    ): String {
-        return "user:$ownerUserId:note:$noteId"
+    private fun conflictPlainText(note: LocalNoteEntity, conflict: PersistedNoteConflictSnapshot): String {
+        val obj = NoteContentCodec.parse(note.conflictSnapshotJson) as? JsonObject
+        val content = obj?.get("content")?.takeUnless { it == JsonNull }
+        return content?.let(NoteContentCodec::extractText) ?: conflict.text
     }
 
-    suspend fun updateForSync(
-        note: LocalNoteEntity,
-    ) {
-        dao.update(
-            note = note,
-        )
-    }
-
-    suspend fun deleteLocal(
-        note: LocalNoteEntity,
-    ) {
-        dao.delete(
-            note = note,
-        )
-    }
-
-    // MARK: - Factory
+    private fun applyFailure(note: LocalNoteEntity, failure: NoteSyncFailure): LocalNoteEntity =
+        when (failure) {
+            is NoteSyncFailure.Retryable -> note.copy(
+                syncState = NoteSyncState.Waiting, lastSyncError = failure.message,
+            )
+            is NoteSyncFailure.Conflict -> note.copy(
+                syncState = NoteSyncState.Conflict, lastSyncError = failure.message,
+            )
+            is NoteSyncFailure.RemoteDeleted -> note.copy(
+                remoteStatus = NoteRemoteStatus.Deleted,
+                syncState = NoteSyncState.Conflict, lastSyncError = failure.message,
+            )
+            is NoteSyncFailure.RemoteArchived -> note.copy(
+                remoteStatus = NoteRemoteStatus.Archived,
+                syncState = NoteSyncState.Conflict, lastSyncError = failure.message,
+            )
+        }
 
     private fun makeNewLocalNote(
         ownerUserId: String,
         dayKey: String?,
         onlyDay: Boolean,
-        localKey: String =
-            LocalNoteKeys.new(
-                ownerUserId = ownerUserId,
-            ),
-    ): LocalNoteEntity {
-        val now =
-            System.currentTimeMillis()
+        localKey: String = LocalNoteKeys.new(ownerUserId = ownerUserId),
+    ): LocalNoteEntity = LocalNoteEntity(
+        localKey = localKey, ownerUserId = ownerUserId, noteId = null,
+        clientKey = UUID.randomUUID().toString(), dayKey = dayKey, onlyDay = onlyDay,
+        title = "", text = "", pinned = false,
+        remoteStatus = NoteRemoteStatus.Active, pendingRemoteStatus = null,
+        syncedDayKey = null, syncedOnlyDay = false,
+        syncedTitle = "", syncedText = "", syncedPinned = false,
+        remoteVersion = null, remoteUpdatedAt = null,
+        pendingSnapshotJson = null, conflictSnapshotJson = null,
+        localUpdatedAt = System.currentTimeMillis(),
+        syncState = NoteSyncState.Pending, lastSyncError = null,
+    )
 
-        return LocalNoteEntity(
-            localKey = localKey,
-
-            ownerUserId = ownerUserId,
-
-            noteId = null,
-            clientKey =
-                UUID.randomUUID().toString(),
-
-            dayKey = dayKey,
-            onlyDay = onlyDay,
-
-            title = "",
-            text = "",
-            pinned = false,
-
-            remoteStatus =
-                NoteRemoteStatus.Active,
-
-            pendingRemoteStatus =
-                null,
-
-            syncedDayKey = null,
-            syncedOnlyDay = false,
-
-            syncedTitle = "",
-            syncedText = "",
-            syncedPinned = false,
-
-            remoteVersion = null,
-            remoteUpdatedAt = null,
-
-            pendingSnapshotJson =
-                null,
-
-            conflictSnapshotJson =
-                null,
-
-            localUpdatedAt = now,
-
-            syncState =
-                NoteSyncState.Pending,
-
-            lastSyncError = null,
-        )
+    private fun nextPendingState(note: LocalNoteEntity): NoteSyncState = when (note.syncState) {
+        NoteSyncState.Syncing -> NoteSyncState.Syncing
+        NoteSyncState.Conflict -> NoteSyncState.Conflict
+        else -> NoteSyncState.Pending
     }
 
-    // MARK: - Helpers
+    private fun remoteLocalKey(ownerUserId: String, noteId: String): String =
+        "user:$ownerUserId:note:$noteId"
 
-    private fun nextPendingState(
-        note: LocalNoteEntity,
-    ): NoteSyncState {
-        return when (
-            note.syncState
-        ) {
-            NoteSyncState.Syncing ->
-                NoteSyncState.Syncing
-
-            NoteSyncState.Conflict ->
-                NoteSyncState.Conflict
-
-            else ->
-                NoteSyncState.Pending
-        }
-    }
-
-    private fun normalizeDayKey(
-        value: String,
-    ): String {
-        val normalized =
-            value.trim()
-
-        require(
-            DayKey.isValid(
-                normalized,
-            )
-        ) {
-            "Invalid dayKey: $value"
-        }
-
+    private fun normalizeDayKey(value: String): String {
+        val normalized = value.trim()
+        require(DayKey.isValid(normalized)) { "Invalid dayKey: $value" }
         return normalized
     }
 }
