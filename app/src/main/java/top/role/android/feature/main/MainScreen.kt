@@ -243,13 +243,6 @@ fun MainScreen(
         }
 
     Scaffold(
-        /*
-         * MainScreen 自己不统一消费 system insets。
-         *
-         * - MainTopBar / NavigationBar 自己处理系统区域
-         * - Conversation / Note 等 page-owned 页面
-         *   自己处理 TopAppBar / navigationBars / IME
-         */
         contentWindowInsets =
             WindowInsets(
                 left = 0,
@@ -263,69 +256,38 @@ fun MainScreen(
                 shellState.showTopBar
             ) {
                 MainTopBar(
-                    state =
-                        shellState,
-
-                    onBack = {
-                        navController
-                            .popBackStack()
-                    },
-
+                    state = shellState,
+                    onBack = { navController.popBackStack() },
                     onLibrary = {
-                        navController.navigate(
-                            NoteLibraryRoute.route
-                        ) {
-                            launchSingleTop =
-                                true
+                        navController.navigate(NoteLibraryRoute.route) {
+                            launchSingleTop = true
                         }
                     },
-
                     onAccount = {
-                        navController.navigate(
-                            AccountRoute.route
-                        ) {
-                            launchSingleTop =
-                                true
+                        navController.navigate(AccountRoute.route) {
+                            launchSingleTop = true
                         }
                     },
-
                     onFriends = {
-                        navController.navigate(
-                            ChatFriendsRoute.route
-                        ) {
-                            launchSingleTop =
-                                true
+                        navController.navigate(ChatFriendsRoute.route) {
+                            launchSingleTop = true
                         }
                     },
-
                     onAddFriend = {
-                        navController.navigate(
-                            ChatFriendLookupRoute.route
-                        ) {
-                            launchSingleTop =
-                                true
+                        navController.navigate(ChatFriendLookupRoute.route) {
+                            launchSingleTop = true
                         }
                     },
-
                     onCreateGroup = {
-                        navController.navigate(
-                            ChatGroupCreateRoute.route
-                        ) {
-                            launchSingleTop =
-                                true
+                        navController.navigate(ChatGroupCreateRoute.route) {
+                            launchSingleTop = true
                         }
                     },
-
                     onMarketOrders = {
-                        navController.navigate(
-                            MarketOrderListRoute.route
-                        )
+                        navController.navigate(MarketOrderListRoute.route)
                     },
-
                     onRichText = {
-                        navController.navigate(
-                            "note/rich-text-playground"
-                        )
+                        navController.navigate("note/rich-text-playground")
                     },
                 )
             }
@@ -336,45 +298,23 @@ fun MainScreen(
                 shellState.showBottomBar
             ) {
                 MainBottomBar(
-                    navController =
-                        navController,
-
-                    currentRoute =
-                        currentRoute,
+                    navController = navController,
+                    currentRoute = currentRoute,
                 )
             }
         },
     ) { innerPadding ->
 
         MainNavGraph(
-            navController =
-                navController,
-
-            modifier =
-                Modifier.padding(
-                    innerPadding
-                ),
-
-            dependencies =
-                navigationDependencies,
-
-            appearance =
-                appearance,
-
-            weekStart =
-                weekStart,
-
-            onAppearanceChange =
-                onAppearanceChange,
-
-            onWeekStartChange =
-                onWeekStartChange,
-
-            onReSignIn =
-                onReSignIn,
-
-            onSignOut =
-                onSignOut,
+            navController = navController,
+            modifier = Modifier.padding(innerPadding),
+            dependencies = navigationDependencies,
+            appearance = appearance,
+            weekStart = weekStart,
+            onAppearanceChange = onAppearanceChange,
+            onWeekStartChange = onWeekStartChange,
+            onReSignIn = onReSignIn,
+            onSignOut = onSignOut,
         )
     }
 }

@@ -24,12 +24,9 @@ fun NavGraphBuilder.dayNavGraph(
             MainDestination.Day.route,
     ) {
         DayScreen(
-            ownerUserId =
-                dependencies.localOwnerUserId,
-
-            noteLocalRepository =
-                dependencies.noteLocalRepository,
-
+            ownerUserId = dependencies.localOwnerUserId,
+            noteLocalRepository = dependencies.noteLocalRepository,
+            weekStart = weekStart,
             onOpenDayNote = { dayKey ->
                 navController.navigate(
                     NoteDayRoute.createRoute(
@@ -37,9 +34,6 @@ fun NavGraphBuilder.dayNavGraph(
                     )
                 )
             },
-
-            weekStart = weekStart,
-
             onOpenNote = { localKey ->
                 navController.navigate(
                     NoteEditorNavRoute.createRoute(
@@ -47,7 +41,6 @@ fun NavGraphBuilder.dayNavGraph(
                     )
                 )
             },
-
             onCreateDatedNote = { dayKey ->
                 navController.navigate(
                     NoteNewDatedRoute.createRoute(
@@ -55,201 +48,101 @@ fun NavGraphBuilder.dayNavGraph(
                     )
                 )
             },
+            onCreateMaterial = {
+                navController.navigate(NoteNewRoute.route)
+            },
+            onOpenLibrary = {
+                navController.navigate(NoteLibraryRoute.route)
+            },
         )
     }
 
     composable(
-        route =
-            NoteDayRoute.route,
+        route = NoteDayRoute.route,
     ) { backStackEntry ->
-
-        val dayKey =
-            backStackEntry
-                .arguments
-                ?.getString(
-                    NoteDayRoute.dayKeyArg,
-                )
+        val dayKey = backStackEntry.arguments
+            ?.getString(NoteDayRoute.dayKeyArg)
 
         if (dayKey != null) {
             NoteEditorRoute(
-                ownerUserId =
-                    dependencies.localOwnerUserId,
-
-                noteLocalRepository =
-                    dependencies.noteLocalRepository,
-
-                noteAiRemoteDataSource =
-                    dependencies.noteAiRemoteDataSource,
-
-                imageRepository =
-                    dependencies.imageRepository,
-
-                noteImageService =
-                    dependencies.noteImageService,
-
-                initialDayKey =
-                    dayKey,
-
-                openAsDayOnly =
-                    true,
-
-                onBack = {
-                    navController
-                        .popBackStack()
-                },
+                ownerUserId = dependencies.localOwnerUserId,
+                noteLocalRepository = dependencies.noteLocalRepository,
+                noteAiRemoteDataSource = dependencies.noteAiRemoteDataSource,
+                imageRepository = dependencies.imageRepository,
+                noteImageService = dependencies.noteImageService,
+                initialDayKey = dayKey,
+                openAsDayOnly = true,
+                onBack = { navController.popBackStack() },
             )
         }
     }
 
     composable(
-        route =
-            NoteEditorNavRoute.route,
+        route = NoteEditorNavRoute.route,
     ) { backStackEntry ->
-
-        val localKey =
-            backStackEntry
-                .arguments
-                ?.getString(
-                    NoteEditorNavRoute.localKeyArg,
-                )
+        val localKey = backStackEntry.arguments
+            ?.getString(NoteEditorNavRoute.localKeyArg)
 
         if (localKey != null) {
             NoteEditorRoute(
-                ownerUserId =
-                    dependencies.localOwnerUserId,
-
-                noteLocalRepository =
-                    dependencies.noteLocalRepository,
-
-                noteAiRemoteDataSource =
-                    dependencies.noteAiRemoteDataSource,
-
-                noteImageService =
-                    dependencies.noteImageService,
-
-                imageRepository =
-                    dependencies.imageRepository,
-
-                initialLocalKey =
-                    localKey,
-
-                initialDayKey =
-                    null,
-
-                openAsDayOnly =
-                    false,
-
-                onBack = {
-                    navController
-                        .popBackStack()
-                },
+                ownerUserId = dependencies.localOwnerUserId,
+                noteLocalRepository = dependencies.noteLocalRepository,
+                noteAiRemoteDataSource = dependencies.noteAiRemoteDataSource,
+                noteImageService = dependencies.noteImageService,
+                imageRepository = dependencies.imageRepository,
+                initialLocalKey = localKey,
+                initialDayKey = null,
+                openAsDayOnly = false,
+                onBack = { navController.popBackStack() },
             )
         }
     }
 
     composable(
-        route =
-            NoteLibraryRoute.route,
+        route = NoteLibraryRoute.route,
     ) {
         NoteLibraryScreen(
-            ownerUserId =
-                dependencies.localOwnerUserId,
-
-            noteLocalRepository =
-                dependencies.noteLocalRepository,
-
-            onBack = {
-                navController
-                    .popBackStack()
-            },
-
+            ownerUserId = dependencies.localOwnerUserId,
+            noteLocalRepository = dependencies.noteLocalRepository,
+            onBack = { navController.popBackStack() },
             onOpenNote = { localKey ->
-                navController.navigate(
-                    NoteEditorNavRoute.createRoute(
-                        localKey = localKey,
-                    )
-                )
+                navController.navigate(NoteEditorNavRoute.createRoute(localKey = localKey))
             },
-
-            onCreateNote = {
-                navController.navigate(
-                    NoteNewRoute.route,
-                )
-            },
-
+            onCreateNote = { navController.navigate( NoteNewRoute.route ) },
         )
     }
 
     composable(
-        route =
-            NoteNewDatedRoute.route,
+        route = NoteNewDatedRoute.route,
     ) { backStackEntry ->
-
-        val dayKey =
-            backStackEntry
-                .arguments
-                ?.getString(
-                    NoteNewDatedRoute.dayKeyArg,
-                )
+        val dayKey = backStackEntry.arguments
+            ?.getString(NoteNewDatedRoute.dayKeyArg)
 
         if (dayKey != null) {
             NoteEditorRoute(
-                ownerUserId =
-                    dependencies.localOwnerUserId,
-
-                noteLocalRepository =
-                    dependencies.noteLocalRepository,
-
-                noteAiRemoteDataSource =
-                    dependencies.noteAiRemoteDataSource,
-
-                noteImageService =
-                    dependencies.noteImageService,
-
-                imageRepository =
-                    dependencies.imageRepository,
-
-                initialDayKey =
-                    dayKey,
-
-                createAsDated =
-                    true,
-
-                onBack = {
-                    navController
-                        .popBackStack()
-                },
+                ownerUserId = dependencies.localOwnerUserId,
+                noteLocalRepository = dependencies.noteLocalRepository,
+                noteAiRemoteDataSource = dependencies.noteAiRemoteDataSource,
+                noteImageService = dependencies.noteImageService,
+                imageRepository = dependencies.imageRepository,
+                initialDayKey = dayKey,
+                createAsDated = true,
+                onBack = { navController.popBackStack() },
             )
         }
     }
 
     composable(
-        route =
-            NoteNewRoute.route,
+        route = NoteNewRoute.route,
     ) {
         NoteEditorRoute(
-            ownerUserId =
-                dependencies.localOwnerUserId,
-
-            noteLocalRepository =
-                dependencies.noteLocalRepository,
-
-            noteAiRemoteDataSource =
-                dependencies.noteAiRemoteDataSource,
-
-            noteImageService =
-                dependencies.noteImageService,
-
-            imageRepository =
-                dependencies.imageRepository,
-
-            createAsNormal =
-                true,
-
-            onBack = {
-                navController
-                    .popBackStack()
-            },
+            ownerUserId = dependencies.localOwnerUserId,
+            noteLocalRepository = dependencies.noteLocalRepository,
+            noteAiRemoteDataSource = dependencies.noteAiRemoteDataSource,
+            noteImageService = dependencies.noteImageService,
+            imageRepository = dependencies.imageRepository,
+            createAsNormal = true,
+            onBack = { navController .popBackStack() },
         )
     }
 

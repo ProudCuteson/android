@@ -17,6 +17,7 @@ import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material.icons.outlined.Today
 
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -36,63 +37,32 @@ import androidx.navigation.NavHostController
 
 import top.role.android.app.navigation.MainDestination
 
-
 private data class MainNavigationItem(
-    val destination:
-    MainDestination,
-
-    val icon:
-    ImageVector,
+    val destination: MainDestination,
+    val icon: ImageVector,
 )
 
-
-private val mainNavigationItems =
-    listOf(
+private val mainNavigationItems = listOf(
         MainNavigationItem(
-            destination =
-                MainDestination.Day,
-
-            icon =
-                Icons
-                    .Outlined
-                    .Today,
+            destination = MainDestination.Day,
+            icon = Icons.Outlined.Today,
         ),
-
         MainNavigationItem(
-            destination =
-                MainDestination.Discover,
-
-            icon =
-                Icons
-                    .Outlined
-                    .Explore,
+            destination = MainDestination.Discover,
+            icon = Icons.Outlined.Explore,
         ),
-
         MainNavigationItem(
-            destination =
-                MainDestination.Chat,
-
-            icon =
-                Icons
-                    .Outlined
-                    .ChatBubbleOutline,
+            destination = MainDestination.Chat,
+            icon = Icons.Outlined.ChatBubbleOutline,
         ),
-
         MainNavigationItem(
-            destination =
-                MainDestination.Engage,
-
-            icon =
-                Icons
-                    .Outlined
-                    .TaskAlt,
+            destination = MainDestination.Engage,
+            icon = Icons.Outlined.TaskAlt,
         ),
     )
 
 
-@OptIn(
-    ExperimentalMaterial3Api::class
-)
+@OptIn( ExperimentalMaterial3Api::class)
 @Composable
 fun MainTopBar(
     state: MainShellState,
@@ -107,55 +77,30 @@ fun MainTopBar(
 ) {
     TopAppBar(
         title = {
-            Text(
-                text =
-                    state.title,
-            )
+            Text(text = state.title)
         },
 
         navigationIcon = {
-            if (
-                state.showBack
-            ) {
-                IconButton(
-                    onClick =
-                        onBack,
-                ) {
+            if (state.showBack) {
+                IconButton(onClick =onBack) {
                     Icon(
-                        imageVector =
-                            Icons
-                                .AutoMirrored
-                                .Filled
-                                .ArrowBack,
-
-                        contentDescription =
-                            "返回",
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "返回",
                     )
                 }
             }
         },
 
         actions = {
-
-            /*
-             * Day
-             * ------------------------------------------------
-             */
-
             if (state.showLibrary) {
-                IconButton(
-                    onClick = onLibrary,
-                ) {
+                IconButton(onClick = onLibrary) {
                     Icon(
-                        imageVector =
-                            Icons.AutoMirrored.Outlined.LibraryBooks,
+                        imageVector = Icons.AutoMirrored.Outlined.LibraryBooks,
                         contentDescription = "记录库",
                     )
                 }
 
-                IconButton(
-                    onClick = onRichText,
-                ) {
+                IconButton(onClick = onRichText) {
                     Icon(
                         imageVector = Icons.Outlined.Add,
                         contentDescription = "富文本编辑器",
@@ -163,123 +108,57 @@ fun MainTopBar(
                 }
             }
 
-            if (
-                state.showAccount
-            ) {
-                IconButton(
-                    onClick =
-                        onAccount,
-                ) {
+            if (state.showAccount) {
+                IconButton(onClick = onAccount) {
                     Icon(
-                        imageVector =
-                            Icons
-                                .Outlined
-                                .AccountCircle,
-
-                        contentDescription =
-                            "我的",
+                        imageVector = Icons.Outlined.AccountCircle,
+                        contentDescription = "我的",
                     )
                 }
             }
 
-            /*
-             * Chat
-             * ------------------------------------------------
-             */
-
-            if (
-                state.showFriends
-            ) {
-                IconButton(
-                    onClick =
-                        onFriends,
-                ) {
+            if (state.showFriends) {
+                IconButton(onClick =onFriends) {
                     Icon(
-                        imageVector =
-                            Icons
-                                .Outlined
-                                .Group,
-
-                        contentDescription =
-                            "好友",
+                        imageVector = Icons.Outlined.Group,
+                        contentDescription = "好友",
                     )
                 }
             }
 
-            if (
-                state.showCreateGroup
-            ) {
-                IconButton(
-                    onClick =
-                        onCreateGroup,
-                ) {
+            if (state.showCreateGroup) {
+                IconButton(onClick = onCreateGroup) {
                     Icon(
-                        imageVector =
-                            Icons
-                                .Outlined
-                                .AddComment,
-
-                        contentDescription =
-                            "创建群聊",
+                        imageVector = Icons.Outlined.AddComment,
+                        contentDescription = "创建群聊",
                     )
                 }
             }
 
-            /*
-             * Friends
-             * ------------------------------------------------
-             */
+            // Friends
 
-            if (
-                state.showAddFriend
-            ) {
-                IconButton(
-                    onClick =
-                        onAddFriend,
-                ) {
+            if (state.showAddFriend) {
+                IconButton(onClick = onAddFriend) {
                     Icon(
-                        imageVector =
-                            Icons
-                                .Outlined
-                                .PersonAdd,
-
-                        contentDescription =
-                            "添加好友",
+                        imageVector = Icons.Outlined.PersonAdd,
+                        contentDescription = "添加好友",
                     )
                 }
             }
 
-            /*
-             * Market
-             * ------------------------------------------------
-             */
-            if (
-                state.showMarketOrders
-            ) {
+            // Market
+
+            if (state.showMarketOrders) {
                 Text(
-                    text =
-                        "订单",
-
-                    modifier =
-                        Modifier
-                            .clickable(
-                                onClick =
-                                    onMarketOrders,
-                            )
-                            .padding(
-                                horizontal = 12.dp,
-                                vertical = 8.dp,
-                            ),
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .labelLarge,
-
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .primary,
+                    text = "订单",
+                    modifier = Modifier
+                        .clickable(onClick = onMarketOrders)
+                        .padding(
+                            horizontal = 12.dp,
+                            vertical = 8.dp,
+                        ),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
 
@@ -287,69 +166,44 @@ fun MainTopBar(
     )
 }
 
-
 @Composable
 fun MainBottomBar(
-    navController:
-    NavHostController,
-
-    currentRoute:
-    String?,
+    navController: NavHostController,
+    currentRoute: String?,
 ) {
-    NavigationBar {
-        mainNavigationItems
-            .forEach { item ->
+    NavigationBar(
+        containerColor = MaterialTheme.colorScheme.surface,
+    ) {
+        mainNavigationItems.forEach { item ->
+            val destination = item.destination
+            val selected = currentRoute == destination.route
 
-                val destination =
-                    item.destination
-
-                val selected =
-                    currentRoute ==
-                            destination.route
-
-                NavigationBarItem(
-                    selected =
-                        selected,
-
-                    onClick = {
-                        navController.navigate(
-                            destination.route
-                        ) {
-                            popUpTo(
-                                navController
-                                    .graph
-                                    .findStartDestination()
-                                    .id
-                            ) {
-                                saveState =
-                                    true
-                            }
-
-                            launchSingleTop =
-                                true
-
-                            restoreState =
-                                true
+            NavigationBarItem(
+                selected = selected,
+                onClick = {
+                    navController.navigate(destination.route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
                         }
-                    },
-
-                    icon = {
-                        Icon(
-                            imageVector =
-                                item.icon,
-
-                            contentDescription =
-                                destination.label,
-                        )
-                    },
-
-                    label = {
-                        Text(
-                            text =
-                                destination.label,
-                        )
-                    },
-                )
-            }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                icon = {
+                    Icon(
+                        imageVector = item.icon,
+                        contentDescription = destination.label,
+                    )
+                },
+                label = { Text(text = destination.label) },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
+            )
+        }
     }
 }
