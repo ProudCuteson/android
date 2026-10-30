@@ -8,6 +8,7 @@ import androidx.room.Update
 import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 import top.role.android.core.database.entity.LocalNoteImageEntity
+import top.role.android.core.database.entity.NoteImageCount
 
 @Dao
 interface LocalNoteImageDao {
@@ -382,4 +383,30 @@ interface LocalNoteImageDao {
         ownerUserId: String,
         noteLocalKey: String,
     )
+
+    @Query(
+        """
+    SELECT
+        i.noteLocalKey,
+        COUNT(*) AS imageCount
+    FROM local_note_images i
+    INNER JOIN local_notes n
+        ON n.localKey = i.noteLocalKey
+       AND n.ownerUserId = i.ownerUserId
+    WHERE n.ownerUserId = :ownerUserId
+      AND n.dayKey >= :startDayKey
+      AND n.dayKey < :endDayKeyExclusive
+      AND COALESCE(
+          n.pendingRemoteStatus,
+          n.remoteStatus
+      ) = 'active'
+    GROUP BY i.noteLocalKey
+    """
+    )
+    fun observeMonthImageCounts(
+        ownerUserId: String,
+        startDayKey: String,
+        endDayKeyExclusive: String,
+    ): Flow<List<NoteImageCount>>
+
 }

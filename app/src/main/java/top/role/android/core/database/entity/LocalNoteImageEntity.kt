@@ -26,6 +26,7 @@ import androidx.room.PrimaryKey
         ),
     ],
 )
+
 data class LocalNoteImageEntity(
     @PrimaryKey
     val localImageKey: String,
@@ -55,4 +56,9 @@ data class LocalNoteImageEntity(
     val createdAt: Long,
 
     val updatedAt: Long,
+)
+
+data class NoteImageCount(
+    val noteLocalKey: String,
+    val imageCount: Int,
 )

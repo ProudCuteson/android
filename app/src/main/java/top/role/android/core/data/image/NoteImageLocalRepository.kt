@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import top.role.android.core.database.dao.LocalNoteImageDao
 import top.role.android.core.database.entity.LocalNoteImageEntity
 import top.role.android.core.model.note.PersistedNoteMediaItem
+import top.role.android.core.database.entity.NoteImageCount
 
 data class NoteImageRemoteReconcileResult(
     val removedLocalPaths: List<String>,
@@ -23,6 +24,18 @@ class NoteImageLocalRepository(
 
             noteLocalKey =
                 noteLocalKey,
+        )
+    }
+
+    fun observeMonthImageCounts(
+        ownerUserId: String,
+        startDayKey: String,
+        endDayKeyExclusive: String,
+    ): Flow<List<NoteImageCount>> {
+        return dao.observeMonthImageCounts(
+            ownerUserId = ownerUserId,
+            startDayKey = startDayKey,
+            endDayKeyExclusive = endDayKeyExclusive,
         )
     }
 

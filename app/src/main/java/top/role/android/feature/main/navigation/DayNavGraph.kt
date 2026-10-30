@@ -20,12 +20,12 @@ fun NavGraphBuilder.dayNavGraph(
     weekStart: WeekStart
 ) {
     composable(
-        route =
-            MainDestination.Day.route,
+        route = MainDestination.Day.route,
     ) {
         DayScreen(
             ownerUserId = dependencies.localOwnerUserId,
             noteLocalRepository = dependencies.noteLocalRepository,
+            noteImageService = dependencies.noteImageService,
             weekStart = weekStart,
             onOpenDayNote = { dayKey ->
                 navController.navigate(

@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Delete
@@ -44,107 +46,76 @@ data class NoteEditorImageUi(
 
 @Composable
 fun NoteImageEditor(
+    modifier: Modifier = Modifier,
     images: List<NoteEditorImageUi>,
     onAddImage: (Uri) -> Unit,
     onRetryUpload: (String) -> Unit,
     onRemoveImage: (String) -> Unit,
-    modifier: Modifier = Modifier,
+    showAddButton: Boolean = true,
 ) {
     val imagePicker =
         rememberLauncherForActivityResult(
-            contract =
-                ActivityResultContracts
-                    .PickVisualMedia(),
+            contract = ActivityResultContracts.PickVisualMedia(),
         ) { uri ->
             if (
                 uri != null
             ) {
-                onAddImage(
-                    uri,
-                )
+                onAddImage(uri)
             }
         }
 
     Column(
-        modifier =
-            modifier,
-
-        verticalArrangement =
-            Arrangement.spacedBy(
-                8.dp,
-            ),
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        if (
-            images.isNotEmpty()
-        ) {
+        if (images.isNotEmpty()) {
             LazyRow(
-                modifier =
-                    Modifier.fillMaxWidth(),
-
-                horizontalArrangement =
-                    Arrangement.spacedBy(
-                        10.dp,
-                    ),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 items(
-                    items =
-                        images,
-
-                    key = {
-                        it.localImageKey
-                    },
+                    items = images,
+                    key = { it.localImageKey },
                 ) { image ->
                     NoteImageEditorItem(
-                        image =
-                            image,
-
+                        image = image,
                         onRetryUpload = {
-                            onRetryUpload(
-                                image.localImageKey,
-                            )
+                            onRetryUpload(image.localImageKey)
                         },
-
                         onRemoveImage = {
-                            onRemoveImage(
-                                image.localImageKey,
-                            )
+                            onRemoveImage(image.localImageKey)
                         },
                     )
                 }
             }
         }
 
-        Row(
-            modifier =
-                Modifier.fillMaxWidth(),
-
-            horizontalArrangement =
-                Arrangement.Start,
-
-            verticalAlignment =
-                Alignment.CenterVertically,
-        ) {
-            FilledTonalIconButton(
-                onClick = {
-                    imagePicker.launch(
-                        PickVisualMediaRequest(
-                            ActivityResultContracts
-                                .PickVisualMedia
-                                .ImageOnly,
-                        )
-                    )
-                },
+        if (showAddButton) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Start,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(
-                    imageVector =
-                        Icons.Default
-                            .AddPhotoAlternate,
-
-                    contentDescription =
-                        "添加图片",
-                )
+                FilledTonalIconButton(
+                    onClick = {
+                        imagePicker.launch(
+                            PickVisualMediaRequest(
+                                ActivityResultContracts
+                                    .PickVisualMedia
+                                    .ImageOnly,
+                            )
+                        )
+                    },
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AddPhotoAlternate,
+                        contentDescription = "添加图片",
+                    )
+                }
             }
         }
+
+
     }
 }
 
@@ -155,238 +126,117 @@ private fun NoteImageEditorItem(
     onRemoveImage: () -> Unit,
 ) {
     Column(
-        verticalArrangement =
-            Arrangement.spacedBy(
-                4.dp,
-            ),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Box(
-            modifier =
-                Modifier.size(
-                    104.dp,
-                ),
+            modifier = Modifier.size(104.dp),
         ) {
-            val displayUrl =
-                image.displayUrl
+            val displayUrl = image.displayUrl
 
-            if (
-                !displayUrl.isNullOrBlank()
-            ) {
+            if (!displayUrl.isNullOrBlank()) {
                 PreviewableImage(
-                    imageUrl =
-                        displayUrl,
-
-                    contentDescription =
-                        "记录图片",
-
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .clip(
-                                MaterialTheme
-                                    .shapes
-                                    .medium,
-                            ),
-
-                    contentScale =
-                        ContentScale.Crop,
+                    imageUrl = displayUrl,
+                    contentDescription = "记录图片",
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(MaterialTheme.shapes.medium),
+                    contentScale = ContentScale.Crop,
                 )
             } else {
-                /*
-                 * 极端状态：
-                 *
-                 * - localPath 不存在
-                 * - preview URL 尚未准备好
-                 *
-                 * 不崩溃，先显示占位。
-                 */
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .clip(
-                                MaterialTheme
-                                    .shapes
-                                    .medium,
-                            )
-                            .background(
-                                MaterialTheme
-                                    .colorScheme
-                                    .surfaceVariant,
-                            ),
 
-                    contentAlignment =
-                        Alignment.Center,
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(MaterialTheme.shapes.medium)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text =
-                            "图片加载中",
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .labelSmall,
-
-                        color =
-                            MaterialTheme
-                                .colorScheme
-                                .onSurfaceVariant,
+                        text = "图片加载中",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
 
-            if (
-                image.uploadState ==
-                "uploading"
-            ) {
+            if (image.uploadState == "uploading") {
                 Box(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .background(
-                                Color.Black.copy(
-                                    alpha =
-                                        0.28f,
-                                )
-                            ),
-
-                    contentAlignment =
-                        Alignment.Center,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(
+                                alpha = 0.28f,
+                            )
+                        ),
+                    contentAlignment = Alignment.Center,
                 ) {
                     CircularProgressIndicator(
-                        modifier =
-                            Modifier.size(
-                                28.dp,
-                            ),
+                        modifier = Modifier.size(28.dp),
                     )
                 }
             }
 
             IconButton(
-                onClick =
-                    onRemoveImage,
-
-                modifier =
-                    Modifier
-                        .align(
-                            Alignment.TopEnd,
-                        )
-                        .size(
-                            36.dp,
-                        ),
+                onClick = onRemoveImage,
+                modifier = Modifier.align(Alignment.TopEnd).size(36.dp),
             ) {
                 Icon(
-                    imageVector =
-                        Icons.Default.Delete,
-
-                    contentDescription =
-                        "删除图片",
-
-                    tint =
-                        Color.White,
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "删除图片",
+                    tint = Color.White,
                 )
             }
         }
 
-        when (
-            image.uploadState
-        ) {
+        when (image.uploadState) {
             "local" -> {
                 Text(
-                    text =
-                        "等待上传",
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .labelSmall,
-
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .onSurfaceVariant,
+                    text = "等待上传",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
             "uploading" -> {
                 Text(
-                    text =
-                        "上传中",
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .labelSmall,
-
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .onSurfaceVariant,
+                    text = "上传中",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
             "failed" -> {
                 Column(
-                    verticalArrangement =
-                        Arrangement.spacedBy(
-                            2.dp,
-                        ),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     TextButton(
-                        onClick =
-                            onRetryUpload,
+                        onClick = onRetryUpload,
                     ) {
                         Icon(
-                            imageVector =
-                                Icons.Default.Refresh,
-
-                            contentDescription =
-                                null,
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = null,
                         )
-
                         Text(
-                            text =
-                                "重试",
+                            text = "重试",
                         )
                     }
 
                     image.uploadError
-                        ?.takeIf {
-                            it.isNotBlank()
-                        }
-                        ?.let { error ->
-                            Text(
-                                text =
-                                    error,
-
-                                style =
-                                    MaterialTheme
-                                        .typography
-                                        .labelSmall,
-
-                                color =
-                                    MaterialTheme
-                                        .colorScheme
-                                        .error,
-                            )
-                        }
+                    ?.takeIf {it.isNotBlank()}
+                    ?.let { error ->
+                        Text(
+                            text = error,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
                 }
             }
 
             "uploaded" -> {
                 Text(
-                    text =
-                        "已上传",
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .labelSmall,
-
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .onSurfaceVariant,
+                    text = "已上传",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -398,25 +248,76 @@ fun NoteImageReading(
     images: List<NoteEditorImageUi>,
     modifier: Modifier = Modifier,
 ) {
-    val visibleImages = images.filter { !it.displayUrl.isNullOrBlank() }
+    val visibleImages = images.filter {
+        !it.displayUrl.isNullOrBlank()
+    }
     if (visibleImages.isEmpty()) return
 
-    LazyRow(
+    val firstImage = visibleImages.first()
+    val remainingImages = visibleImages.drop(1)
+
+    Column(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        items(
-            items = visibleImages,
-            key = { it.localImageKey },
-        ) { image ->
-            PreviewableImage(
-                imageUrl = image.displayUrl,
-                contentDescription = "记录图片",
-                modifier = Modifier
-                    .size(120.dp)
-                    .clip(MaterialTheme.shapes.medium),
-                contentScale = ContentScale.Crop,
-            )
+        // 第一张图片：较大的阅读预览
+        PreviewableImage(
+            imageUrl = firstImage.displayUrl,
+            contentDescription = "记录图片",
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(220.dp)
+                .clip(MaterialTheme.shapes.medium)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentScale = ContentScale.Crop,
+        )
+
+        // 其他图片：横向缩略图
+        if (remainingImages.isNotEmpty()) {
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                items(
+                    items = remainingImages,
+                    key = { it.localImageKey },
+                ) { image ->
+                    PreviewableImage(
+                        imageUrl = image.displayUrl,
+                        contentDescription = "记录图片",
+                        modifier = Modifier
+                            .size(104.dp)
+                            .clip(MaterialTheme.shapes.medium),
+                        contentScale = ContentScale.Crop,
+                    )
+                }
+            }
         }
+    }
+}
+
+@Composable
+fun NoteImagePickButton(
+    onAddImage: (Uri) -> Unit,
+) {
+    val picker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+    ) { uri ->
+        uri?.let(onAddImage)
+    }
+
+    IconButton(
+        onClick = {
+            picker.launch(
+                PickVisualMediaRequest(
+                    ActivityResultContracts.PickVisualMedia.ImageOnly
+                )
+            )
+        },
+    ) {
+        Icon(
+            imageVector = Icons.Default.AddPhotoAlternate,
+            contentDescription = "添加图片",
+        )
     }
 }

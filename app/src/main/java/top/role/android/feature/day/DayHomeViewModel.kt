@@ -6,55 +6,34 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import top.role.android.core.data.image.NoteImageService
 import top.role.android.core.data.note.NoteLocalRepository
 import top.role.android.core.model.note.DayKey
 
 class DayHomeViewModel(
     private val ownerUserId: String,
-    private val noteLocalRepository:
-    NoteLocalRepository,
+    private val noteLocalRepository: NoteLocalRepository,
+    private val noteImageService: NoteImageService,
 ) : ViewModel() {
 
-    private val _uiState =
-        MutableStateFlow(
-            DayHomeUiState(),
-        )
+    private val _uiState = MutableStateFlow(DayHomeUiState())
+    val uiState: StateFlow<DayHomeUiState> = _uiState.asStateFlow()
 
-    val uiState:
-            StateFlow<DayHomeUiState> =
-        _uiState.asStateFlow()
-
-    private var monthObserveJob:
-            Job? = null
+    private var monthObserveJob: Job? = null
 
     init {
         observeSelectedMonth()
     }
 
-    fun selectDay(
-        dayKey: String,
-    ) {
-        if (!DayKey.isValid(dayKey)) {
-            return
-        }
+    fun selectDay(dayKey: String) {
+        if (!DayKey.isValid(dayKey)) return
 
-        val oldMonth =
-            DayKey.monthKey(
-                _uiState.value
-                    .selectedDayKey,
-            )
+        val oldMonth = DayKey.monthKey(_uiState.value.selectedDayKey)
+        val newMonth = DayKey.monthKey(dayKey)
 
-        val newMonth =
-            DayKey.monthKey(
-                dayKey,
-            )
-
-        _uiState.value =
-            _uiState.value.copy(
-                selectedDayKey =
-                    dayKey,
-            )
+        _uiState.value = _uiState.value.copy(selectedDayKey = dayKey)
 
         if (oldMonth != newMonth) {
             observeSelectedMonth()
@@ -62,46 +41,37 @@ class DayHomeViewModel(
     }
 
     private fun observeSelectedMonth() {
-        val selectedDayKey =
-            _uiState.value
-                .selectedDayKey
+        val range = DayKey.monthRange(_uiState.value.selectedDayKey)
 
-        val range =
-            DayKey.monthRange(
-                selectedDayKey,
-            )
+        monthObserveJob?.cancel()
 
-        _uiState.value =
-            _uiState.value.copy(
-                monthStartDayKey =
-                    range.start,
-                monthEndDayKeyExclusive =
-                    range.endExclusive,
-            )
+        _uiState.value = _uiState.value.copy(
+            monthStartDayKey = range.start,
+            monthEndDayKeyExclusive = range.endExclusive,
+            monthNotes = emptyList(),
+            imageCounts = emptyMap(),
+        )
 
-        monthObserveJob
-            ?.cancel()
-
-        monthObserveJob =
-            viewModelScope.launch {
-                noteLocalRepository
-                    .observeMonthNotesForDayHome(
-                        ownerUserId =
-                            ownerUserId,
-                        startDayKey =
-                            range.start,
-                        endDayKeyExclusive =
-                            range.endExclusive,
-                    )
-                    .collect {
-                            notes ->
-
-                        _uiState.value =
-                            _uiState.value.copy(
-                                monthNotes =
-                                    notes,
-                            )
-                    }
+        monthObserveJob = viewModelScope.launch {
+            combine(
+                noteLocalRepository.observeMonthNotesForDayHome(
+                    ownerUserId = ownerUserId,
+                    startDayKey = range.start,
+                    endDayKeyExclusive = range.endExclusive,
+                ),
+                noteImageService.observeMonthImageCounts(
+                    ownerUserId = ownerUserId,
+                    startDayKey = range.start,
+                    endDayKeyExclusive = range.endExclusive,
+                ),
+            ) { notes, counts ->
+                notes to counts
+            }.collect { (notes, counts) ->
+                _uiState.value = _uiState.value.copy(
+                    monthNotes = notes,
+                    imageCounts = counts,
+                )
             }
+        }
     }
 }

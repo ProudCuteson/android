@@ -4,8 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import top.role.android.feature.note.editor.NoteRichTextPlayground
 
 import top.role.android.app.navigation.MainDestination
 import top.role.android.core.preferences.AppAppearance
@@ -64,9 +62,5 @@ fun MainNavGraph(
             navController =
                 navController,
         )
-
-        composable("note/rich-text-playground") {
-            NoteRichTextPlayground()
-        }
     }
 }

@@ -4,7 +4,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.input.ExpandPolicy
 import androidx.compose.foundation.text.input.OutputTransformation
@@ -16,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.ParagraphStyle
@@ -101,15 +101,16 @@ fun RichTextEditorField(
     }
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = Color.Transparent,
     ) {
         BasicTextField(
             state = editor.field,
             readOnly = readOnly,
             outputTransformation = display,
-            modifier = Modifier.fillMaxWidth().heightIn(min = minHeight)
-                .focusRequester(editor.focusRequester).padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = minHeight)
+                .focusRequester(editor.focusRequester),
             textStyle = MaterialTheme.typography.bodyLarge.copy(color = color),
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             lineLimits = TextFieldLineLimits.MultiLine(),

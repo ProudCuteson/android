@@ -15,6 +15,10 @@ import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 import top.role.android.core.data.note.NoteLocalRepository
 import kotlinx.serialization.json.Json
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import top.role.android.core.model.note.NoteRemoteStatus
 import top.role.android.core.model.note.content.BlockContent
 import top.role.android.core.model.note.content.NoteContentCodec
 import top.role.android.core.database.note.LocalNoteEntity
@@ -31,7 +35,6 @@ class NoteEditorViewModel(
     private val noteAiRemoteDataSource: NoteAiRemoteDataSource,
     private val noteImageService: NoteImageService,
     private val imageRepository: ImageRepository,
-
     private val initialLocalKey: String? = null,
     private val initialDayKey: String? = null,
     private val openAsDayOnly: Boolean = false,
@@ -44,46 +47,21 @@ class NoteEditorViewModel(
         explicitNulls = false
     }
 
-    private val _uiState =
-        MutableStateFlow(
-            NoteEditorUiState(),
-        )
+    private val checklistWriteMutex = Mutex()
 
-    val uiState:
-            StateFlow<NoteEditorUiState> =
-        _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow(NoteEditorUiState())
+    val uiState: StateFlow<NoteEditorUiState> = _uiState.asStateFlow()
 
-    private var currentNote:
-            LocalNoteEntity? = null
-
-    private var lastAiRunAt:
-            Long =
-        0L
-
-    private var currentImageEntities:
-            List<LocalNoteImageEntity> =
-        emptyList()
-
-    private val remotePreviewUrls =
-        mutableMapOf<String, String>()
-
-    private val resolvingPreviewImageIds =
-        mutableSetOf<String>()
-
-    private var saveJob:
-            Job? = null
-
-    private var observeNoteJob:
-            Job? = null
-
-    private var observedLocalKey:
-            String? = null
-
-    private var observeImagesJob:
-            Job? = null
-
-    private var observedImageNoteLocalKey:
-            String? = null
+    private var currentNote: LocalNoteEntity? = null
+    private var lastAiRunAt: Long = 0L
+    private var currentImageEntities: List<LocalNoteImageEntity> = emptyList()
+    private val remotePreviewUrls = mutableMapOf<String, String>()
+    private val resolvingPreviewImageIds = mutableSetOf<String>()
+    private var saveJob: Job? = null
+    private var observeNoteJob: Job? = null
+    private var observedLocalKey: String? = null
+    private var observeImagesJob: Job? = null
+    private var observedImageNoteLocalKey: String? = null
 
     init {
         load()
@@ -94,121 +72,69 @@ class NoteEditorViewModel(
     private fun load() {
         viewModelScope.launch {
             try {
-                val result =
-                    loadInitialNote()
+                val result = loadInitialNote()
 
-                val note =
-                    result.note
+                val note = result.note
 
                 if (note == null) {
-                    _uiState.value =
-                        _uiState.value.copy(
-                            loading =
-                                false,
-
-                            errorMessage =
-                                "记录不存在",
-                        )
-
-                    return@launch
-                }
-
-                if (
-                    note.ownerUserId !=
-                    ownerUserId
-                ) {
-                    _uiState.value =
-                        _uiState.value.copy(
-                            loading =
-                                false,
-
-                            errorMessage =
-                                "当前记录不属于登录用户",
-                        )
-
-                    return@launch
-                }
-
-                currentNote =
-                    note
-
-                val baseState =
-                    NoteEditorUiState
-                        .fromNote(
-                            note,
-                        )
-
-                _uiState.value =
-                    baseState.copy(
-                        mode =
-                            if (
-                                result.startEditing &&
-                                baseState.canEdit
-                            ) {
-                                NoteEditorMode.Editing
-                            } else {
-                                NoteEditorMode.Reading
-                            },
-
-                        conflict =
-                            conflictUiModel(
-                                note,
-                            ),
+                    _uiState.value = _uiState.value.copy(
+                        loading = false,
+                        errorMessage = "记录不存在",
                     )
+
+                    return@launch
+                }
+
+                if (note.ownerUserId != ownerUserId) {
+                    _uiState.value = _uiState.value.copy(
+                        loading = false,
+                        errorMessage = "当前记录不属于登录用户",
+                    )
+
+                    return@launch
+                }
+
+                currentNote = note
+
+                val baseState = NoteEditorUiState.fromNote(note)
+
+                _uiState.value = baseState.copy(
+                    mode = if (result.startEditing && baseState.canEdit) {
+                        NoteEditorMode.Editing
+                    } else {
+                        NoteEditorMode.Reading
+                    },
+                    conflict = conflictUiModel(note))
 
                 /*
                  * load 完成后立即进入 live Room observation。
                  */
-                observeCurrentNote(
-                    localKey =
-                        note.localKey,
+                observeCurrentNote(localKey = note.localKey)
+
+                observeCurrentNoteImages(noteLocalKey = note.localKey)
+
+            } catch (error: Throwable) {
+                _uiState.value = _uiState.value.copy(
+                    loading = false,
+                    errorMessage = error.message ?: "读取记录失败",
                 )
-
-                observeCurrentNoteImages(
-                    noteLocalKey =
-                        note.localKey,
-                )
-
-            } catch (
-                error: Throwable
-            ) {
-                _uiState.value =
-                    _uiState.value.copy(
-                        loading =
-                            false,
-
-                        errorMessage =
-                            error.message
-                                ?: "读取记录失败",
-                    )
             }
         }
     }
 
-    private suspend fun loadInitialNote():
-            InitialNoteResult {
+    private suspend fun loadInitialNote(): InitialNoteResult {
 
         /*
          * 明确 localKey：
          * 一定视为打开已有 Note。
          */
-        if (
-            initialLocalKey !=
-            null
-        ) {
+        if (initialLocalKey != null) {
             return InitialNoteResult(
-                note =
-                    noteLocalRepository
-                        .findByLocalKey(
-                            ownerUserId =
-                                ownerUserId,
-
-                            localKey =
-                                initialLocalKey,
-                        ),
-
-                startEditing =
-                    false,
+                note = noteLocalRepository.findByLocalKey(
+                    ownerUserId = ownerUserId,
+                    localKey = initialLocalKey,
+                ),
+                startEditing = false,
             )
         }
 
@@ -221,368 +147,199 @@ class NoteEditorViewModel(
          * 第一次创建
          * → Editing
          */
-        if (
-            openAsDayOnly &&
-            initialDayKey !=
-            null
-        ) {
-            val existing =
-                noteLocalRepository
-                    .findDayOnlyNote(
-                        ownerUserId =
-                            ownerUserId,
+        if (openAsDayOnly && initialDayKey != null) {
+            val existing = noteLocalRepository.findDayOnlyNote(
+                ownerUserId = ownerUserId,
+                dayKey = initialDayKey,
+            )
 
-                        dayKey =
-                            initialDayKey,
-                    )
-
-            if (
-                existing != null
-            ) {
+            if (existing != null) {
                 return InitialNoteResult(
-                    note =
-                        existing,
-
-                    startEditing =
-                        false,
+                    note = existing,
+                    startEditing = false,
                 )
             }
 
             return InitialNoteResult(
-                note =
-                    noteLocalRepository
-                        .getOrCreateDayOnlyNote(
-                            ownerUserId =
-                                ownerUserId,
-
-                            dayKey =
-                                initialDayKey,
-                        ),
-
-                startEditing =
-                    true,
+                note = noteLocalRepository.getOrCreateDayOnlyNote(
+                    ownerUserId = ownerUserId,
+                    dayKey = initialDayKey,
+                ),
+                startEditing = true,
             )
         }
 
         /*
          * 创建关联日期 Note。
          */
-        if (
-            createAsDated &&
-            initialDayKey !=
-            null
-        ) {
+        if (createAsDated && initialDayKey != null) {
             return InitialNoteResult(
-                note =
-                    noteLocalRepository
-                        .createDatedNote(
-                            ownerUserId =
-                                ownerUserId,
-
-                            dayKey =
-                                initialDayKey,
-                        ),
-
-                startEditing =
-                    true,
+                note = noteLocalRepository.createDatedNote(
+                    ownerUserId = ownerUserId,
+                    dayKey = initialDayKey,
+                ),
+                startEditing = true,
             )
         }
 
         /*
          * 创建普通 Note。
          */
-        if (
-            createAsNormal
-        ) {
+        if (createAsNormal) {
             return InitialNoteResult(
-                note =
-                    noteLocalRepository
-                        .createNormalNote(
-                            ownerUserId =
-                                ownerUserId,
-                        ),
-
-                startEditing =
-                    true,
+                note = noteLocalRepository.createNormalNote(
+                    ownerUserId = ownerUserId,
+                ),
+                startEditing = true,
             )
         }
 
         return InitialNoteResult(
-            note =
-                null,
-
-            startEditing =
-                false,
+            note = null,
+            startEditing = false,
         )
     }
 
     // MARK: - Room observation
 
-    private fun observeCurrentNote(
-        localKey: String,
-    ) {
-        if (
-            observedLocalKey ==
-            localKey &&
-            observeNoteJob?.isActive ==
-            true
-        ) {
+    private fun observeCurrentNote(localKey: String) {
+        if (observedLocalKey == localKey && observeNoteJob?.isActive == true) {
             return
         }
 
-        observeNoteJob
-            ?.cancel()
+        observeNoteJob?.cancel()
 
-        observedLocalKey =
-            localKey
+        observedLocalKey = localKey
 
-        observeNoteJob =
-            viewModelScope.launch {
-                noteLocalRepository
-                    .observeByLocalKey(
-                        ownerUserId =
-                            ownerUserId,
+        observeNoteJob = viewModelScope.launch {
+            noteLocalRepository.observeByLocalKey(
+                ownerUserId = ownerUserId,
+                localKey = localKey,
+            ).collectLatest { note ->
 
-                        localKey =
-                            localKey,
-                    )
-                    .collectLatest { note ->
+                if (note != null) {
+                    applyObservedNote(note = note)
 
-                        if (
-                            note != null
-                        ) {
-                            applyObservedNote(
-                                note =
-                                    note,
-                            )
+                    return@collectLatest
+                }
 
-                            return@collectLatest
-                        }
-
-                        /*
-                         * localKey 有可能因为 identity 收敛发生改变：
-                         *
-                         * local temporary key
-                         * → remote noteId key
-                         *
-                         * 或 Conflict:
-                         *
-                         * Remote Deleted
-                         * → Keep Local
-                         * → 新 localKey
-                         *
-                         * 此时旧 localKey 的 SQL observer 会得到 null。
-                         *
-                         * 使用稳定的 noteId / clientKey 尝试重新找到
-                         * 当前 row，然后重新绑定 observer。
-                         */
-                        recoverObservationAfterKeyChange(
-                            previousLocalKey =
-                                localKey,
-                        )
-                    }
+                /*
+                 * localKey 有可能因为 identity 收敛发生改变：
+                 *
+                 * local temporary key
+                 * → remote noteId key
+                 *
+                 * 或 Conflict:
+                 *
+                 * Remote Deleted
+                 * → Keep Local
+                 * → 新 localKey
+                 *
+                 * 此时旧 localKey 的 SQL observer 会得到 null。
+                 *
+                 * 使用稳定的 noteId / clientKey 尝试重新找到
+                 * 当前 row，然后重新绑定 observer。
+                 */
+                recoverObservationAfterKeyChange(previousLocalKey = localKey)
             }
+        }
     }
 
-    private suspend fun recoverObservationAfterKeyChange(
-        previousLocalKey: String,
-    ) {
-        val previous =
-            currentNote
-                ?: return
+    private suspend fun recoverObservationAfterKeyChange(previousLocalKey: String) {
+        val previous = currentNote ?: return
 
         /*
          * currentNote 已经被其他路径更新了 localKey，
          * 直接重新绑定即可。
          * 也需要观察图片，因为现在是独立的路线
          */
-        if (
-            previous.localKey !=
-            previousLocalKey
-        ) {
-            noteImageService
-                .rebindNote(
-                    ownerUserId =
-                        ownerUserId,
-
-                    oldNoteLocalKey =
-                        previousLocalKey,
-
-                    newNoteLocalKey =
-                        previous.localKey,
-                )
-
-            observeCurrentNote(
-                localKey =
-                    previous.localKey,
+        if (previous.localKey != previousLocalKey) {
+            noteImageService.rebindNote(
+                ownerUserId = ownerUserId,
+                oldNoteLocalKey = previousLocalKey,
+                newNoteLocalKey = previous.localKey,
             )
 
-            observeCurrentNoteImages(
-                noteLocalKey =
-                    previous.localKey,
-            )
+            observeCurrentNote(localKey = previous.localKey)
+
+            observeCurrentNoteImages(noteLocalKey = previous.localKey)
 
             return
         }
 
-        val recovered =
-            if (
-                !previous.noteId.isNullOrBlank()
-            ) {
-                noteLocalRepository
-                    .findByNoteId(
-                        ownerUserId =
-                            ownerUserId,
+        val recovered = if (!previous.noteId.isNullOrBlank()) {
+            noteLocalRepository.findByNoteId(
+                ownerUserId = ownerUserId,
+                noteId = previous.noteId,
+            )
+        } else {
+            noteLocalRepository.findByClientKey(
+                ownerUserId = ownerUserId,
+                clientKey = previous.clientKey,
+            )
+        }
 
-                        noteId =
-                            previous.noteId,
-                    )
-            } else {
-                noteLocalRepository
-                    .findByClientKey(
-                        ownerUserId =
-                            ownerUserId,
-
-                        clientKey =
-                            previous.clientKey,
-                    )
-            }
-
-        if (
-            recovered == null ||
-            recovered.localKey ==
-            previousLocalKey
-        ) {
+        if (recovered == null || recovered.localKey == previousLocalKey) {
             return
         }
 
-        noteImageService
-            .rebindNote(
-                ownerUserId =
-                    ownerUserId,
-
-                oldNoteLocalKey =
-                    previousLocalKey,
-
-                newNoteLocalKey =
-                    recovered.localKey,
-            )
-
-        applyObservedNote(
-            note =
-                recovered,
+        noteImageService.rebindNote(
+            ownerUserId = ownerUserId,
+            oldNoteLocalKey = previousLocalKey,
+            newNoteLocalKey = recovered.localKey,
         )
 
-        observeCurrentNote(
-            localKey =
-                recovered.localKey,
-        )
+        applyObservedNote(note = recovered)
 
-        observeCurrentNoteImages(
-            noteLocalKey =
-                recovered.localKey,
-        )
+        observeCurrentNote(localKey = recovered.localKey)
+
+        observeCurrentNoteImages(noteLocalKey = recovered.localKey)
 
     }
 
-    private fun applyObservedNote(
-        note: LocalNoteEntity,
-    ) {
-        if (
-            note.ownerUserId !=
-            ownerUserId
-        ) {
+    private fun applyObservedNote(note: LocalNoteEntity) {
+        if (note.ownerUserId != ownerUserId) {
             return
         }
 
-        val previousState =
-            _uiState.value
+        val previousState = _uiState.value
 
-        val conflict =
-            conflictUiModel(
-                note,
+        val conflict = conflictUiModel(note)
+
+        currentNote = note
+
+        val baseState = NoteEditorUiState.fromNote(note)
+
+        if (previousState.isEditing && note.syncState == NoteSyncState.Conflict) {
+            saveJob?.cancel()
+
+            saveJob = null
+
+            _uiState.value = baseState.copy(
+                title = previousState.title,
+                text = previousState.text,
+                contentJson = previousState.contentJson,
+                editorResetVersion = previousState.editorResetVersion,
+                images = previousState.images,
+                mode = NoteEditorMode.Reading,
+                conflict = conflict,
+                errorMessage = note.lastSyncError ?: previousState.errorMessage,
             )
 
-        currentNote =
-            note
-
-        val baseState =
-            NoteEditorUiState
-                .fromNote(
-                    note,
-                )
-
-        if (
-            previousState.isEditing &&
-            note.syncState ==
-            NoteSyncState.Conflict
-        ) {
-            saveJob
-                ?.cancel()
-
-            saveJob =
-                null
-
-            _uiState.value =
-                baseState.copy(
-                    title =
-                        previousState.title,
-
-                    text =
-                        previousState.text,
-
-                    contentJson =
-                        previousState.contentJson,
-
-                    editorResetVersion =
-                        previousState.editorResetVersion,
-
-                    images =
-                        previousState.images,
-
-                    mode =
-                        NoteEditorMode.Reading,
-
-                    conflict =
-                        conflict,
-
-                    errorMessage =
-                        note.lastSyncError
-                            ?: previousState.errorMessage,
-                )
-
             return
         }
 
-        if (
-            previousState.isEditing
-        ) {
-            _uiState.value =
-                baseState.copy(
-                    title =
-                        previousState.title,
-
-                    text =
-                        previousState.text,
-
-                    contentJson =
-                        previousState.contentJson,
-
-                    editorResetVersion =
-                        previousState.editorResetVersion,
-
-                    images =
-                        previousState.images,
-
-                    mode =
-                        NoteEditorMode.Editing,
-
-                    conflict =
-                        conflict,
-
-                    errorMessage =
-                        previousState.errorMessage,
-                )
+        if (previousState.isEditing) {
+            _uiState.value = baseState.copy(
+                title = previousState.title,
+                text = previousState.text,
+                contentJson = previousState.contentJson,
+                editorResetVersion = previousState.editorResetVersion,
+                images = previousState.images,
+                mode = NoteEditorMode.Editing,
+                conflict = conflict,
+                errorMessage = previousState.errorMessage,
+            )
 
             return
         }
@@ -591,66 +348,40 @@ class NoteEditorViewModel(
          * Reading：
          * 完整接受 Room 最新状态。
          */
-        _uiState.value =
-            baseState.copy(
-
-                images =
-                    previousState.images,
-
-                mode =
-                    NoteEditorMode.Reading,
-
-                conflict =
-                    conflict,
-
-                errorMessage =
-                    note.lastSyncError,
-            )
+        _uiState.value = baseState.copy(
+            images = previousState.images,
+            mode = NoteEditorMode.Reading,
+            conflict = conflict,
+            errorMessage = note.lastSyncError,
+        )
     }
 
     // MARK: - Mode
 
     fun startEditing() {
-        val state =
-            _uiState.value
+        val state = _uiState.value
 
         /*
          * Conflict 状态下禁止进入 Editing。
          */
-        if (
-            !state.canEdit ||
-            state.syncState ==
-            NoteSyncState.Conflict
-        ) {
+        if (!state.canEdit || state.syncState == NoteSyncState.Conflict) {
             return
         }
 
-        if (
-            state.mode ==
-            NoteEditorMode.Editing
-        ) {
+        if (state.mode == NoteEditorMode.Editing) {
             return
         }
 
-        _uiState.value =
-            state.copy(
-                mode =
-                    NoteEditorMode.Editing,
-
-                errorMessage =
-                    null,
-            )
+        _uiState.value = state.copy(
+            mode = NoteEditorMode.Editing,
+            errorMessage = null,
+        )
     }
 
     fun finishEditing() {
-        val state =
-            _uiState.value
+        val state = _uiState.value
 
-        if (
-            !state.isEditing ||
-            state.syncState ==
-            NoteSyncState.Conflict
-        ) {
+        if (!state.isEditing || state.syncState == NoteSyncState.Conflict) {
             return
         }
 
@@ -661,93 +392,56 @@ class NoteEditorViewModel(
          * 空新 Note / 空已有 Note 的 cleanup
          * 仍然统一由“返回页面”流程处理。
          */
-        if (
-            state.title.isBlank() &&
-            state.text.isBlank() &&
-            state.images.isEmpty()
-        ) {
-            _uiState.value =
-                state.copy(
-                    errorMessage =
-                        "标题、正文和图片不能同时为空，如需放弃这条记录请直接返回。",
-                )
+        if (state.title.isBlank() && state.text.isBlank() && state.images.isEmpty()) {
+            _uiState.value = state.copy(errorMessage = "标题、正文和图片不能同时为空，如需放弃这条记录请直接返回。")
 
             return
         }
 
-        saveJob
-            ?.cancel()
+        saveJob?.cancel()
 
-        saveJob =
-            null
+        saveJob = null
 
         viewModelScope.launch {
-            val note =
-                saveCurrentContent()
-                    ?: return@launch
+            val note = saveCurrentContent() ?: return@launch
 
-            _uiState.value =
-                _uiState.value.copy(
-                    mode =
-                        NoteEditorMode.Reading,
+            _uiState.value = _uiState.value.copy(
+                mode = NoteEditorMode.Reading,
+                errorMessage = null,
+            )
 
-                    errorMessage =
-                        null,
-                )
-
-            note.ownerUserId
-                ?.let { owner ->
-                    noteLocalRepository
-                        .requestSync(
-                            ownerUserId =
-                                owner,
-                        )
-                }
+            note.ownerUserId?.let { owner ->
+                noteLocalRepository.requestSync(ownerUserId = owner)
+            }
         }
     }
 
-    fun runAi(
-        mode: NoteAiMode,
-    ) {
-        val current =
-            _uiState.value
+    fun runAi(mode: NoteAiMode) {
+        val current = _uiState.value
 
         /*
          * AI 只允许 Editing。
          */
-        if (
-            !current.isEditing ||
-            !current.canEdit
-        ) {
+        if (!current.isEditing || !current.canEdit) {
             return
         }
 
-        if (
-            current.aiRunning
-        ) {
+        if (current.aiRunning) {
             return
         }
 
         /*
          * 简单防止连续点击。
          */
-        val now =
-            System.currentTimeMillis()
+        val now = System.currentTimeMillis()
 
-        if (
-            now - lastAiRunAt <
-            1_000L
-        ) {
+        if (now - lastAiRunAt < 1_000L) {
             return
         }
 
-        val title =
-            current.title
-                .trim()
+        val title = current.title.trim()
 
-        val text =
-            current.text
-                .trim()
+        val text = current.text.trim()
 
         /*
          * 与 iOS 保持相同 input contract：
@@ -756,225 +450,131 @@ class NoteEditorViewModel(
          *
          * text
          */
-        val input =
-            when {
-                title.isEmpty() ->
-                    text
+        val input = when {
+            title.isEmpty() -> text
 
-                text.isEmpty() ->
-                    title
+            text.isEmpty() -> title
 
-                else ->
-                    "$title\n\n$text"
-            }
+            else -> "$title\n\n$text"
+        }
 
-        if (
-            input.isBlank()
-        ) {
-            _uiState.value =
-                current.copy(
-                    aiErrorMessage =
-                        "请先输入一些内容",
-
-                    aiSuggestion =
-                        null,
-
-                    aiSuggestionMode =
-                        null,
-                )
+        if (input.isBlank()) {
+            _uiState.value = current.copy(
+                aiErrorMessage = "请先输入一些内容",
+                aiSuggestion = null,
+                aiSuggestionMode = null,
+            )
 
             return
         }
 
-        lastAiRunAt =
-            now
+        lastAiRunAt = now
 
-        _uiState.value =
-            current.copy(
-                aiRunning =
-                    true,
-
-                aiErrorMessage =
-                    null,
-
-                aiSuggestion =
-                    null,
-
-                aiSuggestionMode =
-                    null,
-            )
+        _uiState.value = current.copy(
+            aiRunning = true,
+            aiErrorMessage = null,
+            aiSuggestion = null,
+            aiSuggestionMode = null,
+        )
 
         viewModelScope.launch {
             try {
-                val response =
-                    noteAiRemoteDataSource
-                        .generate(
-                            input =
-                                input,
+                val response = noteAiRemoteDataSource.generate(
+                    input = input,
+                    mode = mode,
+                )
 
-                            mode =
-                                mode,
-                        )
+                val output = response.output?.trim().orEmpty()
 
-                val output =
-                    response.output
-                        ?.trim()
-                        .orEmpty()
-
-                if (
-                    output.isBlank()
-                ) {
-                    _uiState.value =
-                        _uiState.value.copy(
-                            aiRunning =
-                                false,
-
-                            aiErrorMessage =
-                                "AI 没有返回内容",
-                        )
+                if (output.isBlank()) {
+                    _uiState.value = _uiState.value.copy(
+                        aiRunning = false,
+                        aiErrorMessage = "AI 没有返回内容",
+                    )
 
                     return@launch
                 }
 
-                _uiState.value =
-                    _uiState.value.copy(
-                        aiRunning =
-                            false,
+                _uiState.value = _uiState.value.copy(
+                    aiRunning = false,
+                    aiSuggestion = output,
+                    aiSuggestionMode = mode,
+                    aiErrorMessage = null,
+                )
 
-                        aiSuggestion =
-                            output,
-
-                        aiSuggestionMode =
-                            mode,
-
-                        aiErrorMessage =
-                            null,
-                    )
-
-            } catch (
-                error: Throwable,
-            ) {
-                _uiState.value =
-                    _uiState.value.copy(
-                        aiRunning =
-                            false,
-
-                        aiSuggestion =
-                            null,
-
-                        aiSuggestionMode =
-                            null,
-
-                        aiErrorMessage =
-                            error.message
-                                ?.takeIf {
-                                    it.isNotBlank()
-                                }
-                                ?: "AI 处理失败",
-                    )
+            } catch (error: Throwable) {
+                _uiState.value = _uiState.value.copy(
+                    aiRunning = false,
+                    aiSuggestion = null,
+                    aiSuggestionMode = null,
+                    aiErrorMessage = error.message?.takeIf {
+                        it.isNotBlank()
+                    } ?: "AI 处理失败",
+                )
             }
         }
     }
 
     fun replaceTextWithAiSuggestion() {
-        val current =
-            _uiState.value
+        val current = _uiState.value
 
-        val suggestion =
-            current.aiSuggestion
-                ?.takeIf {
-                    it.isNotBlank()
-                }
-                ?: return
+        val suggestion = current.aiSuggestion?.takeIf {
+            it.isNotBlank()
+        } ?: return
 
-        if (
-            current.aiSuggestionMode ==
-            NoteAiMode.Title
-        ) {
+        if (current.aiSuggestionMode == NoteAiMode.Title) {
             return
         }
 
-        updateText(
-            suggestion,
-        )
+        updateText(suggestion)
 
         clearAiSuggestion()
     }
 
     fun appendAiSuggestionToText() {
-        val current =
-            _uiState.value
+        val current = _uiState.value
 
-        val suggestion =
-            current.aiSuggestion
-                ?.takeIf {
-                    it.isNotBlank()
-                }
-                ?: return
+        val suggestion = current.aiSuggestion?.takeIf {
+            it.isNotBlank()
+        } ?: return
 
-        if (
-            current.aiSuggestionMode ==
-            NoteAiMode.Title
-        ) {
+        if (current.aiSuggestionMode == NoteAiMode.Title) {
             return
         }
 
-        val nextText =
-            if (
-                current.text.isBlank()
-            ) {
-                suggestion
-            } else {
-                current.text
-                    .trimEnd() +
-                        "\n\n" +
-                        suggestion
-            }
+        val nextText = if (current.text.isBlank()) {
+            suggestion
+        } else {
+            current.text.trimEnd() + "\n\n" + suggestion
+        }
 
-        updateText(
-            nextText,
-        )
+        updateText(nextText)
 
         clearAiSuggestion()
     }
 
     fun useAiSuggestionAsTitle() {
-        val current =
-            _uiState.value
+        val current = _uiState.value
 
-        val suggestion =
-            current.aiSuggestion
-                ?.takeIf {
-                    it.isNotBlank()
-                }
-                ?: return
+        val suggestion = current.aiSuggestion?.takeIf {
+            it.isNotBlank()
+        } ?: return
 
-        if (
-            current.aiSuggestionMode !=
-            NoteAiMode.Title
-        ) {
+        if (current.aiSuggestionMode != NoteAiMode.Title) {
             return
         }
 
-        updateTitle(
-            suggestion,
-        )
+        updateTitle(suggestion)
 
         clearAiSuggestion()
     }
 
     fun clearAiSuggestion() {
-        _uiState.value =
-            _uiState.value.copy(
-                aiSuggestion =
-                    null,
-
-                aiSuggestionMode =
-                    null,
-
-                aiErrorMessage =
-                    null,
-            )
+        _uiState.value = _uiState.value.copy(
+            aiSuggestion = null,
+            aiSuggestionMode = null,
+            aiErrorMessage = null,
+        )
     }
 
     // MARK: - Conflict
@@ -983,68 +583,42 @@ class NoteEditorViewModel(
         onDeleted: () -> Unit,
     ) {
         viewModelScope.launch {
-            val note =
-                currentNote
-                    ?: return@launch
+            val note = currentNote ?: return@launch
 
             try {
-                val resolved =
-                    noteLocalRepository
-                        .resolveConflictUsingRemote(
-                            note =
-                                note,
-                        )
+                val resolved = noteLocalRepository.resolveConflictUsingRemote(note = note)
 
                 /*
                  * Remote Deleted + 使用云端：
                  * Room row 已经被删除。
                  */
-                if (
-                    resolved == null
-                ) {
-                    observeNoteJob
-                        ?.cancel()
+                if (resolved == null) {
+                    observeNoteJob?.cancel()
 
-                    observeNoteJob =
-                        null
+                    observeNoteJob = null
 
-                    observedLocalKey =
-                        null
+                    observedLocalKey = null
 
-                    currentNote =
-                        null
+                    currentNote = null
 
                     onDeleted()
 
                     return@launch
                 }
 
-                adoptResolvedNote(
-                    note =
-                        resolved,
-                )
+                adoptResolvedNote(note = resolved)
 
-            } catch (
-                error: Throwable
-            ) {
-                _uiState.value =
-                    _uiState.value.copy(
-                        errorMessage =
-                            error.message
-                                ?: "使用云端版本失败",
-                    )
+            } catch (error: Throwable) {
+                _uiState.value = _uiState.value.copy(errorMessage = error.message ?: "使用云端版本失败")
             }
         }
     }
 
     fun resolveConflictKeepingLocal() {
         viewModelScope.launch {
-            val note =
-                currentNote
-                    ?: return@launch
+            val note = currentNote ?: return@launch
 
-            val state =
-                _uiState.value
+            val state = _uiState.value
 
             try {
                 /*
@@ -1056,112 +630,57 @@ class NoteEditorViewModel(
                  *
                  * “保留本机版本”必须保护这些输入。
                  */
-                val localVersion =
-                    note.copy(
-                        title =
-                            state.title,
-
-                        text =
-                            state.text,
-
-                        pinned =
-                            state.pinned,
-                    )
-
-                val resolved =
-                    noteLocalRepository
-                        .resolveConflictKeepingLocal(
-                            note =
-                                localVersion,
-                        )
-                        ?: return@launch
-
-                adoptResolvedNote(
-                    note =
-                        resolved,
+                val localVersion = note.copy(
+                    title = state.title,
+                    text = state.text,
+                    pinned = state.pinned,
                 )
 
-            } catch (
-                error: Throwable
-            ) {
-                _uiState.value =
-                    _uiState.value.copy(
-                        errorMessage =
-                            error.message
-                                ?: "保留本地版本失败",
-                    )
+                val resolved = noteLocalRepository.resolveConflictKeepingLocal(
+                    note = localVersion,
+                ) ?: return@launch
+
+                adoptResolvedNote(note = resolved)
+
+            } catch (error: Throwable) {
+                _uiState.value = _uiState.value.copy(errorMessage = error.message ?: "保留本地版本失败")
             }
         }
     }
 
-    private suspend fun adoptResolvedNote(
-        note: LocalNoteEntity,
-    ) {
-        val previousLocalKey =
-            currentNote
-                ?.localKey
+    private suspend fun adoptResolvedNote(note: LocalNoteEntity) {
+        val previousLocalKey = currentNote?.localKey
 
-        if (
-            previousLocalKey != null &&
-            previousLocalKey != note.localKey
-        ) {
-            noteImageService
-                .rebindNote(
-                    ownerUserId =
-                        ownerUserId,
-
-                    oldNoteLocalKey =
-                        previousLocalKey,
-
-                    newNoteLocalKey =
-                        note.localKey,
-                )
+        if (previousLocalKey != null && previousLocalKey != note.localKey) {
+            noteImageService.rebindNote(
+                ownerUserId = ownerUserId,
+                oldNoteLocalKey = previousLocalKey,
+                newNoteLocalKey = note.localKey,
+            )
         }
 
-        currentNote =
-            note
+        currentNote = note
 
-        val baseState =
-            NoteEditorUiState
-                .fromNote(
-                    note,
-                )
+        val baseState = NoteEditorUiState.fromNote(note)
 
-        _uiState.value =
-            baseState.copy(
-                images =
-                    _uiState.value.images,
-
-                mode =
-                    NoteEditorMode.Reading,
-
-                conflict =
-                    conflictUiModel(
-                        note,
-                    ),
-
-                errorMessage =
-                    null,
-            )
-
-        observeCurrentNote(
-            localKey =
-                note.localKey,
+        _uiState.value = baseState.copy(
+            images = _uiState.value.images,
+            mode = NoteEditorMode.Reading,
+            conflict = conflictUiModel(
+                note,
+            ),
+            errorMessage = null,
         )
 
-        observeCurrentNoteImages(
-            noteLocalKey =
-                note.localKey,
-        )
+        observeCurrentNote(localKey = note.localKey)
+
+        observeCurrentNoteImages(noteLocalKey = note.localKey)
     }
 
     private fun conflictUiModel(
         note: LocalNoteEntity,
     ): NoteConflictUiModel? {
-        if (
-            note.syncState !=
-            NoteSyncState.Conflict
-        ) {
+        if (note.syncState != NoteSyncState.Conflict) {
             return null
         }
 
@@ -1174,75 +693,77 @@ class NoteEditorViewModel(
          * 这时返回 null 是正常状态，
          * Screen 会显示“正在获取最新云端版本”。
          */
-        val snapshot =
-            runCatching {
-                noteLocalRepository
-                    .decodeConflictSnapshot(
-                        note.conflictSnapshotJson,
-                    )
-            }.getOrNull()
-                ?: return null
+        val snapshot = runCatching {
+            noteLocalRepository.decodeConflictSnapshot(note.conflictSnapshotJson)
+        }.getOrNull() ?: return null
 
         return NoteConflictUiModel(
-            title =
-                snapshot.title,
-
-            text =
-                snapshot.text,
-
-            dayKey =
-                snapshot.dayKey,
-
-            onlyDay =
-                snapshot.onlyDay,
-
-            pinned =
-                snapshot.pinned,
-
-            remoteStatus =
-                snapshot.parsedRemoteStatus,
-
-            version =
-                snapshot.version,
-
-            updatedAt =
-                snapshot.updatedAt,
+            title = snapshot.title,
+            text = snapshot.text,
+            dayKey = snapshot.dayKey,
+            onlyDay = snapshot.onlyDay,
+            pinned = snapshot.pinned,
+            remoteStatus = snapshot.parsedRemoteStatus,
+            version = snapshot.version,
+            updatedAt = snapshot.updatedAt,
         )
     }
 
     // MARK: - Content
 
-    fun updateTitle(
-        value: String,
-    ) {
-        if (
-            !isEditingCurrentNote()
-        ) {
+    fun setDayKey(dayKey: String?) {
+        val state = _uiState.value
+
+        if (!state.canEdit ||
+            !state.isEditing ||
+            state.onlyDay ||
+            state.syncState == NoteSyncState.Conflict ||
+            state.dayKey == dayKey) return
+
+        saveJob?.cancel()
+        saveJob = null
+
+        viewModelScope.launch {
+            val note = saveCurrentContent() ?: return@launch
+
+            if (_uiState.value.syncState == NoteSyncState.Conflict) {
+                return@launch
+            }
+
+            try {
+                val updated = noteLocalRepository
+                    .setPlacement(note = note, dayKey = dayKey, onlyDay = false)
+
+                currentNote = updated
+
+                _uiState.value = _uiState.value.copy(
+                    dayKey = updated.dayKey,
+                    syncState = updated.syncState,
+                    errorMessage = null,
+                )
+            } catch (error: Throwable) {
+                _uiState.value = _uiState.value.copy(errorMessage = error.message ?: "关联日期失败")
+            }
+        }
+    }
+
+    fun updateTitle(value: String) {
+        if (!isEditingCurrentNote()) {
             return
         }
 
-        if (
-            _uiState.value.syncState ==
-            NoteSyncState.Conflict
-        ) {
+        if (_uiState.value.syncState == NoteSyncState.Conflict) {
             return
         }
 
-        if (
-            _uiState.value.title ==
-            value
-        ) {
+        if (_uiState.value.title == value) {
             return
         }
 
-        _uiState.value =
-            _uiState.value.copy(
-                title =
-                    value,
-
-                errorMessage =
-                    null,
-            )
+        _uiState.value = _uiState.value.copy(
+            title = value,
+            errorMessage = null,
+        )
 
         scheduleSave()
     }
@@ -1258,9 +779,8 @@ class NoteEditorViewModel(
         val current = _uiState.value
         if (current.text == value) return
 
-        val nextContentJson = NoteContentCodec.stringify(
-            NoteContentCodec.fromPlainText(value)
-        )
+        val nextContentJson = NoteContentCodec
+            .stringify(NoteContentCodec.fromPlainText(value))
         _uiState.value = current.copy(
             text = value,
             contentJson = nextContentJson,
@@ -1279,34 +799,94 @@ class NoteEditorViewModel(
         if (_uiState.value.syncState == NoteSyncState.Conflict) return
         require(content.v == 1) { "Unsupported BlockContent version" }
 
-        val element = richContentJson.encodeToJsonElement(
-            BlockContent.serializer(), content
-        )
+        val element = richContentJson
+            .encodeToJsonElement(BlockContent.serializer(), content)
         val encoded = NoteContentCodec.stringify(element)
         val plainText = NoteContentCodec.extractText(element)
         val current = _uiState.value
         if (current.contentJson == encoded && current.text == plainText) return
 
-        _uiState.value = current.copy(
-            text = plainText,
-            contentJson = encoded,
-            errorMessage = null,
-        )
+        _uiState.value = current.copy(text = plainText, contentJson = encoded, errorMessage = null)
         scheduleSave()
+    }
+
+    /** Checklist can be toggled in Reading without opening the rich-text editor. */
+    fun setChecklistChecked(lineId: String, checked: Boolean) {
+        viewModelScope.launch {
+            checklistWriteMutex.withLock {
+                val state = _uiState.value
+                if (!state.canEdit || state.isEditing ||
+                    state.syncState == NoteSyncState.Conflict ||
+                    state.remoteStatus != NoteRemoteStatus.Active
+                ) return@withLock
+
+                try {
+                    val localKey = currentNote?.localKey ?: return@withLock
+                    // Read the latest Room row for each operation so rapid taps are not lost.
+                    val note = noteLocalRepository.findByLocalKey(ownerUserId, localKey)
+                        ?: return@withLock
+                    if (note.ownerUserId != ownerUserId ||
+                        note.syncState == NoteSyncState.Conflict
+                    ) return@withLock
+
+                    val raw = note.contentJson?.takeIf { it.isNotBlank() }
+                        ?: return@withLock
+                    val content = NoteContentCodec.readModel(
+                        requireNotNull(NoteContentCodec.parse(raw))
+                    )
+                    if (content.v != 1) return@withLock
+
+                    val target = content.lines.firstOrNull { it.id == lineId }
+                        ?: return@withLock
+                    if (target.list?.type != "checkbox" ||
+                        target.list?.checked == checked
+                    ) return@withLock
+
+                    val nextContent = content.copy(
+                        lines = content.lines.map { line ->
+                            if (line.id == lineId) {
+                                line.copy(list = line.list?.copy(checked = checked))
+                            } else line
+                        }
+                    )
+                    val element = richContentJson.encodeToJsonElement(
+                        BlockContent.serializer(), nextContent
+                    )
+                    val updated = noteLocalRepository.updateRichContent(
+                        note = note,
+                        title = note.title,
+                        text = NoteContentCodec.extractText(element),
+                        contentJson = NoteContentCodec.stringify(element),
+                    )
+                    currentNote = updated
+                    if (_uiState.value.localKey == updated.localKey &&
+                        !_uiState.value.isEditing
+                    ) {
+                        _uiState.value = _uiState.value.copy(
+                            text = updated.text,
+                            contentJson = updated.contentJson,
+                            syncState = updated.syncState,
+                            errorMessage = null,
+                        )
+                    }
+                    noteLocalRepository.requestSync(ownerUserId)
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Throwable) {
+                    _uiState.value = _uiState.value.copy(
+                        errorMessage = error.message ?: "更新待办状态失败"
+                    )
+                }
+            }
+        }
     }
 
     // MARK: - Pin
 
-    fun setPinned(
-        value: Boolean,
-    ) {
+    fun setPinned(value: Boolean) {
         val state = _uiState.value
 
-        if (
-            !state.canEdit ||
-            state.syncState ==
-            NoteSyncState.Conflict
-        ) {
+        if (!state.canEdit || state.syncState == NoteSyncState.Conflict) {
             return
         }
 
@@ -1314,22 +894,16 @@ class NoteEditorViewModel(
             return
         }
 
-        _uiState.value = state.copy(
-            pinned = value,
-            errorMessage = null,
-        )
+        _uiState.value = state.copy(pinned = value, errorMessage = null)
 
         viewModelScope.launch {
             try {
                 val note = currentNote ?: return@launch
-                saveJob ?.cancel()
+                saveJob?.cancel()
                 saveJob = null
                 val latestNote = saveCurrentContent() ?: note
                 val updated = noteLocalRepository
-                    .setPinned(
-                        note = latestNote,
-                        pinned = value,
-                    )
+                    .setPinned(note = latestNote, pinned = value)
                 currentNote = updated
 
                 _uiState.value = _uiState.value.copy(
@@ -1337,11 +911,9 @@ class NoteEditorViewModel(
                     syncState = updated.syncState,
                     errorMessage = null,
                 )
-            } catch (
-                error: Throwable
-            ) {
+            } catch (error: Throwable) {
                 _uiState.value = _uiState.value.copy(
-                    errorMessage = error.message ?: "更新置顶状态失败",
+                    errorMessage = error.message ?: "更新置顶状态失败"
                 )
             }
         }
@@ -1353,48 +925,24 @@ class NoteEditorViewModel(
         onDeleted: () -> Unit,
     ) {
         viewModelScope.launch {
-            saveJob
-                ?.cancel()
+            saveJob?.cancel()
+            saveJob = null
 
-            saveJob =
-                null
-
-            val note =
-                currentNote
-                    ?: return@launch
+            val note = currentNote ?: return@launch
 
             try {
-                val marked =
-                    noteLocalRepository
-                        .markForDelete(
-                            note =
-                                note,
-                        )
+                val marked = noteLocalRepository.markForDelete(note = note)
 
-                currentNote =
-                    marked
-
-                marked
-                    ?.ownerUserId
-                    ?.let { owner ->
-                        noteLocalRepository
-                            .requestSync(
-                                ownerUserId =
-                                    owner,
-                            )
-                    }
-
+                currentNote = marked
+                marked?.ownerUserId?.let { owner ->
+                    noteLocalRepository.requestSync(ownerUserId = owner)
+                }
                 onDeleted()
 
-            } catch (
-                error: Throwable
-            ) {
-                _uiState.value =
-                    _uiState.value.copy(
-                        errorMessage =
-                            error.message
-                                ?: "删除记录失败",
-                    )
+            } catch (error: Throwable) {
+                _uiState.value = _uiState.value.copy(
+                    errorMessage = error.message ?: "删除记录失败"
+                )
             }
         }
     }
@@ -1402,17 +950,14 @@ class NoteEditorViewModel(
     // MARK: - Flush
 
     suspend fun flush() {
-        saveJob
-            ?.cancel()
+        saveJob?.cancel()
 
-        saveJob =
-            null
+        saveJob = null
 
         if (
             !isEditingCurrentNote() ||
-            _uiState.value.syncState ==
-            NoteSyncState.Conflict
-        ) {
+            _uiState.value.syncState == NoteSyncState.Conflict
+            ) {
             return
         }
 
@@ -1420,106 +965,62 @@ class NoteEditorViewModel(
     }
 
     suspend fun flushAndCleanup() {
-        saveJob
-            ?.cancel()
+        saveJob?.cancel()
 
-        saveJob =
-            null
+        saveJob = null
 
-        if (
-            _uiState.value.syncState ==
-            NoteSyncState.Conflict
-        ) {
+        if (_uiState.value.syncState == NoteSyncState.Conflict) {
             return
         }
 
-        if (
-            !isEditingCurrentNote()
-        ) {
+        if (!isEditingCurrentNote()) {
             return
         }
 
-        val note =
-            saveCurrentContent()
-                ?: return
+        val note = saveCurrentContent() ?: return
 
-        if (
-            isEmptyNote(
-                note,
-            )
+        if (isEmptyNote(note)
         ) {
-            if (
-                note.noteId == null &&
-                note.remoteVersion == null
-            ) {
-                noteImageService
-                    .removeAllImagesForNote(
-                        ownerUserId =
-                            ownerUserId,
+            if (note.noteId == null && note.remoteVersion == null) {
+                noteImageService.removeAllImagesForNote(
+                    ownerUserId = ownerUserId,
+                    noteLocalKey = note.localKey,
+                )
 
-                        noteLocalKey =
-                            note.localKey,
-                    )
+                noteLocalRepository.deleteLocal(note = note)
 
-                noteLocalRepository
-                    .deleteLocal(
-                        note =
-                            note,
-                    )
-
-                currentNote =
-                    null
+                currentNote = null
 
                 return
             }
 
-            val marked =
-                noteLocalRepository
-                    .markForDelete(
-                        note =
-                            note,
-                    )
+            val marked = noteLocalRepository.markForDelete(note = note)
 
-            currentNote =
-                marked
+            currentNote = marked
 
-            marked
-                ?.ownerUserId
-                ?.let { owner ->
-                    noteLocalRepository
-                        .requestSync(
-                            ownerUserId =
-                                owner,
-                        )
-                }
+            marked?.ownerUserId?.let { owner ->
+                noteLocalRepository.requestSync(ownerUserId = owner)
+            }
 
             return
         }
 
-        note.ownerUserId
-            ?.let { owner ->
-                noteLocalRepository
-                    .requestSync(
-                        ownerUserId =
-                            owner,
-                    )
-            }
+        note.ownerUserId?.let { owner ->
+            noteLocalRepository.requestSync(ownerUserId = owner)
+        }
     }
 
     fun saveNow() {
         if (
             !isEditingCurrentNote() ||
-            _uiState.value.syncState ==
-            NoteSyncState.Conflict
-        ) {
+            _uiState.value.syncState == NoteSyncState.Conflict
+            ) {
             return
         }
 
-        saveJob
-            ?.cancel()
+        saveJob?.cancel()
 
-        saveJob =
-            null
+        saveJob = null
 
         viewModelScope.launch {
             saveCurrentContent()
@@ -1529,58 +1030,38 @@ class NoteEditorViewModel(
     // MARK: - Autosave
 
     private fun scheduleSave() {
-        if (
-            !isEditingCurrentNote() ||
-            _uiState.value.syncState ==
-            NoteSyncState.Conflict
-        ) {
+        if (!isEditingCurrentNote() ||
+            _uiState.value.syncState == NoteSyncState.Conflict
+            ) {
             return
         }
 
-        saveJob
-            ?.cancel()
+        saveJob?.cancel()
 
-        saveJob =
-            viewModelScope.launch {
-                delay(
-                    500.milliseconds,
-                )
+        saveJob = viewModelScope.launch {
+            delay(500.milliseconds)
 
-                saveCurrentContent()
-            }
+            saveCurrentContent()
+        }
     }
 
-    private suspend fun saveCurrentContent():
-            LocalNoteEntity? {
+    private suspend fun saveCurrentContent(): LocalNoteEntity? {
 
-        val note =
-            currentNote
-                ?: return null
+        val note = currentNote ?: return null
 
-        if (
-            !isEditingCurrentNote()
-        ) {
+        if (!isEditingCurrentNote()) {
             return note
         }
 
-        if (
-            _uiState.value.syncState ==
-            NoteSyncState.Conflict
-        ) {
+        if (_uiState.value.syncState == NoteSyncState.Conflict) {
             return note
         }
 
-        val state =
-            _uiState.value
+        val state = _uiState.value
 
-        if (
-            note.title ==
-            state.title &&
-            note.text ==
-            state.text &&
-            note.contentJson ==
-            state.contentJson
-        ) {
+        if (note.title == state.title &&
+            note.text == state.text &&
+            note.contentJson == state.contentJson) {
             return note
         }
 
@@ -1594,35 +1075,23 @@ class NoteEditorViewModel(
                 )
             } else {
                 noteLocalRepository.updateContent(
-                    note = note,
-                    title = state.title,
-                    text = state.text,
+                    note = note, title = state.title, text = state.text
                 )
             }
 
-            currentNote =
-                updated
+            currentNote = updated
 
-            _uiState.value =
-                _uiState.value.copy(
-                    syncState =
-                        updated.syncState,
-
-                    errorMessage =
-                        null,
-                )
+            _uiState.value = _uiState.value.copy(
+                syncState = updated.syncState,
+                errorMessage = null,
+            )
 
             updated
 
-        } catch (
-            error: Throwable
-        ) {
-            _uiState.value =
-                _uiState.value.copy(
-                    errorMessage =
-                        error.message
-                            ?: "保存记录失败",
-                )
+        } catch (error: Throwable) {
+            _uiState.value = _uiState.value.copy(
+                errorMessage = error.message ?: "保存记录失败"
+            )
 
             null
         }
@@ -1630,192 +1099,115 @@ class NoteEditorViewModel(
 
     // MARK: - Guards
 
-    private fun canEditCurrentNote():
-            Boolean {
+    private fun canEditCurrentNote(): Boolean {
+        val state = _uiState.value
 
-        val state =
-            _uiState.value
-
-        return state.canEdit &&
-                state.syncState !=
-                NoteSyncState.Conflict
+        return state.canEdit && state.syncState != NoteSyncState.Conflict
     }
 
-    private fun isEditingCurrentNote():
-            Boolean {
+    private fun isEditingCurrentNote(): Boolean {
+        val state = _uiState.value
 
-        val state =
-            _uiState.value
-
-        return state.isEditing &&
-                state.syncState !=
-                NoteSyncState.Conflict
+        return state.isEditing && state.syncState != NoteSyncState.Conflict
     }
 
     private suspend fun isEmptyNote(
         note: LocalNoteEntity,
     ): Boolean {
-        if (
-            note.title.isNotBlank() ||
-            note.text.isNotBlank()
-        ) {
+        if (note.title.isNotBlank() || note.text.isNotBlank()) {
             return false
         }
 
-        val images =
-            noteImageService
-                .listImages(
-                    ownerUserId =
-                        ownerUserId,
-
-                    noteLocalKey =
-                        note.localKey,
-                )
+        val images = noteImageService.listImages(
+            ownerUserId = ownerUserId,
+            noteLocalKey = note.localKey,
+        )
 
         return images.isEmpty()
     }
 
     override fun onCleared() {
-        saveJob
-            ?.cancel()
+        saveJob?.cancel()
 
-        observeNoteJob
-            ?.cancel()
+        observeNoteJob?.cancel()
 
-        observeImagesJob
-            ?.cancel()
+        observeImagesJob?.cancel()
 
         super.onCleared()
     }
 
-    private data class InitialNoteResult(
-        val note: LocalNoteEntity?,
-        val startEditing: Boolean,
-    )
+    private data class InitialNoteResult(val note: LocalNoteEntity?, val startEditing: Boolean)
 
     // MARK: - Note Image
 
-    private fun LocalNoteImageEntity.toEditorImageUi():
-            NoteEditorImageUi {
+    private fun LocalNoteImageEntity.toEditorImageUi(): NoteEditorImageUi {
 
-        val localUrl =
-            localPath
-                ?.takeIf {
-                    it.isNotBlank()
-                }
-                ?.let { path ->
-                    File(
-                        path,
-                    )
-                        .toUri()
-                        .toString()
-                }
+        val localUrl = localPath?.takeIf {
+            it.isNotBlank()
+        }?.let { path ->
+            File(path).toUri().toString()
+        }
 
-        val remoteUrl =
-            imageId
-                ?.takeIf {
-                    it.isNotBlank()
-                }
-                ?.let { remoteImageId ->
-                    remotePreviewUrls[
-                        remoteImageId
-                    ]
-                }
+        val remoteUrl = imageId?.takeIf {
+            it.isNotBlank()
+        }?.let { remoteImageId ->
+            remotePreviewUrls[remoteImageId]
+        }
 
         return NoteEditorImageUi(
-            localImageKey =
-                localImageKey,
-
-            imageId =
-                imageId,
-
-            displayUrl =
-                localUrl
-                    ?: remoteUrl,
-
-            uploadState =
-                uploadState,
-
-            uploadError =
-                uploadError,
+            localImageKey = localImageKey,
+            imageId = imageId,
+            displayUrl = localUrl ?: remoteUrl,
+            uploadState = uploadState,
+            uploadError = uploadError,
         )
     }
 
-    private fun resolveMissingRemotePreviews(
-        images: List<LocalNoteImageEntity>,
-    ) {
-        val imageIds =
-            images
-                .asSequence()
-
-                /*
-                 * 本地文件存在时，
-                 * Editor 直接走 file://，
-                 * 不需要 remote preview。
-                 */
-                .filter { image ->
-                    image.localPath
-                        .isNullOrBlank()
-                }
-
-                .mapNotNull { image ->
-                    image.imageId
-                        ?.takeIf {
-                            it.isNotBlank()
-                        }
-                }
-
-                .distinct()
-
-                /*
-                 * 已有缓存的不重复请求。
-                 */
-                .filter { imageId ->
-                    imageId !in
-                            remotePreviewUrls
-                }
-
-                /*
-                 * 当前已经正在获取的也不重复请求。
-                 */
-                .filter { imageId ->
-                    imageId !in
-                            resolvingPreviewImageIds
-                }
-
-                .toList()
+    private fun resolveMissingRemotePreviews(images: List<LocalNoteImageEntity>) {
+        val imageIds = images
+            .asSequence()
+            /*
+             * 本地文件存在时，
+             * Editor 直接走 file://，
+             * 不需要 remote preview。
+             */
+            .filter { image ->
+                image.localPath.isNullOrBlank()
+            }
+            .mapNotNull { image ->
+                image.imageId?.takeIf { it.isNotBlank() }
+            }
+            .distinct()
+            /*
+             * 已有缓存的不重复请求。
+             */
+            .filter { imageId ->
+                imageId !in remotePreviewUrls
+            }
+            /*
+             * 当前已经正在获取的也不重复请求。
+             */
+            .filter { imageId ->
+                imageId !in resolvingPreviewImageIds
+            }
+            .toList()
 
         imageIds.forEach { imageId ->
-            resolvingPreviewImageIds +=
-                imageId
+            resolvingPreviewImageIds += imageId
 
             viewModelScope.launch {
                 try {
-                    val preview =
-                        imageRepository
-                            .getPreviewUrl(
-                                imageId =
-                                    imageId,
-                            )
+                    val preview = imageRepository.getPreviewUrl(imageId = imageId)
 
-                    val previewUrl =
-                        preview.url
-                            .takeIf {
-                                it.isNotBlank()
-                            }
-
-                    if (
-                        previewUrl != null
-                    ) {
-                        remotePreviewUrls[
-                            imageId
-                        ] =
-                            previewUrl
+                    val previewUrl = preview.url.takeIf {
+                        it.isNotBlank()
                     }
 
-                } catch (
-                    _: Throwable,
-                ) {
+                    if (previewUrl != null) {
+                        remotePreviewUrls[imageId] = previewUrl
+                    }
+
+                } catch (_: Throwable) {
                     /*
                      * Preview 获取失败不影响 Note。
                      *
@@ -1828,8 +1220,7 @@ class NoteEditorViewModel(
                      * 都还能继续尝试。
                      */
                 } finally {
-                    resolvingPreviewImageIds -=
-                        imageId
+                    resolvingPreviewImageIds -= imageId
 
                     /*
                      * URL cache 变化以后重新映射。
@@ -1841,188 +1232,97 @@ class NoteEditorViewModel(
     }
 
     private fun updateImageUiState() {
-        val imageUiItems =
-            currentImageEntities
-                .map { image ->
-                    image.toEditorImageUi()
-                }
+        val imageUiItems = currentImageEntities.map { image ->
+            image.toEditorImageUi()
+        }
 
-        _uiState.value =
-            _uiState.value.copy(
-                images =
-                    imageUiItems,
-            )
+        _uiState.value = _uiState.value.copy(images = imageUiItems)
     }
 
-    private fun applyObservedImages(
-        images: List<LocalNoteImageEntity>,
-    ) {
-        currentImageEntities =
-            images
+    private fun applyObservedImages(images: List<LocalNoteImageEntity>) {
+        currentImageEntities = images
 
         updateImageUiState()
 
-        resolveMissingRemotePreviews(
-            images =
-                images,
-        )
+        resolveMissingRemotePreviews(images = images)
     }
 
-    private fun observeCurrentNoteImages(
-        noteLocalKey: String,
-    ) {
-        if (
-            observedImageNoteLocalKey ==
-            noteLocalKey &&
-            observeImagesJob?.isActive ==
-            true
-        ) {
+    private fun observeCurrentNoteImages(noteLocalKey: String) {
+        if (observedImageNoteLocalKey == noteLocalKey && observeImagesJob?.isActive == true) {
             return
         }
 
-        observeImagesJob
-            ?.cancel()
+        observeImagesJob?.cancel()
 
-        observedImageNoteLocalKey =
-            noteLocalKey
+        observedImageNoteLocalKey = noteLocalKey
 
-        observeImagesJob =
-            viewModelScope.launch {
-                noteImageService
-                    .observeImages(
-                        ownerUserId =
-                            ownerUserId,
-
-                        noteLocalKey =
-                            noteLocalKey,
-                    )
-                    .collectLatest { images ->
-                        applyObservedImages(
-                            images =
-                                images,
-                        )
-                    }
+        observeImagesJob = viewModelScope.launch {
+            noteImageService.observeImages(
+                ownerUserId = ownerUserId,
+                noteLocalKey = noteLocalKey,
+            ).collectLatest { images ->
+                applyObservedImages(images = images)
             }
+        }
     }
 
-    fun addImage(
-        sourceUri: Uri,
-    ) {
-        val state =
-            _uiState.value
+    fun addImage(sourceUri: Uri) {
+        val state = _uiState.value
 
-        if (
-            !state.canEdit ||
-            state.syncState ==
-            NoteSyncState.Conflict
-        ) {
+        if (!state.canEdit || state.syncState == NoteSyncState.Conflict) {
             return
         }
 
-        val note =
-            currentNote
-                ?: return
+        val note = currentNote ?: return
 
         viewModelScope.launch {
             try {
-                noteImageService
-                    .addImage(
-                        ownerUserId =
-                            ownerUserId,
+                noteImageService.addImage(
+                    ownerUserId = ownerUserId,
+                    noteLocalKey = note.localKey,
+                    sourceUri = sourceUri,
+                )
 
-                        noteLocalKey =
-                            note.localKey,
+                _uiState.value = _uiState.value.copy(errorMessage = null)
 
-                        sourceUri =
-                            sourceUri,
-                    )
-
-                _uiState.value =
-                    _uiState.value.copy(
-                        errorMessage =
-                            null,
-                    )
-
-            } catch (
-                error: Throwable,
-            ) {
-                _uiState.value =
-                    _uiState.value.copy(
-                        errorMessage =
-                            error.message
-                                ?: "添加图片失败",
-                    )
+            } catch (error: Throwable) {
+                _uiState.value = _uiState.value.copy(errorMessage = error.message ?: "添加图片失败")
             }
         }
     }
 
-    fun retryImageUpload(
-        localImageKey: String,
-    ) {
+    fun retryImageUpload(localImageKey: String) {
         viewModelScope.launch {
             try {
-                noteImageService
-                    .retryUpload(
-                        ownerUserId =
-                            ownerUserId,
+                noteImageService.retryUpload(
+                    ownerUserId = ownerUserId,
+                    localImageKey = localImageKey,
+                )
 
-                        localImageKey =
-                            localImageKey,
-                    )
-
-            } catch (
-                error: Throwable,
-            ) {
-                _uiState.value =
-                    _uiState.value.copy(
-                        errorMessage =
-                            error.message
-                                ?: "图片上传失败",
-                    )
+            } catch (error: Throwable) {
+                _uiState.value = _uiState.value.copy(errorMessage = error.message ?: "图片上传失败")
             }
         }
     }
 
-    fun removeImage(
-        localImageKey: String,
-    ) {
-        val state =
-            _uiState.value
+    fun removeImage(localImageKey: String) {
+        val state = _uiState.value
 
-        if (
-            !state.canEdit ||
-            state.syncState ==
-            NoteSyncState.Conflict
-        ) {
+        if (!state.canEdit || state.syncState == NoteSyncState.Conflict) {
             return
         }
 
         viewModelScope.launch {
             try {
-                noteImageService
-                    .removeImage(
-                        ownerUserId =
-                            ownerUserId,
+                noteImageService.removeImage(
+                    ownerUserId = ownerUserId,
+                    localImageKey = localImageKey,
+                )
 
-                        localImageKey =
-                            localImageKey,
-                    )
+                _uiState.value = _uiState.value.copy(errorMessage = null)
 
-                _uiState.value =
-                    _uiState.value.copy(
-                        errorMessage =
-                            null,
-                    )
-
-            } catch (
-                error: Throwable,
-            ) {
-                _uiState.value =
-                    _uiState.value.copy(
-                        errorMessage =
-                            error.message
-                                ?: "删除图片失败",
-                    )
+            } catch (error: Throwable) {
+                _uiState.value = _uiState.value.copy(errorMessage = error.message ?: "删除图片失败")
             }
         }
     }

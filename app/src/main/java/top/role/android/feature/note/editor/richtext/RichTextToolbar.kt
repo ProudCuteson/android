@@ -1,5 +1,8 @@
 package top.role.android.feature.note.editor.richtext
 
+import android.net.Uri
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -30,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import top.role.android.feature.note.editor.NoteImagePickButton
 
 internal enum class RichToolMenuType { Color, Paragraph, List, More }
 
@@ -37,71 +41,99 @@ internal enum class RichToolMenuType { Color, Paragraph, List, More }
 @Composable
 fun RichTextToolbar(
     editor: RichTextEditorState,
+    onAddImage: (Uri) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var expandedMenu by remember { mutableStateOf<RichToolMenuType?>(null) }
+    var expandedMenu by remember {
+        mutableStateOf<RichToolMenuType?>(null)
+    }
 
     Row(
-        modifier = modifier.horizontalScroll(rememberScrollState()),
+        modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        RichToolIcon(
-            icon = Icons.Filled.Undo,
-            description = "撤销",
-            enabled = editor.field.undoState.canUndo,
-            onClick = { editor.undo() },
-        )
-        RichToolIcon(
-            icon = Icons.Outlined.FormatBold,
-            description = "加粗",
-            selected = editor.markActive(RichInlineMark.Bold),
-            onClick = { editor.toggleMark(RichInlineMark.Bold) },
-        )
-        RichToolIcon(
-            icon = Icons.Outlined.FormatItalic,
-            description = "斜体",
-            selected = editor.markActive(RichInlineMark.Italic),
-            onClick = { editor.toggleMark(RichInlineMark.Italic) },
-        )
+        // 左侧：富文本工具，可横向滚动
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .horizontalScroll(rememberScrollState()),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            RichToolIcon(
+                icon = Icons.Filled.Undo,
+                description = "撤销",
+                enabled = editor.field.undoState.canUndo,
+                onClick = { editor.undo() },
+            )
 
-        RichMenuAnchor(
-            type = RichToolMenuType.Color,
-            icon = Icons.Outlined.Palette,
-            description = "颜色与高亮",
-            editor = editor,
-            expandedMenu = expandedMenu,
-            onToggle = { expandedMenu = it },
-        )
+            RichToolIcon(
+                icon = Icons.Outlined.FormatBold,
+                description = "加粗",
+                selected = editor.markActive(RichInlineMark.Bold),
+                onClick = { editor.toggleMark(RichInlineMark.Bold) },
+            )
+
+            RichToolIcon(
+                icon = Icons.Outlined.FormatItalic,
+                description = "斜体",
+                selected = editor.markActive(RichInlineMark.Italic),
+                onClick = { editor.toggleMark(RichInlineMark.Italic) },
+            )
+
+            RichMenuAnchor(
+                type = RichToolMenuType.Color,
+                icon = Icons.Outlined.Palette,
+                description = "颜色与高亮",
+                editor = editor,
+                expandedMenu = expandedMenu,
+                onToggle = { expandedMenu = it },
+            )
+
+            Spacer(Modifier.width(8.dp))
+
+            RichMenuAnchor(
+                type = RichToolMenuType.Paragraph,
+                icon = Icons.Outlined.FormatSize,
+                description = "段落格式",
+                editor = editor,
+                expandedMenu = expandedMenu,
+                onToggle = { expandedMenu = it },
+                selected = editor.activeLine.variant != null &&
+                        editor.activeLine.variant != "paragraph",
+            )
+
+            RichMenuAnchor(
+                type = RichToolMenuType.List,
+                icon = Icons.Outlined.List,
+                description = "列表",
+                editor = editor,
+                expandedMenu = expandedMenu,
+                onToggle = { expandedMenu = it },
+                selected = editor.activeLine.list != null,
+            )
+        }
 
         Spacer(Modifier.width(8.dp))
 
-        RichMenuAnchor(
-            type = RichToolMenuType.Paragraph,
-            icon = Icons.Outlined.FormatSize,
-            description = "段落格式",
-            editor = editor,
-            expandedMenu = expandedMenu,
-            onToggle = { expandedMenu = it },
-            selected = editor.activeLine.variant != null &&
-                    editor.activeLine.variant != "paragraph",
-        )
-        RichMenuAnchor(
-            type = RichToolMenuType.List,
-            icon = Icons.Outlined.List,
-            description = "列表",
-            editor = editor,
-            expandedMenu = expandedMenu,
-            onToggle = { expandedMenu = it },
-            selected = editor.activeLine.list != null,
-        )
-        RichMenuAnchor(
-            type = RichToolMenuType.More,
-            icon = Icons.Outlined.MoreHoriz,
-            description = "更多格式",
-            editor = editor,
-            expandedMenu = expandedMenu,
-            onToggle = { expandedMenu = it },
-        )
+        // 右侧：图片 + 更多，固定显示
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            NoteImagePickButton(
+                onAddImage = onAddImage,
+            )
+
+            RichMenuAnchor(
+                type = RichToolMenuType.More,
+                icon = Icons.Outlined.MoreHoriz,
+                description = "更多格式",
+                editor = editor,
+                expandedMenu = expandedMenu,
+                onToggle = { expandedMenu = it },
+            )
+        }
     }
 }
 

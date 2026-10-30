@@ -4,7 +4,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.LibraryBooks
@@ -16,7 +15,6 @@ import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material.icons.outlined.Today
-
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -26,15 +24,10 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material.icons.outlined.Add
-
 import androidx.compose.runtime.Composable
-
 import androidx.compose.ui.graphics.vector.ImageVector
-
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
-
 import top.role.android.app.navigation.MainDestination
 
 private data class MainNavigationItem(
@@ -68,7 +61,6 @@ fun MainTopBar(
     state: MainShellState,
     onBack: () -> Unit,
     onLibrary: () -> Unit,
-    onRichText: () -> Unit,
     onAccount: () -> Unit,
     onFriends: () -> Unit,
     onAddFriend: () -> Unit,
@@ -97,13 +89,6 @@ fun MainTopBar(
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.LibraryBooks,
                         contentDescription = "记录库",
-                    )
-                }
-
-                IconButton(onClick = onRichText) {
-                    Icon(
-                        imageVector = Icons.Outlined.Add,
-                        contentDescription = "富文本编辑器",
                     )
                 }
             }

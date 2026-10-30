@@ -5,6 +5,7 @@ import java.util.UUID
 import android.net.Uri
 import androidx.core.net.toUri
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import top.role.android.core.database.entity.LocalNoteImageEntity
 import top.role.android.core.model.image.MobileImageScene
 import top.role.android.core.data.image.note.NoteMediaLocalRepository
@@ -41,6 +42,24 @@ class NoteImageService(
                 noteLocalKey =
                     noteLocalKey,
             )
+    }
+
+    fun observeMonthImageCounts(
+        ownerUserId: String,
+        startDayKey: String,
+        endDayKeyExclusive: String,
+    ): Flow<Map<String, Int>> {
+        require(ownerUserId.isNotBlank()) {
+            "OWNER_USER_ID_REQUIRED"
+        }
+
+        return localRepository.observeMonthImageCounts(
+            ownerUserId = ownerUserId,
+            startDayKey = startDayKey,
+            endDayKeyExclusive = endDayKeyExclusive,
+        ).map { rows ->
+            rows.associate { it.noteLocalKey to it.imageCount }
+        }
     }
 
     suspend fun addImage(

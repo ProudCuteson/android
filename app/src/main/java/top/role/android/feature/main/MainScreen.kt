@@ -286,9 +286,6 @@ fun MainScreen(
                     onMarketOrders = {
                         navController.navigate(MarketOrderListRoute.route)
                     },
-                    onRichText = {
-                        navController.navigate("note/rich-text-playground")
-                    },
                 )
             }
         },

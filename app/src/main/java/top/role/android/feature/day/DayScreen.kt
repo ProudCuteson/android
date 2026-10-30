@@ -1,6 +1,7 @@
-
 package top.role.android.feature.day
 
+import java.time.LocalDate
+import java.time.YearMonth
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,8 +18,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Image
-import androidx.compose.material.icons.outlined.MenuBook
-import androidx.compose.material.icons.outlined.Today
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -38,19 +37,19 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import top.role.android.core.data.image.NoteImageService
 import top.role.android.core.data.note.NoteLocalRepository
 import top.role.android.core.model.note.DayKey
 import top.role.android.core.preferences.WeekStart
 import top.role.android.feature.day.components.DayCalendar
 import top.role.android.feature.day.components.RecentNoteRow
-import top.role.android.feature.day.components.SelectedDaySection
-import java.time.LocalDate
-import java.time.YearMonth
+import top.role.android.feature.day.components.DayDiaryOverviewSection
 
 @Composable
 fun DayScreen(
     ownerUserId: String,
     noteLocalRepository: NoteLocalRepository,
+    noteImageService: NoteImageService,
     weekStart: WeekStart,
     onOpenDayNote: (String) -> Unit,
     onOpenNote: (String) -> Unit,
@@ -59,9 +58,11 @@ fun DayScreen(
     onOpenLibrary: () -> Unit,
 ) {
     val viewModel: DayHomeViewModel = viewModel(
+        key = "day-home:$ownerUserId",
         factory = DayHomeViewModelFactory(
             ownerUserId = ownerUserId,
             noteLocalRepository = noteLocalRepository,
+            noteImageService = noteImageService,
         ),
     )
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -74,19 +75,21 @@ fun DayScreen(
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
         contentPadding = PaddingValues(top = 12.dp, bottom = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {
             Text(
                 text = "快速创建",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 20.dp, bottom = 10.dp),
             )
         }
 
         item {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 20.dp, bottom = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 DayActionTile(
@@ -107,28 +110,22 @@ fun DayScreen(
         }
 
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                DayActionTile(
-                    title = "今日",
-                    subtitle = if (showMonthView) "收起月历" else "查看月历",
-                    icon = Icons.Outlined.Today,
-                    modifier = Modifier.weight(1f),
-                    onClick = {
-                        if (!showMonthView) viewModel.selectDay(todayKey)
-                        showMonthView = !showMonthView
-                    },
-                )
-                DayActionTile(
-                    title = "阅读",
-                    subtitle = "查看当日日记",
-                    icon = Icons.Outlined.MenuBook,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onOpenDayNote(todayKey) },
-                )
-            }
+            DayDiaryOverviewSection(
+                selectedDayKey = state.selectedDayKey,
+                hasDiary = state.selectedDayDiary != null,
+                expanded = showMonthView,
+                onToggleCalendar = {
+                    showMonthView = !showMonthView
+                },
+                onRead = {
+                    state.selectedDayDiary?.let { diary ->
+                        onOpenNote(diary.localKey)
+                    }
+                },
+                onCreate = {
+                    onOpenDayNote(state.selectedDayKey)
+                },
+            )
         }
 
         if (showMonthView) {
@@ -153,16 +150,6 @@ fun DayScreen(
                 )
             }
 
-            item {
-                SelectedDaySection(
-                    selectedDayKey = state.selectedDayKey,
-                    diary = state.selectedDayDiary,
-                    datedNotes = state.selectedDayNotes,
-                    onOpenDayNote = { onOpenDayNote(state.selectedDayKey) },
-                    onCreateDatedNote = { onCreateDatedNote(state.selectedDayKey) },
-                    onOpenNote = onOpenNote,
-                )
-            }
         }
 
         item {
@@ -170,6 +157,10 @@ fun DayScreen(
                 text = "本月记录",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(
+                    top = 20.dp,
+                    bottom = 10.dp,
+                ),
             )
         }
 
@@ -188,8 +179,10 @@ fun DayScreen(
                 key = { index -> state.recentNotes[index].localKey },
             ) { index ->
                 val note = state.recentNotes[index]
+
                 RecentNoteRow(
                     note = note,
+                    imageCount = state.imageCounts[note.localKey] ?: 0,
                     onClick = { onOpenNote(note.localKey) },
                 )
             }
@@ -197,7 +190,9 @@ fun DayScreen(
 
         item {
             OutlinedButton(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 20.dp, bottom = 20.dp),
                 onClick = onOpenLibrary,
                 colors = ButtonDefaults.outlinedButtonColors(
                     contentColor = MaterialTheme.colorScheme.primary,

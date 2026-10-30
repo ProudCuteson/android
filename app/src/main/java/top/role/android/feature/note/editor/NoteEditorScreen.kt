@@ -53,6 +53,9 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
@@ -68,6 +71,7 @@ import top.role.android.core.model.note.content.NoteContentCodec
 import top.role.android.feature.note.editor.richtext.RichTextEditorField
 import top.role.android.feature.note.editor.richtext.RichTextEditorState
 import top.role.android.feature.note.editor.richtext.RichTextToolbar
+import top.role.android.feature.note.editor.richtext.RichTextReadingView
 
 @Composable
 fun NoteEditorRoute(
@@ -117,6 +121,7 @@ fun NoteEditorRoute(
         state = state,
         onTitleChange = viewModel::updateTitle,
         onRichContentChange = viewModel::updateRichContent,
+        onChecklistChange = viewModel::setChecklistChecked,
         onPinnedChange = viewModel::setPinned,
         onStartEditing = viewModel::startEditing,
         onFinishEditing = viewModel::finishEditing,
@@ -130,6 +135,7 @@ fun NoteEditorRoute(
         onRemoveImage = viewModel::removeImage,
         onUseRemoteConflict = { viewModel.resolveConflictUsingRemote(onDeleted = onBack) },
         onKeepLocalConflict = viewModel::resolveConflictKeepingLocal,
+        onSetDayKey = viewModel::setDayKey,
         onBack = {
             scope.launch {
                 viewModel.flushAndCleanup()
@@ -145,6 +151,7 @@ fun NoteEditorScreen(
     state: NoteEditorUiState,
     onTitleChange: (String) -> Unit,
     onRichContentChange: (BlockContent) -> Unit,
+    onChecklistChange: (String, Boolean) -> Unit,
     onPinnedChange: (Boolean) -> Unit,
     onStartEditing: () -> Unit,
     onFinishEditing: () -> Unit,
@@ -162,15 +169,12 @@ fun NoteEditorScreen(
     onUseRemoteConflict: () -> Unit,
     onKeepLocalConflict: () -> Unit,
     onBack: () -> Unit,
+    onSetDayKey: (String?) -> Unit,
 ) {
     var showConflictDialog by remember { mutableStateOf(false) }
     val hasConflict = state.syncState == NoteSyncState.Conflict
     val canResolveConflict = hasConflict && state.conflict != null
 
-    /*
-     * Conflict 被外部解决或者状态发生变化后，
-     * 已打开的 Dialog 不应继续悬挂。
-     */
     LaunchedEffect(
         hasConflict,
         canResolveConflict,
@@ -223,6 +227,8 @@ fun NoteEditorScreen(
         }
     }
 
+    var showAiPanel by remember { mutableStateOf(false) }
+
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
@@ -241,6 +247,7 @@ fun NoteEditorScreen(
 
                         RichTextToolbar(
                             editor = richEditor,
+                            onAddImage = onAddImage,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(
@@ -265,7 +272,6 @@ fun NoteEditorScreen(
                         },
                     )
                 },
-
                 navigationIcon = {
                     IconButton( onClick = { commitEditor(); onBack() } ) {
                         Icon(
@@ -274,11 +280,8 @@ fun NoteEditorScreen(
                         )
                     }
                 },
-
                 actions = {
-                    /*
-                     * Conflict 期间冻结一切本地 mutation。
-                     */
+                    // Conflict 期间冻结一切本地 mutation。
                     if (state.canEdit && !hasConflict) {
                         IconButton(onClick = { onPinnedChange(!state.pinned)},
                         ) {
@@ -292,11 +295,7 @@ fun NoteEditorScreen(
                             )
                         }
                     }
-
-                    /*
-                     * Reading + Active + no Conflict：
-                     * 显示编辑入口。
-                     */
+                    // Reading + Active + no Conflict：显示编辑入口。
                     if (
                         state.canEdit &&
                         !state.isEditing &&
@@ -309,11 +308,7 @@ fun NoteEditorScreen(
                             )
                         }
                     }
-
-                    /*
-                     * Editing：显示完成。
-                     * Conflict 一旦出现，这个入口也立即冻结。
-                     */
+                    // Editing：显示完成。* Conflict 一旦出现，这个入口也立即冻结。
                     if (state.isEditing && !hasConflict) {
                         TextButton(
                             onClick = { commitEditor(); onFinishEditing() },
@@ -336,12 +331,7 @@ fun NoteEditorScreen(
                     CircularProgressIndicator()
                 }
             }
-
-            /*
-             * 真正 fatal load error。
-             * Archived / Conflict 都可能 canEdit=false，
-             * 所以不能再用 canEdit 判断错误页。
-             */
+            // fatal load error。 Archived / Conflict 都可能 canEdit=false，不用 canEdit 判断错误页。
             state.errorMessage != null && state.localKey == null -> {
                 Box(
                     modifier = Modifier
@@ -356,13 +346,7 @@ fun NoteEditorScreen(
                     )
                 }
             }
-
-            /*
-             * Conflict 优先级高于 Editing。
-             *
-             * 即使由于某种竞态 mode 尚未切回 Reading，
-             * UI 也不会继续暴露输入框。
-             */
+            // Conflict 优先级高于 Editing。 即使由于某种竞态 mode 尚未切回 Reading，也不会继续暴露输入框。
             hasConflict -> {
                 NoteReadingContent(
                     state = state,
@@ -391,6 +375,7 @@ fun NoteEditorScreen(
                     onRetryImageUpload = onRetryImageUpload,
                     onRemoveImage = onRemoveImage,
                     modifier = Modifier.fillMaxSize().padding(innerPadding),
+                    onSetDayKey = onSetDayKey,
                 )
             }
 
@@ -403,7 +388,34 @@ fun NoteEditorScreen(
                         }
                     },
                     modifier = Modifier.fillMaxSize().padding(innerPadding),
+                    onChecklistChange = onChecklistChange,
                 )
+            }
+        }
+    }
+
+    if (showAiPanel && state.isEditing && !hasConflict) {
+        ModalBottomSheet(
+            onDismissRequest = { showAiPanel = false },
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+            ) {
+                NoteAiToolbar(
+                    running = state.aiRunning,
+                    suggestion = state.aiSuggestion,
+                    suggestionMode = state.aiSuggestionMode,
+                    errorMessage = state.aiErrorMessage,
+                    onRunAi = onRunAi,
+                    onReplaceText = onReplaceTextWithAi,
+                    onAppendText = onAppendAiToText,
+                    onUseAsTitle = onUseAiAsTitle,
+                    onDismissSuggestion = onDismissAiSuggestion,
+                )
+
+                Spacer(Modifier.height(24.dp))
             }
         }
     }
@@ -430,16 +442,13 @@ fun NoteEditorScreen(
 
 /**
  * Reading
- *
- * Active existing Note 默认进入。
- * Archived 永远进入。
- * Conflict 也统一进入这里。
  */
 @Composable
 private fun NoteReadingContent(
     state: NoteEditorUiState,
     onOpenConflict: () -> Unit,
     modifier: Modifier = Modifier,
+    onChecklistChange: ((String, Boolean) -> Unit)? = null,
 ) {
     val hasConflict = state.syncState == NoteSyncState.Conflict
 
@@ -450,9 +459,7 @@ private fun NoteReadingContent(
         verticalArrangement = Arrangement.Top,
     ) {
         EditorMetaRow(state = state)
-        /*
-         * 非 fatal 错误也需要有可见出口。
-         */
+
         if (!state.errorMessage.isNullOrBlank()) {
             Spacer(modifier = Modifier.height(10.dp,))
             EditorInlineError(message = state.errorMessage)
@@ -466,13 +473,6 @@ private fun NoteReadingContent(
             )
         }
 
-        /*
-         * Conflict remote Archived/Deleted
-         * 保存在 conflict snapshot，
-         * 并不会提前改变 current remoteStatus。
-         *
-         * 所以这里显示的是本地当前真实 lifecycle。
-         */
         if (state.remoteStatus == NoteRemoteStatus.Archived) {
             Spacer(modifier = Modifier.height(12.dp,),)
             Text(
@@ -498,27 +498,27 @@ private fun NoteReadingContent(
             )
         }
 
-        if (!state.contentJson.isNullOrBlank()) {
+        if (!state.contentJson.isNullOrBlank() || state.text.isNotBlank()) {
             Spacer(Modifier.height(18.dp))
 
-            val reader = remember(state.localKey, state.contentJson) {
-                RichTextEditorState(
-                    localEditorContent(state.contentJson, state.text)
+            val content = remember(
+                state.localKey,
+                state.contentJson,
+                state.text,
+            ) {
+                localEditorContent(
+                    state.contentJson,
+                    state.text,
                 )
             }
 
-            RichTextEditorField(
-                editor = reader,
-                readOnly = true,
-                minHeight = 0.dp,
-            )
-        } else if (state.text.isNotBlank()) {
-            Spacer(Modifier.height(18.dp))
-
-            Text(
-                text = state.text,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
+            RichTextReadingView(
+                content = content,
+                onChecklistChange = if (
+                    state.canEdit &&
+                    !hasConflict &&
+                    state.remoteStatus == NoteRemoteStatus.Active
+                ) onChecklistChange else null,
             )
         } else {
             Text(
@@ -547,207 +547,108 @@ private fun NoteEditingContent(
     onRetryImageUpload: (String) -> Unit,
     onRemoveImage: (String) -> Unit,
     modifier: Modifier = Modifier,
+    onSetDayKey: (String?) -> Unit,
 ) {
-    val titleState =
-        rememberTextFieldState(
-            initialText =
-                state.title,
-        )
+    val titleState = rememberTextFieldState(
+        initialText = state.title,
+    )
 
-    /*
-     * TextFieldState → ViewModel。
-     */
     LaunchedEffect(
         titleState,
     ) {
-        snapshotFlow {
-            titleState
-                .text
-                .toString()
-        }.collectLatest { value ->
+        snapshotFlow { titleState.text.toString() }.collectLatest { value ->
             if (
-                value !=
-                state.title
+                value != state.title
             ) {
-                onTitleChange(
-                    value,
-                )
+                onTitleChange(value)
             }
         }
     }
 
     Column(
-        modifier =
-            modifier
-                .verticalScroll(rememberScrollState())
-                .padding(
-                    horizontal =
-                        20.dp,
-
-                    vertical =
-                        12.dp,
-                ),
-
-        verticalArrangement =
-            Arrangement.Top,
+        modifier = modifier
+            .verticalScroll(rememberScrollState())
+            .padding( horizontal = 20.dp, vertical = 12.dp ),
+        verticalArrangement = Arrangement.Top,
     ) {
         EditorMetaRow(
-            state =
-                state,
+            state = state,
+            onSetDayKey = onSetDayKey,
         )
-
         if (
             !state.errorMessage.isNullOrBlank()
         ) {
-            Spacer(
-                modifier =
-                    Modifier.height(
-                        10.dp,
-                    ),
-            )
-
-            EditorInlineError(
-                message =
-                    state.errorMessage,
-            )
+            Spacer(modifier = Modifier.height(10.dp))
+            EditorInlineError( message = state.errorMessage)
         }
-
-        Spacer(
-            modifier =
-                Modifier.height(
-                    12.dp,
-                ),
+        Spacer(Modifier.height(12.dp))
+        HorizontalDivider(
+            thickness = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
         )
-
+        Spacer(Modifier.height(18.dp))
         BasicTextField(
-            state =
-                titleState,
-
-            modifier =
-                Modifier.fillMaxWidth(),
-
-            textStyle =
-                MaterialTheme
-                    .typography
-                    .titleLarge
-                    .copy(
-                        color =
-                            MaterialTheme
-                                .colorScheme
-                                .onSurface,
-                    ),
-
-            cursorBrush =
-                SolidColor(
-                    MaterialTheme
-                        .colorScheme
-                        .primary,
-                ),
-
-            lineLimits =
-                TextFieldLineLimits.SingleLine,
-
+            state = titleState,
+            modifier = Modifier.fillMaxWidth(),
+            textStyle = MaterialTheme
+                .typography
+                .titleLarge
+                .copy(color = MaterialTheme .colorScheme.onSurface),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            lineLimits = TextFieldLineLimits.SingleLine,
             decorator = { innerTextField ->
                 Box {
-                    if (
-                        titleState.text
-                            .isEmpty()
-                    ) {
+                    if (titleState.text.isEmpty()) {
                         Text(
-                            text =
-                                "标题",
-
-                            style =
-                                MaterialTheme
-                                    .typography
-                                    .titleLarge,
-
-                            color =
-                                MaterialTheme
-                                    .colorScheme
-                                    .onSurfaceVariant,
+                            text = "标题",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-
                     innerTextField()
                 }
             },
         )
 
-        Spacer(
-            modifier =
-                Modifier.height(
-                    16.dp,
-                ),
-        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (state.images.isNotEmpty()) {
+            NoteImageEditor(
+                images = state.images,
+                onAddImage = onAddImage,
+                onRetryUpload = onRetryImageUpload,
+                onRemoveImage = onRemoveImage,
+                showAddButton = false,
+            )
+
+            Spacer(Modifier.height(16.dp))
+        }
 
         RichTextEditorField(editor = richEditor)
 
-        Spacer(
-            modifier =
-                Modifier.height(
-                    16.dp,
-                ),
-        )
+        Spacer(modifier = Modifier.height(16.dp))
 
-        NoteAiToolbar(
-            running =
-                state.aiRunning,
-
-            suggestion =
-                state.aiSuggestion,
-
-            suggestionMode =
-                state.aiSuggestionMode,
-
-            errorMessage =
-                state.aiErrorMessage,
-
-            onRunAi =
-                onRunAi,
-
-            onReplaceText =
-                onReplaceTextWithAi,
-
-            onAppendText =
-                onAppendAiToText,
-
-            onUseAsTitle =
-                onUseAiAsTitle,
-
-            onDismissSuggestion =
-                onDismissAiSuggestion,
-        )
-
-        Spacer(
-            modifier =
-                Modifier.height(
-                    12.dp,
-                ),
-        )
-
-        /*
-         * 后续 Editing 工具统一放这里：
-         *
-         * - Image
-         * - AI Polish
-         * - AI Rewrite
-         *
-         * 本轮只保留结构。
-         */
-        NoteImageEditor(
-            images =
-                state.images,
-
-            onAddImage =
-                onAddImage,
-
-            onRetryUpload =
-                onRetryImageUpload,
-
-            onRemoveImage =
-                onRemoveImage,
-        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.035f),
+                    shape = RoundedCornerShape(14.dp),
+                )
+                .padding(horizontal = 14.dp, vertical = 14.dp),
+        ) {
+            NoteAiToolbar(
+                running = state.aiRunning,
+                suggestion = state.aiSuggestion,
+                suggestionMode = state.aiSuggestionMode,
+                errorMessage = state.aiErrorMessage,
+                onRunAi = onRunAi,
+                onReplaceText = onReplaceTextWithAi,
+                onAppendText = onAppendAiToText,
+                onUseAsTitle = onUseAiAsTitle,
+                onDismissSuggestion = onDismissAiSuggestion,
+            )
+        }
 
     }
 }
@@ -755,81 +656,60 @@ private fun NoteEditingContent(
 @Composable
 private fun EditorMetaRow(
     state: NoteEditorUiState,
+    onSetDayKey: ((String?) -> Unit)? = null,
 ) {
+    val typeLabel = if (state.onlyDay) "私人日记" else "普通记录"
+
+    val syncLabel = when (state.syncState) {
+        NoteSyncState.Synced -> "已同步"
+        NoteSyncState.Pending -> "已保存在本机"
+        NoteSyncState.Syncing -> "同步中"
+        NoteSyncState.Waiting -> "等待同步"
+        NoteSyncState.Conflict -> "同步冲突"
+    }
+
     Row(
-        modifier =
-            Modifier.fillMaxWidth(),
-
-        horizontalArrangement =
-            Arrangement.SpaceBetween,
-
-        verticalAlignment =
-            Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text =
-                when {
-                    state.onlyDay ->
-                        "私人日记"
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            Text(
+                text = "$typeLabel ·",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
 
-                    state.dayKey != null ->
-                        "关联日期"
-
-                    else ->
-                        "普通记录"
-                },
-
-            style =
-                MaterialTheme
-                    .typography
-                    .labelMedium,
-
-            color =
-                MaterialTheme
-                    .colorScheme
-                    .onSurfaceVariant,
-        )
-
-        Text(
-            text =
-                when (
-                    state.syncState
-                ) {
-                    NoteSyncState.Synced ->
-                        "已同步"
-
-                    NoteSyncState.Pending ->
-                        "已保存在本机"
-
-                    NoteSyncState.Syncing ->
-                        "同步中"
-
-                    NoteSyncState.Waiting ->
-                        "等待同步"
-
-                    NoteSyncState.Conflict ->
-                        "同步冲突"
-                },
-
-            style =
-                MaterialTheme
-                    .typography
-                    .labelSmall,
-
-            color =
-                if (
-                    state.syncState ==
-                    NoteSyncState.Conflict
-                ) {
-                    MaterialTheme
-                        .colorScheme
-                        .error
+            Text(
+                text = syncLabel,
+                style = MaterialTheme.typography.labelSmall,
+                color = if (state.syncState == NoteSyncState.Conflict) {
+                    MaterialTheme.colorScheme.error
                 } else {
-                    MaterialTheme
-                        .colorScheme
-                        .onSurfaceVariant
+                    MaterialTheme.colorScheme.onSurfaceVariant
                 },
-        )
+                maxLines = 1,
+            )
+        }
+
+        if (!state.onlyDay) {
+            if (state.isEditing && onSetDayKey != null) {
+                NotePlacementPicker(
+                    dayKey = state.dayKey,
+                    onChange = onSetDayKey,
+                )
+            } else if (state.dayKey != null) {
+                Text(
+                    text = state.dayKey,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 
@@ -838,38 +718,14 @@ private fun EditorInlineError(
     message: String,
 ) {
     Surface(
-        shape =
-            MaterialTheme
-                .shapes
-                .small,
-
-        color =
-            MaterialTheme
-                .colorScheme
-                .errorContainer,
-
-        contentColor =
-            MaterialTheme
-                .colorScheme
-                .onErrorContainer,
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.errorContainer,
+        contentColor = MaterialTheme.colorScheme.onErrorContainer,
     ) {
         Text(
-            text =
-                message,
-
-            modifier =
-                Modifier.padding(
-                    horizontal =
-                        12.dp,
-
-                    vertical =
-                        8.dp,
-                ),
-
-            style =
-                MaterialTheme
-                    .typography
-                    .bodySmall,
+            text = message,
+            modifier = Modifier.padding( horizontal = 12.dp, vertical = 8.dp),
+            style = MaterialTheme.typography.bodySmall,
         )
     }
 }
@@ -879,60 +735,26 @@ private fun ConflictBanner(
     canResolve: Boolean,
     onClick: () -> Unit,
 ) {
-    if (
-        canResolve
-    ) {
+    if (canResolve) {
         Surface(
-            onClick =
-                onClick,
-
-            shape =
-                MaterialTheme
-                    .shapes
-                    .medium,
-
-            color =
-                MaterialTheme
-                    .colorScheme
-                    .errorContainer,
-
-            contentColor =
-                MaterialTheme
-                    .colorScheme
-                    .onErrorContainer,
+            onClick = onClick,
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.errorContainer,
+            contentColor = MaterialTheme.colorScheme.onErrorContainer,
         ) {
             ConflictBannerContent(
-                message =
-                    "云端内容已经发生变化，点击查看并选择要保留的版本。",
+                message = "云端内容已经发生变化，点击查看并选择要保留的版本。",
             )
         }
     } else {
-        /*
-         * VERSION_CONFLICT 已经发生，
-         * 但完整 Remote snapshot 尚未 Pull 回来。
-         *
-         * 此时必须冻结编辑，
-         * 但不能提供不可执行的 resolver。
-         */
+
         Surface(
-            shape =
-                MaterialTheme
-                    .shapes
-                    .medium,
-
-            color =
-                MaterialTheme
-                    .colorScheme
-                    .errorContainer,
-
-            contentColor =
-                MaterialTheme
-                    .colorScheme
-                    .onErrorContainer,
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.errorContainer,
+            contentColor = MaterialTheme.colorScheme.onErrorContainer,
         ) {
             ConflictBannerContent(
-                message =
-                    "检测到同步冲突，正在获取最新云端版本……",
+                message = "检测到同步冲突，正在获取最新云端版本……",
             )
         }
     }
@@ -943,41 +765,17 @@ private fun ConflictBannerContent(
     message: String,
 ) {
     Column(
-        modifier =
-            Modifier.padding(
-                horizontal =
-                    16.dp,
-
-                vertical =
-                    12.dp,
-            ),
-
-        verticalArrangement =
-            Arrangement.spacedBy(
-                4.dp,
-            ),
+        modifier = Modifier.padding( horizontal = 16.dp, vertical = 12.dp ),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(
-            text =
-                "发现同步冲突",
-
-            style =
-                MaterialTheme
-                    .typography
-                    .titleSmall,
-
-            fontWeight =
-                FontWeight.SemiBold,
+            text = "发现同步冲突",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
         )
-
         Text(
-            text =
-                message,
-
-            style =
-                MaterialTheme
-                    .typography
-                    .bodySmall,
+            text = message,
+            style = MaterialTheme.typography.bodySmall,
         )
     }
 }
@@ -992,84 +790,44 @@ private fun NoteConflictDialog(
     onKeepLocal: () -> Unit,
 ) {
     AlertDialog(
-        onDismissRequest =
-            onDismiss,
-
-        title = {
-            Text(
-                text =
-                    "同步冲突",
-            )
-        },
-
+        onDismissRequest = onDismiss,
+        title = { Text(text = "同步冲突") },
         text = {
             Column(
-                verticalArrangement =
-                    Arrangement.spacedBy(
-                        16.dp,
-                    ),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Text(
-                    text =
-                        "这条记录在其他设备或云端发生了变化。请选择要保留的版本。",
+                    text = "这条记录在其他设备或云端发生了变化。请选择要保留的版本。",
                 )
-
                 ConflictVersionPreview(
-                    label =
-                        "本机版本",
-
-                    title =
-                        localTitle,
-
-                    text =
-                        localText,
+                    label = "本机版本",
+                    title = localTitle,
+                    text = localText,
                 )
-
                 ConflictVersionPreview(
-                    label =
-                        remoteStatusLabel(
-                            remote.remoteStatus,
-                        ),
-
-                    title =
-                        remote.title,
-
-                    text =
-                        remote.text,
+                    label = remoteStatusLabel(remote.remoteStatus),
+                    title = remote.title,
+                    text = remote.text,
                 )
             }
         },
 
-        /*
-         * 默认主操作保护本机用户输入。
-         */
         confirmButton = {
-            TextButton(
-                onClick =
-                    onKeepLocal,
-            ) {
+            TextButton(onClick = onKeepLocal ) {
                 Text(
-                    text =
-                        "保留本机版本",
+                    text = "保留本机版本",
                 )
             }
         },
 
         dismissButton = {
-            TextButton(
-                onClick =
-                    onUseRemote,
-            ) {
+            TextButton(onClick = onUseRemote) {
                 Text(
-                    text =
-                        if (
-                            remote.remoteStatus ==
-                            NoteRemoteStatus.Deleted
-                        ) {
-                            "接受云端删除"
-                        } else {
-                            "使用云端版本"
-                        },
+                    text = if (remote.remoteStatus == NoteRemoteStatus.Deleted) {
+                        "接受云端删除"
+                    } else {
+                        "使用云端版本"
+                    },
                 )
             }
         },
@@ -1083,66 +841,25 @@ private fun ConflictVersionPreview(
     text: String,
 ) {
     Column(
-        verticalArrangement =
-            Arrangement.spacedBy(
-                4.dp,
-            ),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(
-            text =
-                label,
-
-            style =
-                MaterialTheme
-                    .typography
-                    .labelMedium,
-
-            fontWeight =
-                FontWeight.SemiBold,
-
-            color =
-                MaterialTheme
-                    .colorScheme
-                    .primary,
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Text(
+            text = title.takeIf { it.isNotBlank() } ?: "无标题",
+            style = MaterialTheme.typography.titleSmall,
+            maxLines = 2,
         )
 
         Text(
-            text =
-                title
-                    .takeIf {
-                        it.isNotBlank()
-                    }
-                    ?: "无标题",
-
-            style =
-                MaterialTheme
-                    .typography
-                    .titleSmall,
-
-            maxLines =
-                2,
-        )
-
-        Text(
-            text =
-                text
-                    .takeIf {
-                        it.isNotBlank()
-                    }
-                    ?: "暂无正文",
-
-            style =
-                MaterialTheme
-                    .typography
-                    .bodySmall,
-
-            color =
-                MaterialTheme
-                    .colorScheme
-                    .onSurfaceVariant,
-
-            maxLines =
-                5,
+            text = text.takeIf { it.isNotBlank() } ?: "暂无正文",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 5,
         )
     }
 }
@@ -1153,24 +870,24 @@ private fun remoteStatusLabel(
     return when (
         status
     ) {
-        NoteRemoteStatus.Active ->
-            "云端版本"
-
-        NoteRemoteStatus.Archived ->
-            "云端版本 · 已归档"
-
-        NoteRemoteStatus.Deleted ->
-            "云端状态 · 已删除"
+        NoteRemoteStatus.Active -> "云端版本"
+        NoteRemoteStatus.Archived -> "云端版本 · 已归档"
+        NoteRemoteStatus.Deleted -> "云端状态 · 已删除"
     }
 }
 
 /** Legacy Note without contentJson can still be opened using its plain-text projection. */
-private fun localEditorContent(contentJson: String?, fallbackText: String): BlockContent {
+private fun localEditorContent(
+    contentJson: String?,
+    fallbackText: String): BlockContent {
     val parsed = contentJson?.takeIf { it.isNotBlank() }?.let { raw ->
         runCatching {
             val element = requireNotNull(NoteContentCodec.parse(raw))
             NoteContentCodec.readModel(element)
         }.getOrNull()
     }
-    return parsed ?: NoteContentCodec.readModel(NoteContentCodec.fromPlainText(fallbackText))
+    return parsed
+        ?: NoteContentCodec.readModel(
+            NoteContentCodec.fromPlainText(fallbackText)
+        )
 }
