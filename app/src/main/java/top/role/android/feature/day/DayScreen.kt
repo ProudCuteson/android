@@ -94,14 +94,14 @@ fun DayScreen(
             ) {
                 DayActionTile(
                     title = "日记",
-                    subtitle = "记录今天",
+                    subtitle = "天天记录",
                     icon = Icons.Outlined.Edit,
                     modifier = Modifier.weight(1f),
                     onClick = { onOpenDayNote(todayKey) },
                 )
                 DayActionTile(
                     title = "素材",
-                    subtitle = "添加图片素材",
+                    subtitle = "随时创作",
                     icon = Icons.Outlined.Image,
                     modifier = Modifier.weight(1f),
                     onClick = onCreateMaterial,
@@ -138,12 +138,18 @@ fun DayScreen(
                     weekStart = weekStart,
                     onPreviousMonth = {
                         viewModel.selectDay(
-                            selectedMonth.minusMonths(1).atDay(1).toString(),
+                            selectedMonth
+                                .minusMonths(1)
+                                .atDay(1)
+                                .toString(),
                         )
                     },
                     onNextMonth = {
                         viewModel.selectDay(
-                            selectedMonth.plusMonths(1).atDay(1).toString(),
+                            selectedMonth
+                                .plusMonths(1)
+                                .atDay(1)
+                                .toString(),
                         )
                     },
                     onSelectDay = viewModel::selectDay,
@@ -204,7 +210,7 @@ fun DayScreen(
                     modifier = Modifier.size(18.dp),
                 )
                 Spacer(Modifier.size(8.dp))
-                Text("前往 Library")
+                Text("前往 记录库")
             }
         }
     }

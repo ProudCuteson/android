@@ -26,6 +26,7 @@ import androidx.room.PrimaryKey
         ),
     ],
 )
+
 data class LocalNoteImageEntity(
     /**
      * 本地图片附件唯一标识。

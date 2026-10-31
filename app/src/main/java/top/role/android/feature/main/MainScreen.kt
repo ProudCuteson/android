@@ -117,42 +117,29 @@ fun MainScreen(
     onReSignIn: () -> Unit,
     onSignOut: () -> Unit,
 ) {
-    val navController =
-        rememberNavController()
+    val navController = rememberNavController()
 
-    val navBackStackEntry by
-    navController
-        .currentBackStackEntryAsState()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
 
-    val currentRoute =
-        navBackStackEntry
-            ?.destination
-            ?.route
+    val currentRoute = navBackStackEntry
+        ?.destination
+        ?.route
 
     val currentSpaceListMode =
-        if (
-            currentRoute ==
-            SpaceListRoute.route
-        ) {
+        if (currentRoute == SpaceListRoute.route) {
             SpaceListMode.fromValue(
                 navBackStackEntry
                     ?.arguments
-                    ?.getString(
-                        SpaceListRoute.modeArg
-                    )
+                    ?.getString(SpaceListRoute.modeArg)
             )
         } else {
             null
         }
 
-    val shellState =
-        resolveMainShellState(
-            route =
-                currentRoute,
-
-            spaceListMode =
-                currentSpaceListMode,
-        )
+    val shellState = resolveMainShellState(
+        route = currentRoute,
+        spaceListMode = currentSpaceListMode,
+    )
 
     val navigationDependencies =
         remember(

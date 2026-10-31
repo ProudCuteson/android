@@ -3,12 +3,9 @@ package top.role.android.app.navigation
 import android.net.Uri
 
 object NoteDayRoute {
+    const val dayKeyArg = "dayKey"
 
-    const val dayKeyArg =
-        "dayKey"
-
-    const val route =
-        "note/day/{$dayKeyArg}"
+    const val route = "note/day/{$dayKeyArg}"
 
     fun createRoute(
         dayKey: String,
@@ -19,11 +16,9 @@ object NoteDayRoute {
 
 object NoteEditorRoute {
 
-    const val localKeyArg =
-        "localKey"
+    const val localKeyArg = "localKey"
 
-    const val route =
-        "note/editor/{$localKeyArg}"
+    const val route = "note/editor/{$localKeyArg}"
 
     fun createRoute(
         localKey: String,
@@ -34,23 +29,19 @@ object NoteEditorRoute {
 
 object NoteLibraryRoute {
 
-    const val route =
-        "note/library"
+    const val route = "note/library"
 }
 
 object NoteNewRoute {
 
-    const val route =
-        "note/new"
+    const val route = "note/new"
 }
 
 object NoteNewDatedRoute {
 
-    const val dayKeyArg =
-        "dayKey"
+    const val dayKeyArg = "dayKey"
 
-    const val route =
-        "note/new/dated/{$dayKeyArg}"
+    const val route = "note/new/dated/{$dayKeyArg}"
 
     fun createRoute(
         dayKey: String,

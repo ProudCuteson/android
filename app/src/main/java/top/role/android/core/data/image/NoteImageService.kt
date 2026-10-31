@@ -96,67 +96,32 @@ class NoteImageService(
                         sourceInfo.mime,
                 )
 
-        val now =
-            System.currentTimeMillis()
+        val now = System.currentTimeMillis()
 
-        val localImageKey =
-            UUID.randomUUID()
-                .toString()
+        val localImageKey = UUID.randomUUID().toString()
 
-        val position =
-            localRepository
-                .nextPosition(
-                    ownerUserId =
-                        ownerUserId,
-
-                    noteLocalKey =
-                        noteLocalKey,
-                )
-
-        val localImage =
-            LocalNoteImageEntity(
-                localImageKey =
-                    localImageKey,
-
-                ownerUserId =
-                    ownerUserId,
-
-                noteLocalKey =
-                    noteLocalKey,
-
-                imageId =
-                    null,
-
-                localPath =
-                    localPath,
-
-                mime =
-                    sourceInfo.mime,
-
-                width =
-                    sourceInfo.width,
-
-                height =
-                    sourceInfo.height,
-
-                bytes =
-                    sourceInfo.bytes,
-
-                uploadState =
-                    "local",
-
-                uploadError =
-                    null,
-
-                position =
-                    position,
-
-                createdAt =
-                    now,
-
-                updatedAt =
-                    now,
+        val position = localRepository
+            .nextPosition(
+                ownerUserId = ownerUserId,
+                noteLocalKey = noteLocalKey,
             )
+
+        val localImage = LocalNoteImageEntity(
+            localImageKey = localImageKey,
+            ownerUserId = ownerUserId,
+            noteLocalKey = noteLocalKey,
+            imageId = null,
+            localPath = localPath,
+            mime = sourceInfo.mime,
+            width = sourceInfo.width,
+            height = sourceInfo.height,
+            bytes = sourceInfo.bytes,
+            uploadState = "local",
+            uploadError = null,
+            position = position,
+            createdAt = now,
+            updatedAt = now,
+        )
 
         try {
             localRepository
@@ -175,11 +140,8 @@ class NoteImageService(
              */
             noteMediaLocalRepository
                 .markPending(
-                    ownerUserId =
-                        ownerUserId,
-
-                    noteLocalKey =
-                        noteLocalKey,
+                    ownerUserId = ownerUserId,
+                    noteLocalKey = noteLocalKey,
                 )
 
         } catch (

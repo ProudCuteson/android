@@ -53,7 +53,7 @@ fun AppRoot(
         .authState
         .collectAsStateWithLifecycle()
 
-    val localOwnerUserId by  sessionViewModel
+    val localOwnerUserId by sessionViewModel
         .localOwnerUserId
         .collectAsStateWithLifecycle()
 
@@ -81,30 +81,26 @@ fun AppRoot(
         .isOnline
         .collectAsStateWithLifecycle( initialValue = false )
 
+    // 本地 Owner 来自 SessionStorage.USER_ID。
+    // 远端用户来自 AuthState.SignedIn.session.userId。
+    // 两者相同，才允许同步。
     val syncOwnerUserId = (authState as? AuthState.SignedIn)
         ?.session
         ?.userId
-        ?.takeIf { userId ->
-            userId == localOwnerUserId
-        }
+        ?.takeIf { userId -> userId == localOwnerUserId }
 
     LaunchedEffect(
         syncOwnerUserId,
         isOnline,
     ) {
-        val ownerUserId =
-            syncOwnerUserId
-                ?: return@LaunchedEffect
-
+        val ownerUserId = syncOwnerUserId ?: return@LaunchedEffect
         if (!isOnline) {
             return@LaunchedEffect
         }
 
         appContainer
             .noteSyncCoordinator
-            .sync(
-                ownerUserId = ownerUserId,
-            )
+            .sync(ownerUserId = ownerUserId)
             .onSuccess { result ->
                 android.util.Log.d(
                     "NoteSync",
@@ -176,6 +172,7 @@ fun AppRoot(
         return
     }
 
+    // 就是首次必须登录的直接原因
     if (localOwnerUserId == null) {
         SignedOutContent(
             appContainer = appContainer,
@@ -193,45 +190,40 @@ fun AppRoot(
         sessionViewModel,
         appContainer,
     ) {
-        val observer =
-            LifecycleEventObserver { _, event ->
-
+        val observer = LifecycleEventObserver { _, event ->
                 if (
                     event == Lifecycle.Event.ON_START
                 ) {
                     scope.launch {
 
-                        val authenticatedUserId =
-                            sessionViewModel
-                                .checkSessionOnForeground(
-                                    context = context
-                                )
+                        //检查已经区分了本地过期与远端认证状态
+                        //当前 checkSessionOnForeground() 只在 ON_START 触发
+                        //AppSessionViewModel.observeSession() 也会监听 Session 变化
+                        val authenticatedUserId = sessionViewModel
+                            .checkSessionOnForeground(context = context)
 
-                        val ownerUserId =
-                            sessionViewModel
-                                .localOwnerUserId.value
+                        val ownerUserId = sessionViewModel.localOwnerUserId.value
 
+
+                        // TODO ：这个判断有待商榷
                         if (
                             authenticatedUserId != null &&
                             authenticatedUserId == ownerUserId
                         ) {
                             appContainer
                                 .noteLocalRepository
-                                .requestSync(
-                                    ownerUserId =
-                                        authenticatedUserId,
-                                )
+                                .requestSync(ownerUserId = authenticatedUserId)
                         }
                     }
                 }
             }
 
-        lifecycleOwner.lifecycle
-            .addObserver(observer)
+        // 网络恢复或 Owner 变化时执行初始同步
+        // 本地 Note 修改后，通过 syncRequests 触发连续同步
+        lifecycleOwner.lifecycle.addObserver(observer)
 
         onDispose {
-            lifecycleOwner.lifecycle
-                .removeObserver(observer)
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 
@@ -253,6 +245,7 @@ fun AppRoot(
     } else {
 
         MainScreen(
+            // 实际上已经有三个独立参数
             localOwnerUserId = localOwnerUserId!!,
             remoteAuthenticated = authState is AuthState.SignedIn,
             remoteOnline = isOnline,

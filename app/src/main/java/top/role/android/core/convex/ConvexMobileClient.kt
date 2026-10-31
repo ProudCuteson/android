@@ -10,20 +10,16 @@ class ConvexMobileClient(
     sessionStorage: SessionStorage,
 ) {
 
-    private val authProvider =
-        BridgeJwtAuthProvider(
-            sessionStorage = sessionStorage,
-        )
+    private val authProvider = BridgeJwtAuthProvider(
+        sessionStorage = sessionStorage,
+    )
 
-    val rawClient =
-        ConvexClientWithAuth(
-            deploymentUrl = deploymentUrl,
-            authProvider = authProvider,
-        )
+    val rawClient = ConvexClientWithAuth(
+        deploymentUrl = deploymentUrl,
+        authProvider = authProvider,
+    )
 
-    suspend fun loginFromStoredSession():
-            Result<BridgeJwtAuthResult> {
-
+    suspend fun loginFromStoredSession(): Result<BridgeJwtAuthResult> {
         return rawClient.loginFromCache()
     }
 

@@ -31,14 +31,11 @@ import top.role.android.core.database.note.NoteTypeConverters
 abstract class TopRoleDatabase :
     RoomDatabase() {
 
-    abstract fun localNoteDao():
-            LocalNoteDao
+    abstract fun localNoteDao(): LocalNoteDao
 
-    abstract fun localNoteImageDao():
-            LocalNoteImageDao
+    abstract fun localNoteImageDao(): LocalNoteImageDao
 
-    abstract fun localNoteMediaSyncDao():
-            LocalNoteMediaSyncDao
+    abstract fun localNoteMediaSyncDao(): LocalNoteMediaSyncDao
 
     companion object {
 

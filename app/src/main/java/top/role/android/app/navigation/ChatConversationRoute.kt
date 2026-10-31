@@ -3,8 +3,7 @@ package top.role.android.app.navigation
 object ChatConversationRoute {
     const val conversationIdArg = "conversationId"
 
-    const val route =
-        "chat/conversation/{$conversationIdArg}"
+    const val route = "chat/conversation/{$conversationIdArg}"
 
     fun create(
         conversationId: String,
@@ -14,17 +13,13 @@ object ChatConversationRoute {
 }
 
 object ChatGroupCreateRoute {
-    const val route =
-        "chat/group-create"
+    const val route = "chat/group-create"
 }
 
 object ChatGroupSettingsRoute {
+    const val conversationIdArg = "conversationId"
 
-    const val conversationIdArg =
-        "conversationId"
-
-    const val route =
-        "chat/group/{$conversationIdArg}"
+    const val route = "chat/group/{$conversationIdArg}"
 
     fun create(
         conversationId: String,

@@ -6,8 +6,7 @@ object SpaceListRoute {
 
     const val modeArg = "mode"
 
-    const val route =
-        "discover/spaces/{$modeArg}"
+    const val route = "discover/spaces/{$modeArg}"
 
     fun create(
         mode: SpaceListMode,

@@ -53,9 +53,7 @@ fun resolveMainShellState(
     SpaceListMode?,
 ): MainShellState {
 
-    if (
-        route == null
-    ) {
+    if (route == null) {
         return pageOwnedShell()
     }
 
@@ -68,65 +66,36 @@ fun resolveMainShellState(
          * Main tabs
          * ------------------------------------------------
          */
-
         MainDestination.Day.route ->
             MainShellState(
-                title =
-                    "今日",
-
-                showTopBar =
-                    true,
-
-                showLibrary =
-                    true,
-
-                showAccount =
-                    true,
-
-                showBottomBar =
-                    true,
+                title = "记录",
+                showTopBar = true,
+                showLibrary = true,
+                showAccount = true,
+                showBottomBar = true,
             )
 
         MainDestination.Discover.route ->
             MainShellState(
-                title =
-                    "发现",
-
-                showTopBar =
-                    true,
-
-                showBottomBar =
-                    true,
+                title = "发现",
+                showTopBar = true,
+                showBottomBar = true,
             )
 
         MainDestination.Chat.route ->
             MainShellState(
-                title =
-                    "聊天",
-
-                showTopBar =
-                    true,
-
-                showFriends =
-                    true,
-
-                showCreateGroup =
-                    true,
-
-                showBottomBar =
-                    true,
+                title = "聊天",
+                showTopBar = true,
+                showFriends = true,
+                showCreateGroup = true,
+                showBottomBar = true,
             )
 
         MainDestination.Engage.route ->
             MainShellState(
-                title =
-                    "参与",
-
-                showTopBar =
-                    true,
-
-                showBottomBar =
-                    true,
+                title = "参与",
+                showTopBar = true,
+                showBottomBar = true,
             )
 
         /*
@@ -134,78 +103,44 @@ fun resolveMainShellState(
          * Chat
          * ------------------------------------------------
          */
-
         ChatFriendsRoute.route ->
             MainShellState(
-                title =
-                    "好友",
-
-                showTopBar =
-                    true,
-
-                showBack =
-                    true,
-
-                showAddFriend =
-                    true,
-
-                showBottomBar =
-                    false,
+                title = "好友",
+                showTopBar = true,
+                showBack = true,
+                showAddFriend = true,
+                showBottomBar = false,
             )
 
         ChatFriendLookupRoute.route ->
             MainShellState(
-                title =
-                    "添加好友",
-
-                showTopBar =
-                    true,
-
-                showBack =
-                    true,
-
-                showBottomBar =
-                    false,
+                title = "添加好友",
+                showTopBar = true,
+                showBack = true,
+                showBottomBar = false,
             )
 
         ChatGroupCreateRoute.route ->
             MainShellState(
-                title =
-                    "创建群聊",
-
-                showTopBar =
-                    true,
-
-                showBack =
-                    true,
-
-                showBottomBar =
-                    false,
+                title = "创建群聊",
+                showTopBar = true,
+                showBack = true,
+                showBottomBar = false,
             )
 
         /*
-         * Conversation 自己拥有 TopAppBar：
-         *
          * - 显示真实 conversation title
          * - direct / group 自己决定工具
          * - group settings 入口也在页面内部
          */
-        ChatConversationRoute.route ->
-            pageOwnedShell()
+        ChatConversationRoute.route -> pageOwnedShell()
 
         ChatGroupSettingsRoute.route ->
             MainShellState(
-                title =
-                    "群聊设置",
-
-                showTopBar =
-                    true,
-
-                showBack =
-                    true,
-
-                showBottomBar =
-                    false,
+                title = "群聊设置",
+                showTopBar = true,
+                showBack = true,
+                showBottomBar = false,
             )
 
         /*
@@ -213,101 +148,46 @@ fun resolveMainShellState(
          * Account
          * ------------------------------------------------
          */
-
         AccountRoute.route ->
-            detailShell(
-                title =
-                    "我的",
-            )
+            detailShell(title = "我的")
 
         CreditsRoute.route ->
-            detailShell(
-                title =
-                    "购买 Credits",
-            )
+            detailShell(title = "购买 Credits")
 
         AccountPasswordRoute.route ->
-            detailShell(
-                title =
-                    "账户安全",
-            )
+            detailShell( title = "账户安全")
 
         /*
          * ------------------------------------------------
          * Discover
          * ------------------------------------------------
          */
-
         SpaceListRoute.route ->
             MainShellState(
-                title =
-                    when (
-                        spaceListMode
-                    ) {
-                        SpaceListMode.Featured ->
-                            "推荐空间"
-
-                        SpaceListMode.Following ->
-                            "我关注的"
-
-                        SpaceListMode.Latest ->
-                            "最新空间"
-
-                        null ->
-                            "空间"
-                    },
-
-                showTopBar =
-                    true,
-
-                showBack =
-                    true,
-
-                showBottomBar =
-                    false,
+                title = when (spaceListMode) {
+                    SpaceListMode.Featured -> "推荐空间"
+                    SpaceListMode.Following -> "我关注的"
+                    SpaceListMode.Latest -> "最新空间"
+                    null -> "空间"
+                },
+                showTopBar = true,
+                showBack = true,
+                showBottomBar = false,
             )
 
-        TopicListRoute.route ->
-            detailShell(
-                title =
-                    "话题",
-            )
+        TopicListRoute.route -> detailShell(title ="话题")
 
-        ContentListRoute.route ->
-            detailShell(
-                title =
-                    "内容",
-            )
+        ContentListRoute.route -> detailShell(title = "内容")
 
-        EntityDetailRoute.route ->
-            detailShell(
-                title =
-                    "空间",
-            )
+        EntityDetailRoute.route -> detailShell(title = "空间")
 
-        TopicDetailRoute.route ->
-            detailShell(
-                title =
-                    "话题",
-            )
+        TopicDetailRoute.route -> detailShell(title = "话题")
 
-        DocDetailRoute.route ->
-            detailShell(
-                title =
-                    "阅读",
-            )
+        DocDetailRoute.route -> detailShell(title = "阅读")
 
-        SlideDetailRoute.route ->
-            detailShell(
-                title =
-                    "演示",
-            )
+        SlideDetailRoute.route -> detailShell(title = "演示")
 
-        MembershipRoute.route ->
-            detailShell(
-                title =
-                    "会员",
-            )
+        MembershipRoute.route -> detailShell(title = "会员")
 
         /*
          * ------------------------------------------------
@@ -315,104 +195,60 @@ fun resolveMainShellState(
          * ------------------------------------------------
          */
 
-        SurveyListRoute.route ->
-            detailShell(
-                title =
-                    "调查与测评",
-            )
+        SurveyListRoute.route -> detailShell(title = "调查与测评")
 
-        SurveyDetailRoute.route ->
-            detailShell(
-                title =
-                    "调查与测评",
-            )
+        SurveyDetailRoute.route -> detailShell(title = "调查与测评")
 
         /*
          * ------------------------------------------------
          * Engage / Bounty
          * ------------------------------------------------
          */
+        BountyListRoute.route -> detailShell(title = "赏金任务")
 
-        BountyListRoute.route ->
-            detailShell(
-                title =
-                    "赏金任务",
-            )
-
-        BountyDetailRoute.route ->
-            detailShell(
-                title =
-                    "赏金任务",
-            )
+        BountyDetailRoute.route -> detailShell(title = "赏金任务")
 
         /*
          * ------------------------------------------------
          * Engage / Market
          * ------------------------------------------------
          */
-
         MarketListRoute.route ->
             MainShellState(
-                title =
-                    "极致单品",
-
-                showTopBar =
-                    true,
-
-                showBack =
-                    true,
-
-                showMarketOrders =
-                    true,
-
-                showBottomBar =
-                    false,
+                title = "极致单品",
+                showTopBar = true,
+                showBack = true,
+                showMarketOrders = true,
+                showBottomBar = false,
             )
 
-        MarketDetailRoute.route ->
-            detailShell(
-                title =
-                    "单品详情",
-            )
+        MarketDetailRoute.route -> detailShell(title = "单品详情")
 
         MarketOrderListRoute.route,
-        MarketOrderDetailRoute.route ->
-            pageOwnedShell()
+        MarketOrderDetailRoute.route -> pageOwnedShell()
 
         /*
          * ------------------------------------------------
          * Note
          * ------------------------------------------------
-         *
-         * Note 页面拥有自己的 Scaffold / TopAppBar。
          */
-
         NoteDayRoute.route,
         NoteEditorRoute.route,
         NoteLibraryRoute.route,
         NoteNewRoute.route,
-        NoteNewDatedRoute.route ->
-            pageOwnedShell()
+        NoteNewDatedRoute.route -> pageOwnedShell()
 
         /*
          * ------------------------------------------------
          * Fallback
          * ------------------------------------------------
          */
-
         else ->
             MainShellState(
-                title =
-                    "TopRole",
-
-                showTopBar =
-                    false,
-
-                showBack =
-                    false,
-
-                showBottomBar =
-                    false,
+                title = "TopRole",
+                showTopBar = false,
+                showBack = false,
+                showBottomBar = false,
             )
     }
 }
@@ -424,65 +260,31 @@ private fun detailShell(
 ): MainShellState {
 
     return MainShellState(
-        title =
-            title,
-
-        showTopBar =
-            true,
-
-        showBack =
-            true,
-
-        showLibrary =
-            false,
-
-        showAccount =
-            false,
-
-        showFriends =
-            false,
-
-        showAddFriend =
-            false,
-
-        showCreateGroup =
-            false,
-
-        showBottomBar =
-            false,
+        title = title,
+        showTopBar = true,
+        showBack = true,
+        showLibrary = false,
+        showAccount = false,
+        showFriends = false,
+        showAddFriend = false,
+        showCreateGroup = false,
+        showBottomBar = false,
     )
 }
 
 
-private fun pageOwnedShell():
-        MainShellState {
+private fun pageOwnedShell(): MainShellState {
 
     return MainShellState(
-        title =
-            "",
-
-        showTopBar =
-            false,
-
-        showBack =
-            false,
-
-        showLibrary =
-            false,
-
-        showAccount =
-            false,
-
-        showFriends =
-            false,
-
-        showAddFriend =
-            false,
-
-        showCreateGroup =
-            false,
-
-        showBottomBar =
-            false,
+        title = "",
+        showTopBar = false,
+        showBack = false,
+        showLibrary = false,
+        showAccount = false,
+        showFriends = false,
+        showAddFriend = false,
+        showCreateGroup = false,
+        showBottomBar = false,
     )
+
 }

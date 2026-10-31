@@ -1,17 +1,13 @@
 package top.role.android.core.data.note
 
-import top.role.android.core.database.note.hasUnsyncedChanges
 import top.role.android.core.model.note.NoteRemoteStatus
 import top.role.android.core.model.note.NoteSyncFailure
 import top.role.android.core.database.note.LocalNoteEntity
 import top.role.android.core.database.note.hasUnsyncedContentChanges
 
 class NotePushService(
-    private val noteLocalRepository:
-    NoteLocalRepository,
-
-    private val noteRemoteDataSource:
-    NoteRemoteDataSource,
+    private val noteLocalRepository: NoteLocalRepository,
+    private val noteRemoteDataSource: NoteRemoteDataSource,
 ) {
 
     suspend fun pushOne(
@@ -19,35 +15,20 @@ class NotePushService(
         localKey: String,
     ): Result<Unit> {
         return runCatching {
+            val note = noteLocalRepository
+                .findByLocalKey(
+                    ownerUserId = ownerUserId,
+                    localKey = localKey,
+                )
+                ?: return@runCatching
 
-            val note =
-                noteLocalRepository
-                    .findByLocalKey(
-                        ownerUserId =
-                            ownerUserId,
-
-                        localKey =
-                            localKey,
-                    )
-                    ?: return@runCatching
-
-            when (
-                note.pendingRemoteStatus
-            ) {
-
+            when (note.pendingRemoteStatus) {
                 NoteRemoteStatus.Deleted -> {
                     pushDelete(
-                        ownerUserId =
-                            ownerUserId,
-
-                        localKey =
-                            localKey,
-
-                        noteId =
-                            note.noteId,
-
-                        baseVersion =
-                            note.remoteVersion,
+                        ownerUserId = ownerUserId,
+                        localKey = localKey,
+                        noteId = note.noteId,
+                        baseVersion = note.remoteVersion,
                     )
                 }
 
@@ -79,17 +60,10 @@ class NotePushService(
 
                 NoteRemoteStatus.Active -> {
                     pushRestore(
-                        ownerUserId =
-                            ownerUserId,
-
-                        localKey =
-                            localKey,
-
-                        noteId =
-                            note.noteId,
-
-                        baseVersion =
-                            note.remoteVersion,
+                        ownerUserId = ownerUserId,
+                        localKey = localKey,
+                        noteId = note.noteId,
+                        baseVersion = note.remoteVersion,
                     )
                 }
 

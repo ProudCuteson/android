@@ -7,8 +7,7 @@ object TopicDetailRoute {
     const val idArg = "id"
     const val publishIdArg = "publishId"
 
-    const val route =
-        "$base/{$idArg}?publishId={$publishIdArg}"
+    const val route = "$base/{$idArg}?publishId={$publishIdArg}"
 
     fun create(
         id: String,

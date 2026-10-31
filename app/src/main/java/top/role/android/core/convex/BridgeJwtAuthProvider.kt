@@ -46,16 +46,11 @@ class BridgeJwtAuthProvider(
             Result<BridgeJwtAuthResult> {
 
         return runCatching {
-            val session =
-                sessionStorage.session.first()
-                    ?: throw IllegalStateException(
-                        "No cached session"
-                    )
+            val session = sessionStorage.session.first()
+                ?: throw IllegalStateException("No cached session")
 
             if (session.isExpired) {
-                throw IllegalStateException(
-                    "Cached session expired"
-                )
+                throw IllegalStateException("Cached session expired")
             }
 
             BridgeJwtAuthResult(

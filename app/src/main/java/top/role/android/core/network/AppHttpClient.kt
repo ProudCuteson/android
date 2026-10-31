@@ -20,22 +20,17 @@ class AppHttpClient(
     private val baseUrl: String,
 ) {
 
-    private val jsonMediaType =
-        "application/json; charset=utf-8"
-            .toMediaType()
+    private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
     suspend fun postJson(
         path: String,
         jsonBody: String,
     ): AppHttpResponse {
-        val session =
-            sessionStorage.session.first()
+        val session = sessionStorage.session.first()
 
-        val accessToken =
-            session
-                ?.accessToken
-                ?.trim()
-                .orEmpty()
+        val accessToken = session
+            ?.accessToken
+            ?.trim().orEmpty()
 
         if (accessToken.isBlank()) {
             return AppHttpResponse(
@@ -49,13 +44,9 @@ class AppHttpClient(
             )
         }
 
-        val url =
-            baseUrl.trimEnd('/') +
-                    "/" +
-                    path.trimStart('/')
+        val url = baseUrl.trimEnd('/') + "/" + path.trimStart('/')
 
-        val request =
-            Request.Builder()
+        val request = Request.Builder()
                 .url(url)
                 .header(
                     "Authorization",
@@ -72,23 +63,16 @@ class AppHttpClient(
                 )
                 .build()
 
-        return withContext(
-            Dispatchers.IO
-        ) {
+        return withContext(Dispatchers.IO) {
             httpClient
-                .newCall(request)
-                .execute()
-                .use { response ->
-                    AppHttpResponse(
-                        statusCode =
-                            response.code,
-
-                        body =
-                            response.body
-                                ?.string()
-                                .orEmpty(),
-                    )
-                }
+            .newCall(request)
+            .execute()
+            .use { response ->
+                AppHttpResponse(
+                    statusCode = response.code,
+                    body = response.body ?.string().orEmpty(),
+                )
+            }
         }
     }
 }

@@ -2,14 +2,10 @@ package top.role.android.app.navigation
 
 import top.role.android.core.model.market.MobileMarketListMode
 
-
 object MarketListRoute {
+    const val modeArg = "mode"
 
-    const val modeArg =
-        "mode"
-
-    const val route =
-        "market/list/{$modeArg}"
+    const val route = "market/list/{$modeArg}"
 
     fun create(
         mode:
@@ -19,14 +15,10 @@ object MarketListRoute {
     }
 }
 
-
 object MarketDetailRoute {
+    const val listingIdArg = "listingId"
 
-    const val listingIdArg =
-        "listingId"
-
-    const val route =
-        "market/detail/{$listingIdArg}"
+    const val route = "market/detail/{$listingIdArg}"
 
     fun create(
         listingId:
@@ -37,18 +29,13 @@ object MarketDetailRoute {
 }
 
 object MarketOrderListRoute {
-
-    const val route =
-        "market/orders"
+    const val route = "market/orders"
 }
 
 object MarketOrderDetailRoute {
+    const val orderIdArg = "orderId"
 
-    const val orderIdArg =
-        "orderId"
-
-    const val route =
-        "market/orders/{$orderIdArg}"
+    const val route = "market/orders/{$orderIdArg}"
 
     fun create(
         orderId: String,

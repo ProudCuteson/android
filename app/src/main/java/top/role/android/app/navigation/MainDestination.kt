@@ -6,7 +6,7 @@ enum class MainDestination(
 ) {
     Day(
         route = "day",
-        label = "今日",
+        label = "记录",
     ),
     Discover(
         route = "discover",

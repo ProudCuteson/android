@@ -124,9 +124,8 @@ class AppSessionViewModel(
         context: Context,
     ): String? {
 
-        val storedSession =
-            sessionStorage.session.first()
-                ?: return null
+        val storedSession = sessionStorage.session.first()
+            ?: return null
 
         if (storedSession.isExpired) {
 
@@ -135,10 +134,9 @@ class AppSessionViewModel(
                 AuthState.SignedOut
 
             // 同步清理 Convex SDK 的认证状态
-            val result =
-                convexClient.logout(
-                    context.applicationContext
-                )
+            val result = convexClient.logout(
+                context.applicationContext
+            )
 
             result.exceptionOrNull()?.let { error ->
                 Log.e(

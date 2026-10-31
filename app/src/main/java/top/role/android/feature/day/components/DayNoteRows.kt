@@ -78,7 +78,7 @@ fun DayNoteRow(
                     )
 
                     Text(
-                        text = "${imageCount} 张图片",
+                        text = "${imageCount}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

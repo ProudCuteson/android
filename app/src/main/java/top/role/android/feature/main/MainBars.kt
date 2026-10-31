@@ -54,7 +54,6 @@ private val mainNavigationItems = listOf(
         ),
     )
 
-
 @OptIn( ExperimentalMaterial3Api::class)
 @Composable
 fun MainTopBar(
@@ -74,7 +73,7 @@ fun MainTopBar(
 
         navigationIcon = {
             if (state.showBack) {
-                IconButton(onClick =onBack) {
+                IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "返回",

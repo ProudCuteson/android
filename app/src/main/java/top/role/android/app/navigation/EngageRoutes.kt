@@ -3,12 +3,9 @@ package top.role.android.app.navigation
 import top.role.android.core.model.bounty.MobileBountyListMode
 
 object BountyListRoute {
+    const val modeArg = "mode"
 
-    const val modeArg =
-        "mode"
-
-    const val route =
-        "bounty/list/{$modeArg}"
+    const val route = "bounty/list/{$modeArg}"
 
     fun create(
         mode:
@@ -18,14 +15,10 @@ object BountyListRoute {
     }
 }
 
-
 object BountyDetailRoute {
+    const val bountyIdArg = "bountyId"
 
-    const val bountyIdArg =
-        "bountyId"
-
-    const val route =
-        "bounty/detail/{$bountyIdArg}"
+    const val route = "bounty/detail/{$bountyIdArg}"
 
     fun create(
         bountyId:

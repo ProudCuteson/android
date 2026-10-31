@@ -1,12 +1,9 @@
 package top.role.android.app.navigation
 
 object MembershipRoute {
+    const val spaceIdArg = "spaceId"
 
-    const val spaceIdArg =
-        "spaceId"
-
-    const val route =
-        "membership/{$spaceIdArg}"
+    const val route = "membership/{$spaceIdArg}"
 
     fun create(
         spaceId: String,

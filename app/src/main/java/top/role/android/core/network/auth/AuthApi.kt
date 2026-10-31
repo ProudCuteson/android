@@ -15,8 +15,7 @@ class AuthApi(
     private val json: Json = ApiJson,
 ) {
 
-    private val jsonMediaType =
-        "application/json; charset=utf-8".toMediaType()
+    private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
     suspend fun sendOtp(
         phone: String,
@@ -67,22 +66,13 @@ class AuthApi(
         password: String,
     ): ExchangeOtpResponse {
         return post(
-            path =
-                "/api/auth/phone/password-login",
-
-            request =
-                PasswordLoginRequest(
-                    phone =
-                        phone,
-
-                    password =
-                        password,
-                ),
-
+            path = "/api/auth/phone/password-login",
+            request = PasswordLoginRequest(
+                phone = phone,
+                password = password,
+            ),
             decode = {
-                json.decodeFromString<ExchangeOtpResponse>(
-                    it
-                )
+                json.decodeFromString<ExchangeOtpResponse>(it)
             },
         )
     }
@@ -108,15 +98,10 @@ class AuthApi(
             client.newCall(httpRequest)
                 .execute()
                 .use { response ->
-                    val responseBody =
-                        response.body.string()
-
+                    val responseBody = response.body.string()
                     if (responseBody.isBlank()) {
-                        throw IllegalStateException(
-                            "Empty response from $path"
-                        )
+                        throw IllegalStateException("Empty response from $path")
                     }
-
                     decode(responseBody)
                 }
         }
