@@ -13,7 +13,7 @@ import top.role.android.core.data.note.NoteLocalRepository
 import top.role.android.core.model.note.DayKey
 
 class DayHomeViewModel(
-    private val ownerUserId: String,
+    private val localOwnerUserId: String,
     private val noteLocalRepository: NoteLocalRepository,
     private val noteImageService: NoteImageService,
 ) : ViewModel() {
@@ -55,12 +55,12 @@ class DayHomeViewModel(
         monthObserveJob = viewModelScope.launch {
             combine(
                 noteLocalRepository.observeMonthNotesForDayHome(
-                    ownerUserId = ownerUserId,
+                    localOwnerUserId = localOwnerUserId,
                     startDayKey = range.start,
                     endDayKeyExclusive = range.endExclusive,
                 ),
                 noteImageService.observeMonthImageCounts(
-                    ownerUserId = ownerUserId,
+                    localOwnerUserId = localOwnerUserId,
                     startDayKey = range.start,
                     endDayKeyExclusive = range.endExclusive,
                 ),

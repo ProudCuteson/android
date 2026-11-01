@@ -4,11 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 
 class SurveyDetailViewModelFactory(
-    private val surveyId:
-    String,
-
-    private val repository:
-    SurveyDetailRepository,
+    private val surveyId: String,
+    private val repository: SurveyDetailRepository,
 ) : ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")
@@ -18,11 +15,8 @@ class SurveyDetailViewModelFactory(
     ): T {
 
         return SurveyDetailViewModel(
-            surveyId =
-                surveyId,
-
-            repository =
-                repository,
+            surveyId = surveyId,
+            repository = repository,
         ) as T
     }
 }

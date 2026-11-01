@@ -7,7 +7,7 @@ import top.role.android.core.data.image.NoteImageService
 import top.role.android.core.data.note.NoteLocalRepository
 
 class DayHomeViewModelFactory(
-    private val ownerUserId: String,
+    private val localOwnerUserId: String,
     private val noteLocalRepository: NoteLocalRepository,
     private val noteImageService: NoteImageService,
 ) : ViewModelProvider.Factory {
@@ -16,7 +16,7 @@ class DayHomeViewModelFactory(
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(DayHomeViewModel::class.java)) {
             return DayHomeViewModel(
-                ownerUserId = ownerUserId,
+                localOwnerUserId = localOwnerUserId,
                 noteLocalRepository = noteLocalRepository,
                 noteImageService = noteImageService,
             ) as T

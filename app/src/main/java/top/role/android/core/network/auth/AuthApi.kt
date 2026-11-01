@@ -7,10 +7,18 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import kotlinx.coroutines.flow.first
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.coroutines.CancellationException
+import top.role.android.core.storage.SessionStorage
 import top.role.android.core.network.ApiJson
 
 class AuthApi(
     private val baseUrl: String,
+    private val sessionStorage: SessionStorage,
     private val client: OkHttpClient = OkHttpClient(),
     private val json: Json = ApiJson,
 ) {
@@ -75,6 +83,118 @@ class AuthApi(
                 json.decodeFromString<ExchangeOtpResponse>(it)
             },
         )
+    }
+
+    suspend fun validateSession(
+        userId: String,
+    ): SessionValidationResult {
+
+        try {
+            val session = sessionStorage.session.first()
+                ?: return SessionValidationResult.RequireLogin(
+                    userId = userId,
+                    code = "APP_NOT_AUTHENTICATED",
+                )
+
+            val accessToken = session.accessToken.trim()
+
+            if (accessToken.isBlank()) {
+                return SessionValidationResult.RequireLogin(
+                    userId = userId,
+                    code = "APP_NOT_AUTHENTICATED",
+                )
+            }
+
+            val url = baseUrl.trimEnd('/') +
+                    "/api/auth/app/session"
+
+            val request = Request.Builder()
+                .url(url)
+                .header("Authorization", "Bearer $accessToken")
+                .header("Accept", "application/json")
+                .get()
+                .build()
+
+            return withContext(Dispatchers.IO) {
+                client.newCall(request)
+                    .execute()
+                    .use { response ->
+
+                        val body = response.body?.string().orEmpty()
+
+                        val data = json.parseToJsonElement(body).jsonObject
+
+                        val ok = data["ok"]
+                            ?.jsonPrimitive
+                            ?.booleanOrNull == true
+
+                        val code = data["code"]
+                            ?.jsonPrimitive
+                            ?.contentOrNull
+
+                        when {
+                            response.code == 200 && ok -> {
+                                val remoteUserId = data["user"]
+                                    ?.jsonObject
+                                    ?.get("id")
+                                    ?.jsonPrimitive
+                                    ?.contentOrNull
+
+                                when {
+                                    remoteUserId.isNullOrBlank() ->
+                                        SessionValidationResult.NeedVerify(userId)
+
+                                    remoteUserId != userId ->
+                                        SessionValidationResult.RequireLogin(
+                                            userId = userId,
+                                            code = "SESSION_USER_MISMATCH",
+                                        )
+
+                                    else ->
+                                        SessionValidationResult.Valid(userId)
+                                }
+                            }
+
+                            response.code == 410 &&
+                                    code == "ACCOUNT_DELETED" ->
+                                SessionValidationResult.AccountUnavailable(
+                                    userId,
+                                    code,
+                                )
+
+                            response.code == 404 &&
+                                    code == "USER_NOT_FOUND" ->
+                                SessionValidationResult.AccountUnavailable(
+                                    userId,
+                                    code,
+                                )
+
+                            response.code == 401 &&
+                                    code in setOf(
+                                "UNAUTHORIZED",
+                                "APP_NOT_AUTHENTICATED",
+                                "INVALID_OR_EXPIRED_TOKEN",
+                                "SESSION_USER_MISMATCH",
+                                "SESSION_NOT_FOUND",
+                                "SESSION_REVOKED",
+                                "SESSION_EXPIRED",
+                            ) ->
+                                SessionValidationResult.RequireLogin(
+                                    userId,
+                                    code ?: "UNAUTHORIZED",
+                                )
+
+                            else ->
+                                SessionValidationResult.NeedVerify(userId)
+                        }
+                    }
+            }
+
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            return SessionValidationResult.NeedVerify(userId)
+        }
     }
 
     private suspend inline fun <reified RequestType, ResponseType> post(

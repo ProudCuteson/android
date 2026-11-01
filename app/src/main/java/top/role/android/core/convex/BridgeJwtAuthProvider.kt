@@ -26,14 +26,12 @@ class BridgeJwtAuthProvider(
         return loadAuthResultFromStore()
     }
 
-    // 不再使用 clearSession()，避免清除 USER_ID。
+    // 原来：不再使用 clearSession()，避免清除 USER_ID。
+    // 调整： 清理 Convex SDK 自身的认证状态。
     override suspend fun logout(
         context: Context,
     ): Result<Void?> {
-        return runCatching {
-            sessionStorage.clearRemoteSession()
-            null
-        }
+        return Result.success(null)
     }
 
     override fun extractIdToken(

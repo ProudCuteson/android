@@ -1,7 +1,6 @@
 package top.role.android.feature.credit
 
 import java.util.Locale
-
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -33,52 +32,46 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import top.role.android.core.model.account.MobileCreditPurchaseOption
 import top.role.android.core.model.account.MobileCustomCreditPurchaseOption
 import top.role.android.core.model.account.MobileRecentCreditPurchase
-
 import top.role.android.core.payment.temp.MobilePaymentNotice
 import top.role.android.core.payment.temp.WebPurchaseConfig
-
+import top.role.android.core.auth.AuthState
+import top.role.android.ui.auth.AuthStatusContent
 
 @Composable
 fun CreditsScreen(
     viewModel: CreditsViewModel,
+    authState: AuthState,
+    onLogin: () -> Unit,
+    onRetryAuth: () -> Unit,
+    onReSignIn: () -> Unit,
 ) {
-    val uiState by
-    viewModel.uiState
+    val uiState by viewModel.uiState
         .collectAsStateWithLifecycle()
 
-    CreditsScreenContent(
-        state = uiState,
-
-        onCustomAmountChange =
-            viewModel::updateCustomAmount,
-
-        onPurchasePack =
-            viewModel::purchaseFixedPack,
-
-        onPurchaseCustom =
-            viewModel::purchaseCustomPack,
-
-        onContinuePurchase =
-            viewModel::continuePurchase,
-    )
+    AuthStatusContent(
+        authState = authState,
+        onLogin = onLogin,
+        onRetry = onRetryAuth,
+        onReSignIn = onReSignIn,
+        modifier = Modifier.fillMaxSize(),
+    ) { userId ->
+        CreditsScreenContent(
+            state = uiState,
+            onCustomAmountChange = viewModel::updateCustomAmount,
+            onPurchasePack = viewModel::purchaseFixedPack,
+            onPurchaseCustom = viewModel::purchaseCustomPack,
+            onContinuePurchase = viewModel::continuePurchase,
+        )
+    }
 }
-
 
 @Composable
 private fun CreditsScreenContent(
     state: CreditsUiState,
-
-    onCustomAmountChange:
-        (String) -> Unit,
-
-    onPurchasePack:
-        (MobileCreditPurchaseOption) -> Unit,
-
-    onPurchaseCustom:
-        () -> Unit,
-
-    onContinuePurchase:
-        (MobileRecentCreditPurchase) -> Unit,
+    onCustomAmountChange: (String) -> Unit,
+    onPurchasePack: (MobileCreditPurchaseOption) -> Unit,
+    onPurchaseCustom: () -> Unit,
+    onContinuePurchase: (MobileRecentCreditPurchase) -> Unit,
 ) {
     when {
         state.loading -> {
@@ -95,27 +88,16 @@ private fun CreditsScreenContent(
         }
 
         else -> {
-
             CreditsContent(
-                state =
-                    state,
-
-                onCustomAmountChange =
-                    onCustomAmountChange,
-
-                onPurchasePack =
-                    onPurchasePack,
-
-                onPurchaseCustom =
-                    onPurchaseCustom,
-
-                onContinuePurchase =
-                    onContinuePurchase,
+                state = state,
+                onCustomAmountChange = onCustomAmountChange,
+                onPurchasePack = onPurchasePack,
+                onPurchaseCustom = onPurchaseCustom,
+                onContinuePurchase = onContinuePurchase,
             )
         }
     }
 }
-
 
 @Composable
 private fun CreditsLoadingState() {

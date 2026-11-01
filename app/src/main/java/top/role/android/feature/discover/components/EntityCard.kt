@@ -7,8 +7,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.WorkspacePremium
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -29,16 +33,11 @@ fun EntityCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(
-                onClick = onClick,
-            ),
-        shape =
-            RoundedCornerShape(18.dp),
-        colors =
-            CardDefaults.cardColors(
-                containerColor =
-                    MaterialTheme.colorScheme.surfaceContainerLow,
-            ),
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
     ) {
         Column(
             modifier = Modifier
@@ -49,214 +48,93 @@ fun EntityCard(
                 ),
         ) {
 
-            /*
-             * Type / Status
-             */
             Row(
-                modifier =
-                    Modifier.fillMaxWidth(),
-                verticalAlignment =
-                    Alignment.CenterVertically,
-                horizontalArrangement =
-                    Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
-                    text =
-                        when (item.kind) {
-                            "personal" ->
-                                "个人空间"
-
-                            "group" ->
-                                "群组空间"
-
-                            "org" ->
-                                "组织空间"
-
-                            else ->
-                                "空间"
-                        },
-                    style =
-                        MaterialTheme
-                            .typography
-                            .labelMedium,
-                    fontWeight =
-                        FontWeight.Medium,
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .onSurfaceVariant,
+                    text = when (item.kind) {
+                        "personal" -> "个人空间"
+                        "group" -> "群组空间"
+                        "org" -> "组织空间"
+                        else -> "空间"
+                    },
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
                 Row(
-                    verticalAlignment =
-                        Alignment.CenterVertically,
-                    horizontalArrangement =
-                        Arrangement.spacedBy(
-                            6.dp
-                        ),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
 
                     if (item.following) {
                         Text(
-                            text =
-                                "已关注",
-                            style =
-                                MaterialTheme
-                                    .typography
-                                    .labelSmall,
-                            color =
-                                MaterialTheme
-                                    .colorScheme
-                                    .onSurfaceVariant,
+                            text = "已关注",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
 
+                    // 空间是否开启会员功能
                     if (item.membershipEnabled) {
-                        Surface(
-                            shape =
-                                RoundedCornerShape(
-                                    999.dp
-                                ),
-                            color =
-                                MaterialTheme
-                                    .colorScheme
-                                    .primaryContainer,
-                        ) {
-                            Text(
-                                text =
-                                    "会员",
-                                modifier =
-                                    Modifier.padding(
-                                        horizontal =
-                                            8.dp,
-                                        vertical =
-                                            3.dp,
-                                    ),
-                                style =
-                                    MaterialTheme
-                                        .typography
-                                        .labelSmall,
-                                fontWeight =
-                                    FontWeight.Medium,
-                                color =
-                                    MaterialTheme
-                                        .colorScheme
-                                        .onPrimaryContainer,
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Outlined.WorkspacePremium,
+                            contentDescription = "会员空间",
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
                     }
                 }
             }
 
-            /*
-             * Name
-             */
             Text(
-                text =
-                    item.name,
-                modifier =
-                    Modifier.padding(
-                        top = 9.dp,
-                    ),
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleMedium,
-                fontWeight =
-                    FontWeight.SemiBold,
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .onSurface,
-                maxLines =
-                    2,
-                overflow =
-                    TextOverflow.Ellipsis,
+                text = item.name,
+                modifier = Modifier.padding(top = 9.dp),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
 
-            /*
-             * Description
-             */
-            if (
-                item.description
-                    .isNotBlank()
-            ) {
+            if ( item.description.isNotBlank() ) {
                 Text(
-                    text =
-                        item.description,
-                    modifier =
-                        Modifier.padding(
-                            top = 5.dp,
-                        ),
-                    style =
-                        MaterialTheme
-                            .typography
-                            .bodyMedium,
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .onSurfaceVariant,
-                    maxLines =
-                        2,
-                    overflow =
-                        TextOverflow.Ellipsis,
+                    text = item.description,
+                    modifier = Modifier.padding(top = 5.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
 
-            /*
-             * Tags
-             */
-            if (
-                item.tags
-                    .isNotEmpty()
-            ) {
+            if (item.tags.isNotEmpty()) {
                 Row(
-                    modifier =
-                        Modifier.padding(
-                            top = 12.dp,
-                        ),
-                    horizontalArrangement =
-                        Arrangement.spacedBy(
-                            6.dp
-                        ),
-                    verticalAlignment =
-                        Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     item.tags
-                        .take(3)
-                        .forEach { tag ->
-
-                            Surface(
-                                shape =
-                                    RoundedCornerShape(
-                                        999.dp
-                                    ),
-                                color =
-                                    MaterialTheme
-                                        .colorScheme
-                                        .surfaceContainerHighest,
-                            ) {
-                                Text(
-                                    text =
-                                        tag,
-                                    modifier =
-                                        Modifier.padding(
-                                            horizontal =
-                                                9.dp,
-                                            vertical =
-                                                4.dp,
-                                        ),
-                                    style =
-                                        MaterialTheme
-                                            .typography
-                                            .labelSmall,
-                                    color =
-                                        MaterialTheme
-                                            .colorScheme
-                                            .onSurfaceVariant,
-                                )
-                            }
+                    .take(3)
+                    .forEach { tag ->
+                        Surface(
+                            shape = RoundedCornerShape(999.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        ) {
+                            Text(
+                                text = tag,
+                                modifier = Modifier.padding(
+                                    horizontal = 9.dp,
+                                    vertical = 4.dp,
+                                ),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
+                    }
                 }
             }
         }

@@ -19,11 +19,11 @@ class NoteImageService(
 ) {
 
     fun observeImages(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteLocalKey: String,
     ): Flow<List<LocalNoteImageEntity>> {
         require(
-            ownerUserId.isNotBlank(),
+            localOwnerUserId.isNotBlank(),
         ) {
             "OWNER_USER_ID_REQUIRED"
         }
@@ -36,25 +36,22 @@ class NoteImageService(
 
         return localRepository
             .observeForNote(
-                ownerUserId =
-                    ownerUserId,
-
-                noteLocalKey =
-                    noteLocalKey,
+                localOwnerUserId = localOwnerUserId,
+                noteLocalKey = noteLocalKey,
             )
     }
 
     fun observeMonthImageCounts(
-        ownerUserId: String,
+        localOwnerUserId: String,
         startDayKey: String,
         endDayKeyExclusive: String,
     ): Flow<Map<String, Int>> {
-        require(ownerUserId.isNotBlank()) {
+        require(localOwnerUserId.isNotBlank()) {
             "OWNER_USER_ID_REQUIRED"
         }
 
         return localRepository.observeMonthImageCounts(
-            ownerUserId = ownerUserId,
+            localOwnerUserId = localOwnerUserId,
             startDayKey = startDayKey,
             endDayKeyExclusive = endDayKeyExclusive,
         ).map { rows ->
@@ -63,12 +60,12 @@ class NoteImageService(
     }
 
     suspend fun addImage(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteLocalKey: String,
         sourceUri: Uri,
     ): LocalNoteImageEntity {
         require(
-            ownerUserId.isNotBlank(),
+            localOwnerUserId.isNotBlank(),
         ) {
             "OWNER_USER_ID_REQUIRED"
         }
@@ -79,22 +76,13 @@ class NoteImageService(
             "NOTE_LOCAL_KEY_REQUIRED"
         }
 
-        val sourceInfo =
-            sourceInspector
-                .inspect(
-                    sourceUri =
-                        sourceUri,
-                )
+        val sourceInfo = sourceInspector.inspect(sourceUri = sourceUri)
 
-        val localPath =
-            fileStore
-                .importImage(
-                    sourceUri =
-                        sourceUri,
-
-                    mime =
-                        sourceInfo.mime,
-                )
+        val localPath = fileStore
+            .importImage(
+                sourceUri = sourceUri,
+                mime = sourceInfo.mime,
+            )
 
         val now = System.currentTimeMillis()
 
@@ -102,13 +90,13 @@ class NoteImageService(
 
         val position = localRepository
             .nextPosition(
-                ownerUserId = ownerUserId,
+                localOwnerUserId = localOwnerUserId,
                 noteLocalKey = noteLocalKey,
             )
 
         val localImage = LocalNoteImageEntity(
             localImageKey = localImageKey,
-            ownerUserId = ownerUserId,
+            localOwnerUserId = localOwnerUserId,
             noteLocalKey = noteLocalKey,
             imageId = null,
             localPath = localPath,
@@ -124,81 +112,39 @@ class NoteImageService(
         )
 
         try {
-            localRepository
-                .upsert(
-                    image =
-                        localImage,
-                )
+            localRepository.upsert(image = localImage)
 
-            /*
-             * 本地 Note media 已经发生变化。
-             *
-             * 即使图片 asset 还没上传，
-             * desired local media 已经包含这张图片。
-             *
-             * Media Push 会在后续独立同步阶段处理。
-             */
             noteMediaLocalRepository
                 .markPending(
-                    ownerUserId = ownerUserId,
+                    localOwnerUserId = localOwnerUserId,
                     noteLocalKey = noteLocalKey,
                 )
 
         } catch (
             error: Throwable,
         ) {
-            /*
-             * Room 写入失败时，
-             * 本地文件也不能成为孤儿文件。
-             */
-            fileStore
-                .delete(
-                    localPath =
-                        localPath,
-                )
-
+            fileStore.delete(localPath = localPath)
             throw error
         }
 
-        /*
-         * 从这里开始，本地附件已经成立。
-         *
-         * 网络上传失败不应该回滚：
-         * - local file
-         * - LocalNoteImageEntity
-         */
         runCatching {
             upload(
-                ownerUserId =
-                    ownerUserId,
-
-                localImageKey =
-                    localImageKey,
+                localOwnerUserId = localOwnerUserId,
+                localImageKey = localImageKey,
             )
         }
 
-        /*
-         * 上传可能已经修改：
-         * imageId
-         * uploadState
-         * uploadError
-         *
-         * 所以重新读取一次最新状态。
-         */
         return localRepository
-            .get(
-                localImageKey =
-                    localImageKey,
-            )
+            .get(localImageKey = localImageKey)
             ?: localImage
     }
 
     suspend fun upload(
-        ownerUserId: String,
+        localOwnerUserId: String,
         localImageKey: String,
     ) {
         require(
-            ownerUserId.isNotBlank(),
+            localOwnerUserId.isNotBlank(),
         ) {
             "OWNER_USER_ID_REQUIRED"
         }
@@ -209,28 +155,16 @@ class NoteImageService(
             "LOCAL_IMAGE_KEY_REQUIRED"
         }
 
-        val local =
-            localRepository
-                .get(
-                    localImageKey =
-                        localImageKey,
-                )
-                ?: return
+        val local = localRepository
+            .get(localImageKey = localImageKey)
+            ?: return
 
         require(
-            local.ownerUserId ==
-                    ownerUserId,
+            local.localOwnerUserId == localOwnerUserId,
         ) {
             "NOTE_IMAGE_OWNER_MISMATCH"
         }
 
-        /*
-         * Remote hydrated image
-         * 或已经完成 Asset Upload 的本地图片。
-         *
-         * 已经有正式 imageId，
-         * 不需要再次上传。
-         */
         if (
             local.uploadState ==
             "uploaded" &&
@@ -239,35 +173,20 @@ class NoteImageService(
             return
         }
 
-        /*
-         * 真正需要执行 Asset Upload 的记录
-         * 必须具有本地文件。
-         */
-        val localPath =
-            local.localPath
-                ?.takeIf {
-                    it.isNotBlank()
-                }
+        val localPath = local.localPath
+                ?.takeIf { it.isNotBlank() }
 
-        if (
-            localPath == null
-        ) {
+        if (localPath == null) {
             localRepository
                 .markUploadFailed(
-                    localImageKey =
-                        local.localImageKey,
-
-                    errorMessage =
-                        "LOCAL_IMAGE_PATH_MISSING",
+                    localImageKey = local.localImageKey,
+                    errorMessage = "LOCAL_IMAGE_PATH_MISSING",
                 )
 
             return
         }
 
-        val localFile =
-            File(
-                localPath,
-            )
+        val localFile = File(localPath)
 
         if (
             !localFile.exists() ||
@@ -275,61 +194,32 @@ class NoteImageService(
         ) {
             localRepository
                 .markUploadFailed(
-                    localImageKey =
-                        local.localImageKey,
-
-                    errorMessage =
-                        "LOCAL_IMAGE_FILE_NOT_FOUND",
+                    localImageKey = local.localImageKey,
+                    errorMessage = "LOCAL_IMAGE_FILE_NOT_FOUND",
                 )
 
             return
         }
 
-        /*
-         * Remote hydration 允许 bytes == null，
-         * 但真正执行 Asset Upload 的本地图片
-         * 必须有合法 bytes。
-         */
-        val bytes =
-            local.bytes
-
-        if (
-            bytes == null ||
-            bytes <= 0L
-        ) {
+        val bytes = local.bytes
+        if (bytes == null || bytes <= 0L) {
             localRepository
                 .markUploadFailed(
-                    localImageKey =
-                        local.localImageKey,
-
-                    errorMessage =
-                        "IMAGE_SIZE_INVALID",
+                    localImageKey = local.localImageKey,
+                    errorMessage = "IMAGE_SIZE_INVALID",
                 )
 
             return
         }
 
-        /*
-         * 同理：
-         * Remote hydrated image 可以不知道 mime，
-         * 真正 Asset Upload 时必须存在。
-         */
-        val mime =
-            local.mime
-                ?.takeIf {
-                    it.isNotBlank()
-                }
+        val mime = local.mime
+                ?.takeIf { it.isNotBlank() }
 
-        if (
-            mime == null
-        ) {
+        if (mime == null) {
             localRepository
                 .markUploadFailed(
-                    localImageKey =
-                        local.localImageKey,
-
-                    errorMessage =
-                        "IMAGE_MIME_MISSING",
+                    localImageKey = local.localImageKey,
+                    errorMessage = "IMAGE_MIME_MISSING",
                 )
 
             return
@@ -337,63 +227,35 @@ class NoteImageService(
 
         localRepository
             .markUploading(
-                localImageKey =
-                    local.localImageKey,
+                localImageKey = local.localImageKey,
             )
 
         try {
-            val sourceInfo =
-                ImageSourceInfo(
-                    mime =
-                        mime,
-
-                    bytes =
-                        bytes,
-
-                    fileName =
-                        localFile.name,
-
-                    width =
-                        local.width,
-
-                    height =
-                        local.height,
+            val sourceInfo = ImageSourceInfo(
+                    mime = mime,
+                    bytes = bytes,
+                    fileName = localFile.name,
+                    width = local.width,
+                    height = local.height,
                 )
 
-            val asset =
-                imageRepository
-                    .uploadPrivateImage(
-                        sourceUri =
-                            localFile.toUri(),
-
-                        sourceInfo =
-                            sourceInfo,
-
-                        scene =
-                            MobileImageScene.Note,
-                    )
+            val asset = imageRepository
+                .uploadPrivateImage(
+                    sourceUri = localFile.toUri(),
+                    sourceInfo = sourceInfo,
+                    scene = MobileImageScene.Note,
+                )
 
             localRepository
                 .markUploaded(
-                    localImageKey =
-                        local.localImageKey,
-
-                    imageId =
-                        asset.id,
+                    localImageKey = local.localImageKey,
+                    imageId = asset.id,
                 )
 
-            /*
-             * Asset 已获得正式 imageId。
-             *
-             * Media relation 需要进入下一轮同步。
-             */
             noteMediaLocalRepository
                 .markPending(
-                    ownerUserId =
-                        ownerUserId,
-
-                    noteLocalKey =
-                        local.noteLocalKey,
+                    localOwnerUserId = localOwnerUserId,
+                    noteLocalKey = local.noteLocalKey,
                 )
 
         } catch (
@@ -401,14 +263,8 @@ class NoteImageService(
         ) {
             localRepository
                 .markUploadFailed(
-                    localImageKey =
-                        local.localImageKey,
-
-                    errorMessage =
-                        normalizeUploadError(
-                            error =
-                                error,
-                        ),
+                    localImageKey = local.localImageKey,
+                    errorMessage = normalizeUploadError(error = error),
                 )
 
             throw error
@@ -416,26 +272,23 @@ class NoteImageService(
     }
 
     suspend fun retryUpload(
-        ownerUserId: String,
+        localOwnerUserId: String,
         localImageKey: String,
     ) {
         upload(
-            ownerUserId =
-                ownerUserId,
-
-            localImageKey =
-                localImageKey,
+            localOwnerUserId = localOwnerUserId,
+            localImageKey = localImageKey,
         )
     }
 
     suspend fun rebindNote(
-        ownerUserId: String,
+        localOwnerUserId: String,
         oldNoteLocalKey: String,
         newNoteLocalKey: String,
         noteId: String? = null,
     ) {
         require(
-            ownerUserId.isNotBlank(),
+            localOwnerUserId.isNotBlank(),
         ) {
             "OWNER_USER_ID_REQUIRED"
         }
@@ -462,8 +315,8 @@ class NoteImageService(
              */
             noteMediaLocalRepository
                 .rebindNote(
-                    ownerUserId =
-                        ownerUserId,
+                    localOwnerUserId =
+                        localOwnerUserId,
 
                     oldNoteLocalKey =
                         oldNoteLocalKey,
@@ -483,8 +336,8 @@ class NoteImageService(
          */
         localRepository
             .rebindNoteLocalKey(
-                ownerUserId =
-                    ownerUserId,
+                localOwnerUserId =
+                    localOwnerUserId,
 
                 oldNoteLocalKey =
                     oldNoteLocalKey,
@@ -498,8 +351,8 @@ class NoteImageService(
          */
         noteMediaLocalRepository
             .rebindNote(
-                ownerUserId =
-                    ownerUserId,
+                localOwnerUserId =
+                    localOwnerUserId,
 
                 oldNoteLocalKey =
                     oldNoteLocalKey,
@@ -513,11 +366,11 @@ class NoteImageService(
     }
 
     suspend fun uploadPending(
-        ownerUserId: String,
+        localOwnerUserId: String,
         limit: Int = 20,
     ) {
         require(
-            ownerUserId.isNotBlank(),
+            localOwnerUserId.isNotBlank(),
         ) {
             "OWNER_USER_ID_REQUIRED"
         }
@@ -535,15 +388,14 @@ class NoteImageService(
          */
         localRepository
             .resetInterruptedUploads(
-                ownerUserId =
-                    ownerUserId,
+                localOwnerUserId = localOwnerUserId,
             )
 
         val pending =
             localRepository
                 .listPendingUploads(
-                    ownerUserId =
-                        ownerUserId,
+                    localOwnerUserId =
+                        localOwnerUserId,
 
                     limit =
                         limit,
@@ -552,8 +404,8 @@ class NoteImageService(
         pending.forEach { image ->
             runCatching {
                 upload(
-                    ownerUserId =
-                        ownerUserId,
+                    localOwnerUserId =
+                        localOwnerUserId,
 
                     localImageKey =
                         image.localImageKey,
@@ -563,11 +415,11 @@ class NoteImageService(
     }
 
     suspend fun removeImage(
-        ownerUserId: String,
+        localOwnerUserId: String,
         localImageKey: String,
     ) {
         require(
-            ownerUserId.isNotBlank(),
+            localOwnerUserId.isNotBlank(),
         ) {
             "OWNER_USER_ID_REQUIRED"
         }
@@ -587,8 +439,8 @@ class NoteImageService(
                 ?: return
 
         require(
-            local.ownerUserId ==
-                    ownerUserId,
+            local.localOwnerUserId ==
+                    localOwnerUserId,
         ) {
             "NOTE_IMAGE_OWNER_MISMATCH"
         }
@@ -612,8 +464,8 @@ class NoteImageService(
          */
         noteMediaLocalRepository
             .markPending(
-                ownerUserId =
-                    ownerUserId,
+                localOwnerUserId =
+                    localOwnerUserId,
 
                 noteLocalKey =
                     local.noteLocalKey,
@@ -633,11 +485,11 @@ class NoteImageService(
     }
 
     suspend fun removeAllImagesForNote(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteLocalKey: String,
     ) {
         require(
-            ownerUserId.isNotBlank(),
+            localOwnerUserId.isNotBlank(),
         ) {
             "OWNER_USER_ID_REQUIRED"
         }
@@ -651,8 +503,8 @@ class NoteImageService(
         val images =
             localRepository
                 .listForNote(
-                    ownerUserId =
-                        ownerUserId,
+                    localOwnerUserId =
+                        localOwnerUserId,
 
                     noteLocalKey =
                         noteLocalKey,
@@ -660,8 +512,8 @@ class NoteImageService(
 
         localRepository
             .deleteForNote(
-                ownerUserId =
-                    ownerUserId,
+                localOwnerUserId =
+                    localOwnerUserId,
 
                 noteLocalKey =
                     noteLocalKey,
@@ -675,8 +527,8 @@ class NoteImageService(
          */
         noteMediaLocalRepository
             .deleteForNote(
-                ownerUserId =
-                    ownerUserId,
+                localOwnerUserId =
+                    localOwnerUserId,
 
                 noteLocalKey =
                     noteLocalKey,
@@ -698,13 +550,13 @@ class NoteImageService(
     }
 
     suspend fun listImages(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteLocalKey: String,
     ): List<LocalNoteImageEntity> {
         return localRepository
             .listForNote(
-                ownerUserId =
-                    ownerUserId,
+                localOwnerUserId =
+                    localOwnerUserId,
 
                 noteLocalKey =
                     noteLocalKey,

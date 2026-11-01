@@ -47,89 +47,49 @@ fun EngageScreen(
     when {
         state.signedOut -> {
             RemoteMessageState(
-                title =
-                    "登录后使用参与功能",
-
-                description =
-                    "请先登录账号，以查看调查、赏金和市场内容。",
+                title = "登录后使用参与功能",
+                description = "请先登录账号，以查看调查、赏金和市场内容。",
             )
         }
-
 
         state.offline -> {
             RemoteMessageState(
-                title =
-                    "当前处于离线状态",
-
-                description =
-                    "连接网络后将自动恢复内容列表。",
+                title = "当前处于离线状态",
+                description = "连接网络后将自动恢复内容列表。",
             )
         }
-
 
         state.loading &&
                 state.home == null -> {
             EngageLoadingContent()
         }
 
-
         state.home != null -> {
-            val home =
-                state.home
+            val home = state.home
 
             EngageHomeContent(
-                surveyItems =
-                    home.surveyItems,
-
-                bountyItems =
-                    home.bountyItems,
-
-                marketItems =
-                    home.marketItems,
-
-                errorMessage =
-                    state.errorMessage,
-
-                onRetry =
-                    onRetry,
-
-                onSurveyClick =
-                    onSurveyClick,
-
-                onSurveyMore =
-                    onSurveyMore,
-
-                onBountyClick =
-                    onBountyClick,
-
-                onBountyMore =
-                    onBountyMore,
-
-                onMarketClick =
-                    onMarketClick,
-
-                onMarketMore =
-                    onMarketMore,
+                surveyItems = home.surveyItems,
+                bountyItems =  home.bountyItems,
+                marketItems = home.marketItems,
+                errorMessage = state.errorMessage,
+                onRetry = onRetry,
+                onSurveyClick = onSurveyClick,
+                onSurveyMore = onSurveyMore,
+                onBountyClick = onBountyClick,
+                onBountyMore = onBountyMore,
+                onMarketClick = onMarketClick,
+                onMarketMore = onMarketMore,
             )
         }
-
 
         state.errorMessage != null -> {
             RemoteMessageState(
-                title =
-                    "参与内容加载失败",
-
-                description =
-                    state.errorMessage,
-
-                actionLabel =
-                    "重试",
-
-                onAction =
-                    onRetry,
+                title = "参与内容加载失败",
+                description = state.errorMessage,
+                actionLabel = "重试",
+                onAction = onRetry,
             )
         }
-
 
         else -> {
             EngageEmptyContent()
@@ -139,75 +99,43 @@ fun EngageScreen(
 
 @Composable
 private fun EngageHomeContent(
-    surveyItems:
-    List<MobileSurveyCard>,
-
-    bountyItems:
-    List<MobileBountyCard>,
-
-    marketItems:
-    List<MobileMarketCard>,
-
-    errorMessage:
-    String?,
-
+    surveyItems: List<MobileSurveyCard>,
+    bountyItems: List<MobileBountyCard>,
+    marketItems: List<MobileMarketCard>,
+    errorMessage: String?,
     onRetry: () -> Unit,
-
-    onSurveyClick:
-        (String) -> Unit,
-
-    onSurveyMore:
-        () -> Unit,
-
-    onBountyClick:
-        (String) -> Unit,
-
-    onBountyMore:
-        () -> Unit,
-
-    onMarketClick:
-        (String) -> Unit,
-
-    onMarketMore:
-        () -> Unit,
+    onSurveyClick: (String) -> Unit,
+    onSurveyMore: () -> Unit,
+    onBountyClick: (String) -> Unit,
+    onBountyMore: () -> Unit,
+    onMarketClick: (String) -> Unit,
+    onMarketMore: () -> Unit,
 ) {
     LazyColumn(
-        modifier =
-            Modifier.fillMaxSize(),
-
-        contentPadding =
-            PaddingValues(
-                horizontal = 16.dp,
-                vertical = 12.dp,
-            ),
-
-        verticalArrangement =
-            Arrangement.spacedBy(
-                24.dp
-            ),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(
+            horizontal = 16.dp,
+            vertical = 12.dp,
+        ),
+        verticalArrangement = Arrangement.spacedBy(
+            24.dp
+        ),
     ) {
-
         if (
             !errorMessage.isNullOrBlank()
         ) {
             item {
                 EngageInlineError(
-                    message =
-                        errorMessage,
-
-                    onRetry =
-                        onRetry,
+                    message = errorMessage,
+                    onRetry = onRetry,
                 )
             }
         }
 
         item {
             EngageSectionHeader(
-                title =
-                    "调查与测评",
-
-                onMore =
-                    onSurveyMore,
+                title = "调查与测评",
+                onMore = onSurveyMore,
             )
         }
 
@@ -216,28 +144,18 @@ private fun EngageHomeContent(
         ) {
             item {
                 EngageSectionEmpty(
-                    text =
-                        "暂无推荐调查"
+                    text = "暂无推荐调查"
                 )
             }
         } else {
             items(
-                items =
-                    surveyItems,
-
-                key = {
-                    "survey:${it.id}"
-                },
+                items = surveyItems,
+                key = { "survey:${it.id}" },
             ) { item ->
-
                 SurveyEngageCard(
-                    item =
-                        item,
-
+                    item = item,
                     onClick = {
-                        onSurveyClick(
-                            item.id
-                        )
+                        onSurveyClick(item.id)
                     },
                 )
             }
@@ -249,11 +167,8 @@ private fun EngageHomeContent(
 
         item {
             EngageSectionHeader(
-                title =
-                    "赏金任务",
-
-                onMore =
-                    onBountyMore,
+                title = "赏金任务",
+                onMore = onBountyMore,
             )
         }
 
@@ -262,28 +177,19 @@ private fun EngageHomeContent(
         ) {
             item {
                 EngageSectionEmpty(
-                    text =
-                        "暂无推荐任务"
+                    text = "暂无推荐任务"
                 )
             }
         } else {
             items(
-                items =
-                    bountyItems,
-
-                key = {
-                    "bounty:${it.id}"
-                },
+                items = bountyItems,
+                key = { "bounty:${it.id}" },
             ) { item ->
 
                 BountyEngageCard(
-                    item =
-                        item,
-
+                    item = item,
                     onClick = {
-                        onBountyClick(
-                            item.id
-                        )
+                        onBountyClick(item.id)
                     },
                 )
             }
@@ -295,11 +201,8 @@ private fun EngageHomeContent(
 
         item {
             EngageSectionHeader(
-                title =
-                    "精选单品",
-
-                onMore =
-                    onMarketMore,
+                title = "精选单品",
+                onMore = onMarketMore,
             )
         }
 
@@ -308,35 +211,27 @@ private fun EngageHomeContent(
         ) {
             item {
                 EngageSectionEmpty(
-                    text =
-                        "暂无推荐单品"
+                    text = "暂无推荐单品"
                 )
             }
         } else {
             items(
-                items =
-                    marketItems,
-
+                items = marketItems,
                 key = {
                     "market:${it.id}"
                 },
             ) { item ->
 
                 MarketEngageCard(
-                    item =
-                        item,
-
+                    item = item,
                     onClick = {
-                        onMarketClick(
-                            item.id
-                        )
+                        onMarketClick(item.id )
                     },
                 )
             }
         }
     }
 }
-
 
 @Composable
 private fun EngageSectionHeader(
@@ -344,46 +239,21 @@ private fun EngageSectionHeader(
     onMore: () -> Unit,
 ) {
     Row(
-        modifier =
-            Modifier.fillMaxWidth(),
-
-        horizontalArrangement =
-            Arrangement.SpaceBetween,
-
-        verticalAlignment =
-            Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text =
-                title,
-
-            style =
-                MaterialTheme
-                    .typography
-                    .titleMedium,
-
-            fontWeight =
-                FontWeight.SemiBold,
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
         )
 
         Text(
-            text =
-                "查看全部",
-
-            modifier =
-                Modifier.clickable {
-                    onMore()
-                },
-
-            style =
-                MaterialTheme
-                    .typography
-                    .labelLarge,
-
-            color =
-                MaterialTheme
-                    .colorScheme
-                    .primary,
+            text = "查看全部",
+            modifier = Modifier.clickable { onMore() },
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
         )
     }
 }
@@ -391,186 +261,92 @@ private fun EngageSectionHeader(
 
 @Composable
 private fun SurveyEngageCard(
-    item:
-    MobileSurveyCard,
-
-    onClick:
-        () -> Unit,
+    item: MobileSurveyCard,
+    onClick: () -> Unit,
 ) {
     Column(
-        modifier =
-            Modifier
+        modifier = Modifier
                 .fillMaxWidth()
-                .clickable {
-                    onClick()
-                }
-                .padding(
-                    vertical = 6.dp
-                ),
-
-        verticalArrangement =
-            Arrangement.spacedBy(
-                6.dp
-            ),
+                .clickable { onClick() }
+                .padding( vertical = 6.dp ),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Text(
-            text =
-                item.title,
-
-            style =
-                MaterialTheme
-                    .typography
-                    .titleSmall,
-
-            fontWeight =
-                FontWeight.Medium,
-
-            maxLines =
-                2,
-
-            overflow =
-                TextOverflow.Ellipsis,
+            text = item.title,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Medium,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
         )
 
         if (
-            item.description
-                .isNotBlank()
+            item.description.isNotBlank()
         ) {
             Text(
-                text =
-                    item.description,
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodyMedium,
-
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .onSurfaceVariant,
-
-                maxLines =
-                    2,
-
-                overflow =
-                    TextOverflow.Ellipsis,
+                text = item.description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
         }
 
         Row(
-            horizontalArrangement =
-                Arrangement.spacedBy(
-                    12.dp
-                ),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text =
-                    if (
-                        item.responseKind ==
-                        "report"
-                    ) {
-                        "测评"
-                    } else {
-                        "调查"
-                    },
+                text = if (
+                    item.responseKind == "report"
+                ) {
+                    "测评"
+                } else {
+                    "调查"
+                },
 
-                style =
-                    MaterialTheme
-                        .typography
-                        .labelMedium,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
 
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .primary,
             )
 
             Text(
-                text =
-                    "${item.responses.toInt()} 次参与",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .labelMedium,
-
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .onSurfaceVariant,
+                text = "${item.responses.toInt()} 次参与",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+
         }
     }
 }
 
-
 @Composable
 private fun BountyEngageCard(
-    item:
-    MobileBountyCard,
-
-    onClick:
-        () -> Unit,
+    item: MobileBountyCard,
+    onClick: () -> Unit,
 ) {
     Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clickable {
-                    onClick()
-                }
-                .padding(
-                    vertical = 6.dp
-                ),
-
-        verticalArrangement =
-            Arrangement.spacedBy(
-                6.dp
-            ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding( vertical = 6.dp ),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Text(
-            text =
-                item.title,
-
-            style =
-                MaterialTheme
-                    .typography
-                    .titleSmall,
-
-            fontWeight =
-                FontWeight.Medium,
-
-            maxLines =
-                2,
-
-            overflow =
-                TextOverflow.Ellipsis,
+            text = item.title,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Medium,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
         )
 
         if (
-            item.description
-                .isNotBlank()
+            item.description.isNotBlank()
         ) {
             Text(
-                text =
-                    item.description,
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodyMedium,
-
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .onSurfaceVariant,
-
-                maxLines =
-                    2,
-
-                overflow =
-                    TextOverflow.Ellipsis,
+                text =  item.description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
         }
 
@@ -581,18 +357,9 @@ private fun BountyEngageCard(
                 ),
         ) {
             Text(
-                text =
-                    item.reward,
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .labelLarge,
-
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .primary,
+                text = item.reward,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme .colorScheme.primary,
             )
 
             if (
@@ -600,24 +367,14 @@ private fun BountyEngageCard(
                     .isNotBlank()
             ) {
                 Text(
-                    text =
-                        item.deadlineLabel,
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .labelMedium,
-
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .onSurfaceVariant,
+                    text = item.deadlineLabel,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
     }
 }
-
 
 @Composable
 private fun MarketEngageCard(

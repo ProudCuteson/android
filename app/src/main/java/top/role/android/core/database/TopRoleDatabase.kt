@@ -22,7 +22,7 @@ import top.role.android.core.database.note.NoteTypeConverters
         LocalNoteImageEntity::class,
         LocalNoteMediaSyncEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 @TypeConverters(
@@ -410,6 +410,143 @@ abstract class TopRoleDatabase :
                 }
             }
 
+        private val MIGRATION_7_8 =
+            object : Migration(7, 8) {
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase,
+                ) {
+
+                    // 1. local_notes
+                    db.execSQL(
+                        """
+                        ALTER TABLE local_notes
+                        RENAME COLUMN ownerUserId
+                        TO localOwnerUserId
+                        """.trimIndent()
+                    )
+
+                    // 删除旧索引
+                    db.execSQL(
+                        "DROP INDEX IF EXISTS index_local_notes_ownerUserId"
+                    )
+                    db.execSQL(
+                        "DROP INDEX IF EXISTS index_local_notes_ownerUserId_noteId"
+                    )
+                    db.execSQL(
+                        "DROP INDEX IF EXISTS index_local_notes_ownerUserId_clientKey"
+                    )
+                    db.execSQL(
+                        "DROP INDEX IF EXISTS index_local_notes_ownerUserId_dayKey"
+                    )
+                    db.execSQL(
+                        "DROP INDEX IF EXISTS index_local_notes_ownerUserId_onlyDay_dayKey"
+                    )
+                    db.execSQL(
+                        "DROP INDEX IF EXISTS index_local_notes_ownerUserId_syncState"
+                    )
+
+                    // 创建新索引
+                    db.execSQL(
+                        "CREATE INDEX index_local_notes_localOwnerUserId ON local_notes(localOwnerUserId)"
+                    )
+                    db.execSQL(
+                        "CREATE INDEX index_local_notes_localOwnerUserId_noteId ON local_notes(localOwnerUserId, noteId)"
+                    )
+                    db.execSQL(
+                        "CREATE INDEX index_local_notes_localOwnerUserId_clientKey ON local_notes(localOwnerUserId, clientKey)"
+                    )
+                    db.execSQL(
+                        "CREATE INDEX index_local_notes_localOwnerUserId_dayKey ON local_notes(localOwnerUserId, dayKey)"
+                    )
+                    db.execSQL(
+                        "CREATE INDEX index_local_notes_localOwnerUserId_onlyDay_dayKey ON local_notes(localOwnerUserId, onlyDay, dayKey)"
+                    )
+                    db.execSQL(
+                        "CREATE INDEX index_local_notes_localOwnerUserId_syncState ON local_notes(localOwnerUserId, syncState)"
+                    )
+
+                    // local_note_images
+
+                    db.execSQL(
+                        """
+                        ALTER TABLE local_note_images
+                        RENAME COLUMN ownerUserId
+                        TO localOwnerUserId
+                        """.trimIndent()
+                    )
+
+                    // 删除旧身份索引
+                    db.execSQL(
+                        "DROP INDEX IF EXISTS index_local_note_images_ownerUserId_noteLocalKey"
+                    )
+
+                    db.execSQL(
+                        "DROP INDEX IF EXISTS index_local_note_images_ownerUserId_imageId"
+                    )
+
+                    // 创建新身份索引
+                    db.execSQL(
+                       """
+                        CREATE INDEX index_local_note_images_localOwnerUserId_noteLocalKey
+                        ON local_note_images(localOwnerUserId, noteLocalKey)
+                        """.trimIndent()
+                    )
+
+                    db.execSQL(
+                      """
+                        CREATE INDEX index_local_note_images_localOwnerUserId_imageId
+                        ON local_note_images(localOwnerUserId, imageId)
+                      """.trimIndent()
+                    )
+
+                    // uploadState 索引不变
+
+                    // 3. local_note_media_sync
+                    db.execSQL(
+                        """
+                        ALTER TABLE local_note_media_sync
+                        RENAME COLUMN ownerUserId
+                        TO localOwnerUserId
+                        """.trimIndent()
+                    )
+
+                    db.execSQL(
+                        "DROP INDEX IF EXISTS index_local_note_media_sync_ownerUserId_noteLocalKey"
+                    )
+
+                    db.execSQL(
+                        "DROP INDEX IF EXISTS index_local_note_media_sync_ownerUserId_noteId"
+                    )
+
+                    db.execSQL(
+                        "DROP INDEX IF EXISTS index_local_note_media_sync_ownerUserId_syncStateRaw"
+                    )
+
+                    db.execSQL(
+                        """
+                        CREATE UNIQUE INDEX index_local_note_media_sync_localOwnerUserId_noteLocalKey
+                        ON local_note_media_sync(localOwnerUserId, noteLocalKey)
+                        """.trimIndent()
+                    )
+
+                    db.execSQL(
+                        """
+                        CREATE INDEX index_local_note_media_sync_localOwnerUserId_noteId
+                        ON local_note_media_sync(localOwnerUserId, noteId)
+                        """.trimIndent()
+                    )
+
+                    db.execSQL(
+                        """
+                        CREATE INDEX index_local_note_media_sync_localOwnerUserId_syncStateRaw
+                        ON local_note_media_sync(localOwnerUserId, syncStateRaw)
+                        """.trimIndent()
+                    )
+
+                }
+            }
+
         fun create(
             context: Context,
         ): TopRoleDatabase {
@@ -426,6 +563,7 @@ abstract class TopRoleDatabase :
                     MIGRATION_4_5,
                     MIGRATION_5_6,
                     MIGRATION_6_7,
+                    MIGRATION_7_8,
                 )
                 .build()
         }

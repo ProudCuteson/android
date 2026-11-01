@@ -2,6 +2,7 @@ package top.role.android.core.auth
 
 import top.role.android.core.network.auth.AuthApi
 import top.role.android.core.network.auth.ExchangeOtpUser
+import top.role.android.core.network.auth.SessionValidationResult
 
 data class SendOtpResult(
     val maskedPhone: String,
@@ -151,6 +152,12 @@ class AuthRepository(
                 ),
             )
         }
+    }
+
+    suspend fun validateSession(
+        userId: String,
+    ): SessionValidationResult {
+        return authApi.validateSession(userId)
     }
 
 }

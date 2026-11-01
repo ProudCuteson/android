@@ -18,39 +18,39 @@ interface LocalNoteDao {
     @Query(
         """
         SELECT * FROM local_notes
-        WHERE ownerUserId = :ownerUserId
+        WHERE localOwnerUserId = :localOwnerUserId
           AND localKey = :localKey
         LIMIT 1
         """
     )
     suspend fun findByLocalKey(
-        ownerUserId: String,
+        localOwnerUserId: String,
         localKey: String,
     ): LocalNoteEntity?
 
     @Query(
         """
         SELECT * FROM local_notes
-        WHERE ownerUserId = :ownerUserId
+        WHERE localOwnerUserId = :localOwnerUserId
           AND noteId = :noteId
         LIMIT 1
         """
     )
     suspend fun findByNoteId(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteId: String,
     ): LocalNoteEntity?
 
     @Query(
         """
         SELECT * FROM local_notes
-        WHERE ownerUserId = :ownerUserId
+        WHERE localOwnerUserId = :localOwnerUserId
           AND clientKey = :clientKey
         LIMIT 1
         """
     )
     suspend fun findByClientKey(
-        ownerUserId: String,
+        localOwnerUserId: String,
         clientKey: String,
     ): LocalNoteEntity?
 
@@ -59,7 +59,7 @@ interface LocalNoteDao {
     @Query(
         """
         SELECT * FROM local_notes
-        WHERE ownerUserId = :ownerUserId
+        WHERE localOwnerUserId = :localOwnerUserId
           AND onlyDay = 1
           AND dayKey = :dayKey
           AND COALESCE(
@@ -71,27 +71,27 @@ interface LocalNoteDao {
         """
     )
     suspend fun findDayOnlyNote(
-        ownerUserId: String,
+        localOwnerUserId: String,
         dayKey: String,
     ): LocalNoteEntity?
 
     @Query(
         """
-    SELECT * FROM local_notes
-    WHERE ownerUserId = :ownerUserId
-      AND localKey = :localKey
-    LIMIT 1
-    """
+        SELECT * FROM local_notes
+        WHERE localOwnerUserId = :localOwnerUserId
+          AND localKey = :localKey
+        LIMIT 1
+        """
     )
     fun observeByLocalKey(
-        ownerUserId: String,
+        localOwnerUserId: String,
         localKey: String,
     ): Flow<LocalNoteEntity?>
 
     @Query(
         """
         SELECT * FROM local_notes
-        WHERE ownerUserId = :ownerUserId
+        WHERE localOwnerUserId = :localOwnerUserId
           AND onlyDay = 1
           AND dayKey = :dayKey
           AND COALESCE(
@@ -103,7 +103,7 @@ interface LocalNoteDao {
         """
     )
     fun observeDayOnlyNote(
-        ownerUserId: String,
+        localOwnerUserId: String,
         dayKey: String,
     ): Flow<LocalNoteEntity?>
 
@@ -112,7 +112,7 @@ interface LocalNoteDao {
     @Query(
         """
         SELECT * FROM local_notes
-        WHERE ownerUserId = :ownerUserId
+        WHERE localOwnerUserId = :localOwnerUserId
           AND dayKey >= :startDayKey
           AND dayKey < :endDayKeyExclusive
           AND COALESCE(
@@ -123,7 +123,7 @@ interface LocalNoteDao {
         """
     )
     fun observeMonthNotesForDayHome(
-        ownerUserId: String,
+        localOwnerUserId: String,
         startDayKey: String,
         endDayKeyExclusive: String,
     ): Flow<List<LocalNoteEntity>>
@@ -131,7 +131,7 @@ interface LocalNoteDao {
     @Query(
         """
         SELECT * FROM local_notes
-        WHERE ownerUserId = :ownerUserId
+        WHERE localOwnerUserId = :localOwnerUserId
           AND dayKey = :dayKey
           AND COALESCE(
               pendingRemoteStatus,
@@ -141,7 +141,7 @@ interface LocalNoteDao {
         """
     )
     fun observeNotesForDay(
-        ownerUserId: String,
+        localOwnerUserId: String,
         dayKey: String,
     ): Flow<List<LocalNoteEntity>>
 
@@ -150,7 +150,7 @@ interface LocalNoteDao {
     @Query(
         """
         SELECT * FROM local_notes
-        WHERE ownerUserId = :ownerUserId
+        WHERE localOwnerUserId = :localOwnerUserId
           AND COALESCE(
               pendingRemoteStatus,
               remoteStatus
@@ -159,13 +159,13 @@ interface LocalNoteDao {
         """
     )
     fun observeRecentNotes(
-        ownerUserId: String,
+        localOwnerUserId: String,
     ): Flow<List<LocalNoteEntity>>
 
     @Query(
         """
         SELECT * FROM local_notes
-        WHERE ownerUserId = :ownerUserId
+        WHERE localOwnerUserId = :localOwnerUserId
           AND COALESCE(
               pendingRemoteStatus,
               remoteStatus
@@ -175,13 +175,13 @@ interface LocalNoteDao {
         """
     )
     fun observePinnedNotes(
-        ownerUserId: String,
+        localOwnerUserId: String,
     ): Flow<List<LocalNoteEntity>>
 
     @Query(
         """
         SELECT * FROM local_notes
-        WHERE ownerUserId = :ownerUserId
+        WHERE localOwnerUserId = :localOwnerUserId
           AND COALESCE(
               pendingRemoteStatus,
               remoteStatus
@@ -192,13 +192,13 @@ interface LocalNoteDao {
         """
     )
     fun observeDiaryNotes(
-        ownerUserId: String,
+        localOwnerUserId: String,
     ): Flow<List<LocalNoteEntity>>
 
     @Query(
         """
         SELECT * FROM local_notes
-        WHERE ownerUserId = :ownerUserId
+        WHERE localOwnerUserId = :localOwnerUserId
           AND COALESCE(
               pendingRemoteStatus,
               remoteStatus
@@ -207,13 +207,13 @@ interface LocalNoteDao {
         """
     )
     fun observeArchivedNotes(
-        ownerUserId: String,
+        localOwnerUserId: String,
     ): Flow<List<LocalNoteEntity>>
 
     @Query(
         """
         SELECT * FROM local_notes
-        WHERE ownerUserId = :ownerUserId
+        WHERE localOwnerUserId = :localOwnerUserId
           AND COALESCE(
               pendingRemoteStatus,
               remoteStatus
@@ -226,7 +226,7 @@ interface LocalNoteDao {
         """
     )
     fun searchNotes(
-        ownerUserId: String,
+        localOwnerUserId: String,
         query: String,
     ): Flow<List<LocalNoteEntity>>
 
@@ -235,39 +235,112 @@ interface LocalNoteDao {
     @Query(
         """
         SELECT * FROM local_notes
-        WHERE ownerUserId = :ownerUserId
+        WHERE localOwnerUserId = :localOwnerUserId
           AND syncState IN ('pending', 'waiting')
         ORDER BY localUpdatedAt ASC
         """
     )
     suspend fun findNotesNeedingSync(
-        ownerUserId: String,
+        localOwnerUserId: String,
     ): List<LocalNoteEntity>
 
     @Query(
         """
         SELECT * FROM local_notes
-        WHERE ownerUserId = :ownerUserId
+        WHERE localOwnerUserId = :localOwnerUserId
           AND noteId IS NOT NULL
         ORDER BY localUpdatedAt ASC
         """
     )
     suspend fun findRemoteBackedNotes(
-        ownerUserId: String,
+        localOwnerUserId: String,
     ): List<LocalNoteEntity>
 
     @Query(
         """
         SELECT * FROM local_notes
-        WHERE ownerUserId = :ownerUserId
+        WHERE localOwnerUserId = :localOwnerUserId
           AND syncState = :syncState
         ORDER BY localUpdatedAt ASC
         """
     )
     suspend fun findBySyncState(
-        ownerUserId: String,
+        localOwnerUserId: String,
         syncState: NoteSyncState,
     ): List<LocalNoteEntity>
+
+    // MARK: - Adoption
+
+    /**
+     * 查询指定本地身份下的全部笔记。
+     *
+     * 认领属于数据归属迁移，不按同步状态过滤。
+     */
+    @Query(
+        """
+    SELECT *
+    FROM local_notes
+    WHERE localOwnerUserId = :guestLocalOwnerId
+      AND noteId IS NULL
+      AND remoteVersion IS NULL
+    ORDER BY localUpdatedAt DESC
+    """
+    )
+    fun observeUnclaimedNotes(
+        guestLocalOwnerId: String,
+    ): Flow<List<LocalNoteEntity>>
+
+    /**
+     * 实时观察待认领笔记数量。
+     */
+    @Query(
+        """
+    SELECT COUNT(*)
+    FROM local_notes
+    WHERE localOwnerUserId = :guestLocalOwnerId
+      AND noteId IS NULL
+      AND remoteVersion IS NULL
+    """
+    )
+    fun observeUnclaimedNoteCount(
+        guestLocalOwnerId: String,
+    ): Flow<Int>
+
+    /**
+     * Note归属更新。
+     */
+    @Query(
+        """
+    SELECT *
+    FROM local_notes
+    WHERE localOwnerUserId = :guestLocalOwnerId
+      AND noteId IS NULL
+      AND remoteVersion IS NULL
+    ORDER BY localUpdatedAt ASC
+    """
+    )
+    suspend fun findClaimableNotes(
+        guestLocalOwnerId: String,
+    ): List<LocalNoteEntity>
+
+    // 更新
+    @Query(
+        """
+    UPDATE local_notes
+    SET localOwnerUserId = :accountUserId,
+        localKey = :newLocalKey
+    WHERE localOwnerUserId = :guestLocalOwnerId
+      AND localKey = :oldLocalKey
+      AND noteId IS NULL
+      AND remoteVersion IS NULL
+    """
+    )
+    suspend fun transferGuestNote(
+        guestLocalOwnerId: String,
+        accountUserId: String,
+        oldLocalKey: String,
+        newLocalKey: String,
+    ): Int
 
     // MARK: - Persistence
 

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -26,101 +27,55 @@ fun AccountProfileSection(
     profile: MobileAccountProfile,
 ) {
     Row(
-        modifier =
-            Modifier.fillMaxWidth(),
-
-        verticalAlignment =
-            Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
 
         Surface(
-            modifier =
-                Modifier.size(56.dp),
-
-            shape =
-                MaterialTheme.shapes.extraLarge,
-
-            color =
-                MaterialTheme.colorScheme.surfaceVariant,
+            modifier = Modifier.size(56.dp),
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.surfaceVariant,
         ) {
 
-            if (
-                profile.avatarUrl
-                    .isNotBlank()
-            ) {
+            if (profile.avatarUrl.isNotBlank()) {
 
                 AsyncImage(
-                    model =
-                        profile.avatarUrl,
-
-                    contentDescription =
-                        profile.name,
-
-                    modifier =
-                        Modifier.fillMaxSize(),
+                    model = profile.avatarUrl,
+                    contentDescription = profile.name,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
                 )
 
             } else {
 
                 Column(
-                    modifier =
-                        Modifier.fillMaxSize(),
-
-                    verticalArrangement =
-                        Arrangement.Center,
-
-                    horizontalAlignment =
-                        Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
 
                     Text(
-                        text =
-                            profileInitial(
-                                profile.name
-                            ),
-
-                        style =
-                            MaterialTheme.typography.titleLarge,
-
-                        fontWeight =
-                            FontWeight.SemiBold,
-
-                        color =
-                            MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = profileInitial(profile.name),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
         }
 
-
-        Spacer(
-            modifier =
-                Modifier.size(16.dp)
-        )
-
+        Spacer(modifier =Modifier.size(16.dp))
 
         Column(
-            modifier =
-                Modifier.weight(1f),
+            modifier = Modifier.weight(1f),
         ) {
 
             Text(
-                text =
-                    displayAccountValue(
-                        profile.name
-                    ),
-
-                style =
-                    MaterialTheme.typography.titleLarge,
-
-                fontWeight =
-                    FontWeight.SemiBold,
-
-                maxLines =
-                    1,
-
-                overflow =
-                    TextOverflow.Ellipsis,
+                text = displayAccountValue(profile.name),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -130,7 +85,6 @@ fun AccountProfileSection(
 private fun profileInitial(
     name: String,
 ): String {
-
     return name
         .trim()
         .firstOrNull()
@@ -138,14 +92,10 @@ private fun profileInitial(
         ?: "U"
 }
 
-
 private fun displayAccountValue(
     value: String,
 ): String {
-
     return value
         .trim()
-        .ifEmpty {
-            "—"
-        }
+        .ifEmpty {"—"}
 }

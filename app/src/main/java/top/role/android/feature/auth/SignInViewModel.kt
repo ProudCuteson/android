@@ -1,3 +1,5 @@
+// Todo: 登录不同账户时，目前 saveSession() 会直接覆盖 USER_ID。这个涉及 Local Identity 的迁移，我们放到第二阶段，不在这次处理
+
 package top.role.android.feature.auth
 
 import androidx.lifecycle.ViewModel
@@ -216,93 +218,61 @@ class SignInViewModel(
     ) {
         _uiState.update {
             it.copy(
-                password =
-                    value,
-
-                errorMessage =
-                    null,
+                password = value,
+                errorMessage = null,
             )
         }
     }
 
     fun signInWithPassword() {
-        val state =
-            _uiState.value
+        val state = _uiState.value
 
-        if (
-            !isValidMainlandPhone(
-                state.phone
-            )
-        ) {
+        if (!isValidMainlandPhone(state.phone)) {
             _uiState.update {
                 it.copy(
-                    errorMessage =
-                        "请输入有效的中国大陆手机号",
+                    errorMessage = "请输入有效的中国大陆手机号",
                 )
             }
-
             return
         }
 
-        if (
-            state.password.isBlank()
-        ) {
+        if (state.password.isBlank()) {
             _uiState.update {
                 it.copy(
-                    errorMessage =
-                        "请输入密码",
+                    errorMessage = "请输入密码",
                 )
             }
-
             return
         }
 
-        if (
-            state.isSigningIn
-        ) {
+        if (state.isSigningIn) {
             return
         }
 
         viewModelScope.launch {
-
             _uiState.update {
                 it.copy(
-                    isSigningIn =
-                        true,
-
-                    errorMessage =
-                        null,
+                    isSigningIn = true,
+                    errorMessage = null,
                 )
             }
 
             authRepository
                 .signInWithPassword(
-                    phone =
-                        state.phone,
-
-                    password =
-                        state.password,
+                    phone = state.phone,
+                    password = state.password,
                 )
                 .onSuccess { login ->
-
                     sessionStorage.saveSession(
                         AppSession(
-                            accessToken =
-                                login.accessToken,
-
-                            expiresAt =
-                                login.expiresAt,
-
-                            userId =
-                                login.user.id,
-
-                            phone =
-                                login.user.phone,
+                            accessToken = login.accessToken,
+                            expiresAt = login.expiresAt,
+                            userId = login.user.id,
+                            phone = login.user.phone,
                         )
                     )
                 }
                 .onFailure { error ->
-
                     _uiState.update {
                         it.copy(
                             errorMessage =
@@ -313,8 +283,7 @@ class SignInViewModel(
 
             _uiState.update {
                 it.copy(
-                    isSigningIn =
-                        false,
+                    isSigningIn = false,
                 )
             }
         }

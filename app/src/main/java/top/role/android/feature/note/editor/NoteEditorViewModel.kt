@@ -30,7 +30,7 @@ import top.role.android.core.data.note.ai.NoteAiMode
 import top.role.android.core.data.note.ai.NoteAiRemoteDataSource
 
 class NoteEditorViewModel(
-    private val ownerUserId: String,
+    private val localOwnerUserId: String,
     private val noteLocalRepository: NoteLocalRepository,
     private val noteAiRemoteDataSource: NoteAiRemoteDataSource,
     private val noteImageService: NoteImageService,
@@ -85,7 +85,7 @@ class NoteEditorViewModel(
                     return@launch
                 }
 
-                if (note.ownerUserId != ownerUserId) {
+                if (note.localOwnerUserId != localOwnerUserId) {
                     _uiState.value = _uiState.value.copy(
                         loading = false,
                         errorMessage = "当前记录不属于登录用户",
@@ -131,7 +131,7 @@ class NoteEditorViewModel(
         if (initialLocalKey != null) {
             return InitialNoteResult(
                 note = noteLocalRepository.findByLocalKey(
-                    ownerUserId = ownerUserId,
+                    localOwnerUserId = localOwnerUserId,
                     localKey = initialLocalKey,
                 ),
                 startEditing = false,
@@ -149,7 +149,7 @@ class NoteEditorViewModel(
          */
         if (openAsDayOnly && initialDayKey != null) {
             val existing = noteLocalRepository.findDayOnlyNote(
-                ownerUserId = ownerUserId,
+                localOwnerUserId = localOwnerUserId,
                 dayKey = initialDayKey,
             )
 
@@ -162,7 +162,7 @@ class NoteEditorViewModel(
 
             return InitialNoteResult(
                 note = noteLocalRepository.getOrCreateDayOnlyNote(
-                    ownerUserId = ownerUserId,
+                    localOwnerUserId = localOwnerUserId,
                     dayKey = initialDayKey,
                 ),
                 startEditing = true,
@@ -175,7 +175,7 @@ class NoteEditorViewModel(
         if (createAsDated && initialDayKey != null) {
             return InitialNoteResult(
                 note = noteLocalRepository.createDatedNote(
-                    ownerUserId = ownerUserId,
+                    localOwnerUserId = localOwnerUserId,
                     dayKey = initialDayKey,
                 ),
                 startEditing = true,
@@ -188,7 +188,7 @@ class NoteEditorViewModel(
         if (createAsNormal) {
             return InitialNoteResult(
                 note = noteLocalRepository.createNormalNote(
-                    ownerUserId = ownerUserId,
+                    localOwnerUserId = localOwnerUserId,
                 ),
                 startEditing = true,
             )
@@ -213,7 +213,7 @@ class NoteEditorViewModel(
 
         observeNoteJob = viewModelScope.launch {
             noteLocalRepository.observeByLocalKey(
-                ownerUserId = ownerUserId,
+                localOwnerUserId = localOwnerUserId,
                 localKey = localKey,
             ).collectLatest { note ->
 
@@ -255,7 +255,7 @@ class NoteEditorViewModel(
          */
         if (previous.localKey != previousLocalKey) {
             noteImageService.rebindNote(
-                ownerUserId = ownerUserId,
+                localOwnerUserId = localOwnerUserId,
                 oldNoteLocalKey = previousLocalKey,
                 newNoteLocalKey = previous.localKey,
             )
@@ -269,12 +269,12 @@ class NoteEditorViewModel(
 
         val recovered = if (!previous.noteId.isNullOrBlank()) {
             noteLocalRepository.findByNoteId(
-                ownerUserId = ownerUserId,
+                localOwnerUserId = localOwnerUserId,
                 noteId = previous.noteId,
             )
         } else {
             noteLocalRepository.findByClientKey(
-                ownerUserId = ownerUserId,
+                localOwnerUserId = localOwnerUserId,
                 clientKey = previous.clientKey,
             )
         }
@@ -284,7 +284,7 @@ class NoteEditorViewModel(
         }
 
         noteImageService.rebindNote(
-            ownerUserId = ownerUserId,
+            localOwnerUserId = localOwnerUserId,
             oldNoteLocalKey = previousLocalKey,
             newNoteLocalKey = recovered.localKey,
         )
@@ -298,7 +298,7 @@ class NoteEditorViewModel(
     }
 
     private fun applyObservedNote(note: LocalNoteEntity) {
-        if (note.ownerUserId != ownerUserId) {
+        if (note.localOwnerUserId != localOwnerUserId) {
             return
         }
 
@@ -410,11 +410,13 @@ class NoteEditorViewModel(
                 errorMessage = null,
             )
 
-            note.ownerUserId?.let { owner ->
-                noteLocalRepository.requestSync(ownerUserId = owner)
+            note.localOwnerUserId.let { owner ->
+                noteLocalRepository.requestSync(localOwnerUserId = owner)
             }
         }
     }
+
+    // MARK: - AI
 
     fun runAi(mode: NoteAiMode) {
         val current = _uiState.value
@@ -534,23 +536,57 @@ class NoteEditorViewModel(
     fun appendAiSuggestionToText() {
         val current = _uiState.value
 
-        val suggestion = current.aiSuggestion?.takeIf {
-            it.isNotBlank()
-        } ?: return
+        val suggestion = current.aiSuggestion
+            ?.takeIf { it.isNotBlank() }
+            ?: return
 
         if (current.aiSuggestionMode == NoteAiMode.Title) {
             return
         }
 
-        val nextText = if (current.text.isBlank()) {
-            suggestion
-        } else {
-            current.text.trimEnd() + "\n\n" + suggestion
+        try {
+            // 1. 读取当前富文本结构
+            val currentContent = current.contentJson
+                ?.let(NoteContentCodec::parse)
+                ?.let(NoteContentCodec::readModel)
+                ?: if (current.text.isNotBlank()) {
+                    NoteContentCodec.readModel(
+                        NoteContentCodec.parse(
+                            NoteContentCodec.stringify(
+                                NoteContentCodec.fromPlainText(current.text)
+                            )
+                        )!!
+                    )
+                } else {
+                    BlockContent()
+                }
+
+            // 2. 追加 AI 纯文本，保留原有富文本结构
+            val nextContent = NoteContentCodec.appendPlainText(
+                content = currentContent,
+                text = suggestion,
+            )
+
+            // 3. 更新 JSON 和纯文本快照
+            val nextContentJson = NoteContentCodec.stringifyModel(nextContent)
+
+            val nextText = NoteContentCodec.extractText(
+                NoteContentCodec.parse(nextContentJson)
+            )
+
+            // 4. 更新状态
+            _uiState.value = current.copy(
+                text = nextText,
+                contentJson = nextContentJson,
+            )
+
+            clearAiSuggestion()
+
+        } catch (error: Throwable) {
+            _uiState.value = _uiState.value.copy(
+                errorMessage = error.message ?: "追加 AI 内容失败"
+            )
         }
-
-        updateText(nextText)
-
-        clearAiSuggestion()
     }
 
     fun useAiSuggestionAsTitle() {
@@ -653,7 +689,7 @@ class NoteEditorViewModel(
 
         if (previousLocalKey != null && previousLocalKey != note.localKey) {
             noteImageService.rebindNote(
-                ownerUserId = ownerUserId,
+                localOwnerUserId = localOwnerUserId,
                 oldNoteLocalKey = previousLocalKey,
                 newNoteLocalKey = note.localKey,
             )
@@ -823,9 +859,9 @@ class NoteEditorViewModel(
                 try {
                     val localKey = currentNote?.localKey ?: return@withLock
                     // Read the latest Room row for each operation so rapid taps are not lost.
-                    val note = noteLocalRepository.findByLocalKey(ownerUserId, localKey)
+                    val note = noteLocalRepository.findByLocalKey(localOwnerUserId, localKey)
                         ?: return@withLock
-                    if (note.ownerUserId != ownerUserId ||
+                    if (note.localOwnerUserId != localOwnerUserId ||
                         note.syncState == NoteSyncState.Conflict
                     ) return@withLock
 
@@ -869,7 +905,7 @@ class NoteEditorViewModel(
                             errorMessage = null,
                         )
                     }
-                    noteLocalRepository.requestSync(ownerUserId)
+                    noteLocalRepository.requestSync(localOwnerUserId)
                 } catch (error: CancellationException) {
                     throw error
                 } catch (error: Throwable) {
@@ -934,8 +970,9 @@ class NoteEditorViewModel(
                 val marked = noteLocalRepository.markForDelete(note = note)
 
                 currentNote = marked
-                marked?.ownerUserId?.let { owner ->
-                    noteLocalRepository.requestSync(ownerUserId = owner)
+
+                marked?.localOwnerUserId?.let { owner ->
+                    noteLocalRepository.requestSync(localOwnerUserId = owner)
                 }
                 onDeleted()
 
@@ -983,7 +1020,7 @@ class NoteEditorViewModel(
         ) {
             if (note.noteId == null && note.remoteVersion == null) {
                 noteImageService.removeAllImagesForNote(
-                    ownerUserId = ownerUserId,
+                    localOwnerUserId = localOwnerUserId,
                     noteLocalKey = note.localKey,
                 )
 
@@ -998,15 +1035,15 @@ class NoteEditorViewModel(
 
             currentNote = marked
 
-            marked?.ownerUserId?.let { owner ->
-                noteLocalRepository.requestSync(ownerUserId = owner)
+            marked?.localOwnerUserId?.let { owner ->
+                noteLocalRepository.requestSync(localOwnerUserId = owner)
             }
 
             return
         }
 
-        note.ownerUserId?.let { owner ->
-            noteLocalRepository.requestSync(ownerUserId = owner)
+        note.localOwnerUserId.let { owner ->
+            noteLocalRepository.requestSync(localOwnerUserId = owner)
         }
     }
 
@@ -1119,7 +1156,7 @@ class NoteEditorViewModel(
         }
 
         val images = noteImageService.listImages(
-            ownerUserId = ownerUserId,
+            localOwnerUserId = localOwnerUserId,
             noteLocalKey = note.localKey,
         )
 
@@ -1258,7 +1295,7 @@ class NoteEditorViewModel(
 
         observeImagesJob = viewModelScope.launch {
             noteImageService.observeImages(
-                ownerUserId = ownerUserId,
+                localOwnerUserId = localOwnerUserId,
                 noteLocalKey = noteLocalKey,
             ).collectLatest { images ->
                 applyObservedImages(images = images)
@@ -1278,7 +1315,7 @@ class NoteEditorViewModel(
         viewModelScope.launch {
             try {
                 noteImageService.addImage(
-                    ownerUserId = ownerUserId,
+                    localOwnerUserId = localOwnerUserId,
                     noteLocalKey = note.localKey,
                     sourceUri = sourceUri,
                 )
@@ -1295,7 +1332,7 @@ class NoteEditorViewModel(
         viewModelScope.launch {
             try {
                 noteImageService.retryUpload(
-                    ownerUserId = ownerUserId,
+                    localOwnerUserId = localOwnerUserId,
                     localImageKey = localImageKey,
                 )
 
@@ -1315,7 +1352,7 @@ class NoteEditorViewModel(
         viewModelScope.launch {
             try {
                 noteImageService.removeImage(
-                    ownerUserId = ownerUserId,
+                    localOwnerUserId = localOwnerUserId,
                     localImageKey = localImageKey,
                 )
 

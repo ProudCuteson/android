@@ -1,52 +1,62 @@
 package top.role.android.app
 
+import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.filter
-import kotlin.time.Duration.Companion.milliseconds
-import top.role.android.core.auth.AuthState
-import top.role.android.feature.auth.SignInScreen
-import top.role.android.feature.auth.SignInViewModel
-import top.role.android.feature.auth.SignInViewModelFactory
-import top.role.android.feature.main.MainScreen
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
+import top.role.android.core.auth.AuthState
 import top.role.android.app.navigation.InAppBrowserRoute
+import top.role.android.core.data.note.NoteAdoptionLocalRepository
+import top.role.android.feature.auth.SignInScreen
+import top.role.android.feature.auth.SignInViewModel
+import top.role.android.feature.auth.SignInViewModelFactory
+import top.role.android.feature.banner.BannerRepository
+import top.role.android.feature.main.MainScreen
 import top.role.android.feature.main.navigation.browserNavGraph
 
 @OptIn(FlowPreview::class)
 @Composable
 fun AppRoot(
     appContainer: AppContainer,
-    appPreferencesViewModel: AppPreferencesViewModel
+    appPreferencesViewModel: AppPreferencesViewModel,
 ) {
+
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    // MARK: Session
 
     val sessionViewModel: AppSessionViewModel = viewModel(
         factory = AppSessionViewModelFactory(
+            context = context.applicationContext,
             sessionStorage = appContainer.sessionStorage,
             convexClient = appContainer.convexClient,
-        )
+            authRepository = appContainer.authRepository,
+        ),
     )
 
     val authState by sessionViewModel
@@ -61,8 +71,7 @@ fun AppRoot(
         mutableStateOf(false)
     }
 
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    // MARK: Preferences
 
     val appearance by appPreferencesViewModel
         .appearance
@@ -76,33 +85,58 @@ fun AppRoot(
         .hasAcceptedAuthAgreement
         .collectAsStateWithLifecycle()
 
+    // MARK: Network
+
     val isOnline by appContainer
         .networkMonitor
         .isOnline
-        .collectAsStateWithLifecycle( initialValue = false )
+        .collectAsStateWithLifecycle(
+            initialValue = false,
+        )
 
-    // 本地 Owner 来自 SessionStorage.USER_ID。
-    // 远端用户来自 AuthState.SignedIn.session.userId。
-    // 两者相同，才允许同步。
-    val syncOwnerUserId = (authState as? AuthState.SignedIn)
-        ?.session
-        ?.userId
-        ?.takeIf { userId -> userId == localOwnerUserId }
+    // MARK: Remote Identity
+
+    val remoteUserId = (authState as? AuthState.SignedIn)?.userId
+
+    // MARK: Local Identity Initialization
+
+    if (localOwnerUserId == null) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            CircularProgressIndicator()
+        }
+
+        return
+    }
+
+    // 从这里开始，本地身份已经确定为非空 String。
+    val resolvedLocalOwnerUserId =
+        requireNotNull(localOwnerUserId)
+
+    // MARK: Initial / Reconnect Sync
 
     LaunchedEffect(
-        syncOwnerUserId,
+        resolvedLocalOwnerUserId,
+        remoteUserId,
         isOnline,
     ) {
-        val ownerUserId = syncOwnerUserId ?: return@LaunchedEffect
+
         if (!isOnline) {
             return@LaunchedEffect
         }
 
-        appContainer
-            .noteSyncCoordinator
-            .sync(ownerUserId = ownerUserId)
+        if (remoteUserId == null) {
+            return@LaunchedEffect
+        }
+
+        appContainer.noteSyncCoordinator
+            .sync(
+                localOwnerUserId = resolvedLocalOwnerUserId,
+            )
             .onSuccess { result ->
-                android.util.Log.d(
+                Log.d(
                     "NoteSync",
                     "initial/reconnect sync: " +
                             "push=${result.pushSucceededCount}/" +
@@ -111,7 +145,7 @@ fun AppRoot(
                 )
             }
             .onFailure { error ->
-                android.util.Log.e(
+                Log.e(
                     "NoteSync",
                     "initial/reconnect sync failed",
                     error,
@@ -119,27 +153,38 @@ fun AppRoot(
             }
     }
 
+    // MARK: Continuous Sync Requests
+
     LaunchedEffect(
-        syncOwnerUserId,
+        resolvedLocalOwnerUserId,
+        remoteUserId,
         isOnline,
     ) {
-        val ownerUserId = syncOwnerUserId?: return@LaunchedEffect
 
         if (!isOnline) {
+            return@LaunchedEffect
+        }
+
+        if (remoteUserId == null) {
             return@LaunchedEffect
         }
 
         appContainer
             .noteLocalRepository
             .syncRequests
-            .filter {it == ownerUserId}
+            .filter {
+                it == resolvedLocalOwnerUserId
+            }
             .debounce(1_500.milliseconds)
             .collect {
+
                 appContainer
                     .noteSyncCoordinator
-                    .sync(ownerUserId = ownerUserId)
+                    .sync(
+                        localOwnerUserId = resolvedLocalOwnerUserId,
+                    )
                     .onSuccess { result ->
-                        android.util.Log.d(
+                        Log.d(
                             "NoteSync",
                             "continuous sync: " +
                                     "pull1=${result.firstPullMergedCount}, " +
@@ -150,7 +195,7 @@ fun AppRoot(
                         )
                     }
                     .onFailure { error ->
-                        android.util.Log.e(
+                        Log.e(
                             "NoteSync",
                             "continuous sync failed",
                             error,
@@ -159,29 +204,7 @@ fun AppRoot(
             }
     }
 
-    if (
-        authState == AuthState.Loading &&
-        localOwnerUserId == null
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center,
-        ) {
-            CircularProgressIndicator()
-        }
-        return
-    }
-
-    // 就是首次必须登录的直接原因
-    if (localOwnerUserId == null) {
-        SignedOutContent(
-            appContainer = appContainer,
-            hasAcceptedAuthAgreement = hasAcceptedAuthAgreement,
-            onAcceptAuthAgreement = appPreferencesViewModel::acceptAuthAgreement,
-        )
-
-        return
-    }
+    // MARK: Foreground Session Check
 
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -190,36 +213,37 @@ fun AppRoot(
         sessionViewModel,
         appContainer,
     ) {
+
         val observer = LifecycleEventObserver { _, event ->
-                if (
-                    event == Lifecycle.Event.ON_START
-                ) {
-                    scope.launch {
 
-                        //检查已经区分了本地过期与远端认证状态
-                        //当前 checkSessionOnForeground() 只在 ON_START 触发
-                        //AppSessionViewModel.observeSession() 也会监听 Session 变化
-                        val authenticatedUserId = sessionViewModel
-                            .checkSessionOnForeground(context = context)
+            if (event == Lifecycle.Event.ON_START) {
 
-                        val ownerUserId = sessionViewModel.localOwnerUserId.value
+                scope.launch {
 
+                    val authenticatedUserId =
+                        sessionViewModel
+                            .checkSessionOnForeground()
 
-                        // TODO ：这个判断有待商榷
-                        if (
-                            authenticatedUserId != null &&
-                            authenticatedUserId == ownerUserId
-                        ) {
-                            appContainer
-                                .noteLocalRepository
-                                .requestSync(ownerUserId = authenticatedUserId)
-                        }
+                    val currentLocalOwnerUserId =
+                        sessionViewModel
+                            .localOwnerUserId
+                            .value
+
+                    if (
+                        authenticatedUserId != null &&
+                        currentLocalOwnerUserId != null
+                    ) {
+                        appContainer
+                            .noteLocalRepository
+                            .requestSync(
+                                localOwnerUserId =
+                                    currentLocalOwnerUserId,
+                            )
                     }
                 }
             }
+        }
 
-        // 网络恢复或 Owner 变化时执行初始同步
-        // 本地 Note 修改后，通过 syncRequests 触发连续同步
         lifecycleOwner.lifecycle.addObserver(observer)
 
         onDispose {
@@ -227,7 +251,10 @@ fun AppRoot(
         }
     }
 
+    // MARK: Re-sign In State
+
     LaunchedEffect(authState) {
+
         if (
             showRemoteSignIn &&
             authState is AuthState.SignedIn
@@ -236,25 +263,32 @@ fun AppRoot(
         }
     }
 
+    // MARK: Main Content
+
     if (showRemoteSignIn) {
+
         SignedOutContent(
             appContainer = appContainer,
             hasAcceptedAuthAgreement = hasAcceptedAuthAgreement,
             onAcceptAuthAgreement = appPreferencesViewModel::acceptAuthAgreement,
+            onContinueToDay = {
+                showRemoteSignIn = false
+            },
         )
+
     } else {
 
         MainScreen(
-            // 实际上已经有三个独立参数
-            localOwnerUserId = localOwnerUserId!!,
-            remoteAuthenticated = authState is AuthState.SignedIn,
+            // Identity
+            localOwnerUserId = resolvedLocalOwnerUserId,
+            authState = authState,
             remoteOnline = isOnline,
-
+            // Note
             noteLocalRepository = appContainer.noteLocalRepository,
             noteAiRemoteDataSource = appContainer.noteAiRemoteDataSource,
             noteImageService = appContainer.noteImageService,
             imageRepository = appContainer.imageRepository,
-
+            // Discover
             discoverRepository = appContainer.discoverRepository,
             spaceListRepository = appContainer.spaceListRepository,
             topicListRepository = appContainer.topicListRepository,
@@ -263,74 +297,97 @@ fun AppRoot(
             topicDetailRepository = appContainer.topicDetailRepository,
             docDetailRepository = appContainer.docDetailRepository,
             slideDetailRepository = appContainer.slideDetailRepository,
-
+            // Chat
             chatConversationListRepository = appContainer.chatConversationListRepository,
             chatConversationRepository = appContainer.chatConversationRepository,
             chatImagePreviewRepository = appContainer.chatImagePreviewRepository,
             chatFriendsRepository = appContainer.chatFriendsRepository,
             chatGroupRepository = appContainer.chatGroupRepository,
-
+            // Engage
             engageRepository = appContainer.engageRepository,
             surveyListRepository = appContainer.surveyListRepository,
             surveyDetailRepository = appContainer.surveyDetailRepository,
             bountyListRepository = appContainer.bountyListRepository,
             bountyDetailRepository = appContainer.bountyDetailRepository,
-
+            // Market
             marketListRepository = appContainer.marketListRepository,
             marketDetailRepository = appContainer.marketDetailRepository,
             marketOrderListRepository = appContainer.marketOrderListRepository,
             marketOrderDetailRepository = appContainer.marketOrderDetailRepository,
-
+            // Account / Membership
             membershipRepository = appContainer.membershipRepository,
             wechatPayLauncher = appContainer.wechatPayLauncher,
             accountRepository = appContainer.accountRepository,
             accountPasswordRepository = appContainer.accountPasswordRepository,
-
+            // Preferences
             appearance = appearance,
             weekStart = weekStart,
             onAppearanceChange = appPreferencesViewModel::setAppearance,
             onWeekStartChange = appPreferencesViewModel::setWeekStart,
             creditsRepository = appContainer.creditsRepository,
 
+            noteAdoptionLocalRepository = appContainer.noteAdoptionLocalRepository,
+            bannerRepository = appContainer.bannerRepository,
+
+            // Authentication Actions
+            onLogin = {
+                showRemoteSignIn = true
+            },
+
+            onRetryAuth = {
+                scope.launch {
+                    sessionViewModel.checkSessionOnForeground()
+                }
+            },
+
             onReSignIn = {
                 sessionViewModel.signOut(
-                    context = context,
-                    onComplete = {showRemoteSignIn = true},
+                    onComplete = {
+                        showRemoteSignIn = true
+                    },
                 )
             },
 
             onSignOut = {
-                sessionViewModel.signOut(context = context)
+                sessionViewModel.signOut()
             },
         )
     }
-
 }
+
+
+// MARK: Signed Out Content
 
 @Composable
 private fun SignedOutContent(
     appContainer: AppContainer,
     hasAcceptedAuthAgreement: Boolean,
     onAcceptAuthAgreement: () -> Unit,
+    onContinueToDay: () -> Unit,
 ) {
+
     val signInViewModel: SignInViewModel = viewModel(
         factory = SignInViewModelFactory(
             authRepository = appContainer.authRepository,
             sessionStorage = appContainer.sessionStorage,
-        )
+        ),
     )
 
-    val state by signInViewModel.uiState
+    val state by signInViewModel
+        .uiState
         .collectAsStateWithLifecycle()
+
     val navController = rememberNavController()
 
     NavHost(
         navController = navController,
         startDestination = "sign_in",
     ) {
+
         composable(
             route = "sign_in",
         ) {
+
             SignInScreen(
                 state = state,
                 hasAcceptedAgreement = hasAcceptedAuthAgreement,
@@ -342,26 +399,29 @@ private fun SignedOutContent(
                 onSignIn = signInViewModel::verifyAndSignIn,
                 onPasswordSignIn = signInViewModel::signInWithPassword,
                 onBackToPhone = signInViewModel::backToPhone,
+
                 onOpenTerms = {
                     navController.navigate(
                         InAppBrowserRoute.create(
                             title = "用户协议",
                             url = "https://role.top/home/term",
-                        )
+                        ),
                     )
                 },
+
                 onOpenPrivacy = {
                     navController.navigate(
                         InAppBrowserRoute.create(
                             title = "隐私政策",
                             url = "https://role.top/home/privacy",
-                        )
+                        ),
                     )
                 },
+                onContinueToDay = onContinueToDay,
             )
         }
 
-        // 这里注册现有 InAppBrowserScreen
+        // 现有 InAppBrowser 导航
         browserNavGraph(
             navController = navController,
         )

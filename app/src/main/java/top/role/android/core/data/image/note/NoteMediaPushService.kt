@@ -18,44 +18,38 @@ data class NoteMediaPushBatchResult(
 )
 
 sealed interface NoteMediaPushResult {
-    data object NoWork :
-        NoteMediaPushResult
-    data object WaitingForNoteIdentity :
-        NoteMediaPushResult
-    data object WaitingForImageAssets :
-        NoteMediaPushResult
+    data object NoWork: NoteMediaPushResult
+    data object WaitingForNoteIdentity: NoteMediaPushResult
+    data object WaitingForImageAssets: NoteMediaPushResult
     data class Success(
         val noteId: String,
         val version: Long,
         val mediaCount: Int,
     ) : NoteMediaPushResult
+
     data class Waiting(
         val message: String?,
     ) : NoteMediaPushResult
+
     data class Conflict(
         val message: String?,
     ) : NoteMediaPushResult
+
 }
 
-
 class NoteMediaPushService(
-    private val imageLocalRepository:
-    NoteImageLocalRepository,
-
-    private val mediaLocalRepository:
-    NoteMediaLocalRepository,
-
-    private val mediaRemoteDataSource:
-    NoteMediaRemoteDataSource,
+    private val imageLocalRepository: NoteImageLocalRepository,
+    private val mediaLocalRepository: NoteMediaLocalRepository,
+    private val mediaRemoteDataSource: NoteMediaRemoteDataSource,
 ) {
 
     suspend fun pushOne(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteLocalKey: String,
     ): Result<NoteMediaPushResult> {
         return runCatching {
             require(
-                ownerUserId.isNotBlank(),
+                localOwnerUserId.isNotBlank(),
             ) {
                 "OWNER_USER_ID_REQUIRED"
             }
@@ -66,14 +60,10 @@ class NoteMediaPushService(
                 "NOTE_LOCAL_KEY_REQUIRED"
             }
 
-            val state =
-                mediaLocalRepository
+            val state = mediaLocalRepository
                     .findForNote(
-                        ownerUserId =
-                            ownerUserId,
-
-                        noteLocalKey =
-                            noteLocalKey,
+                        localOwnerUserId =localOwnerUserId,
+                        noteLocalKey = noteLocalKey,
                     )
                     ?: return@runCatching NoteMediaPushResult.NoWork
 
@@ -96,11 +86,8 @@ class NoteMediaPushService(
             val localImages =
                 imageLocalRepository
                     .listForNote(
-                        ownerUserId =
-                            ownerUserId,
-
-                        noteLocalKey =
-                            noteLocalKey,
+                        localOwnerUserId = localOwnerUserId,
+                        noteLocalKey = noteLocalKey,
                     )
 
             val hasUnresolvedImageAssets =
@@ -117,17 +104,14 @@ class NoteMediaPushService(
                 return@runCatching NoteMediaPushResult.WaitingForImageAssets
             }
 
-            val currentMedia =
-                buildCurrentMedia(
-                    localImages =
-                        localImages,
+            val currentMedia = buildCurrentMedia(
+                    localImages = localImages,
                 )
 
             val prepared =
                 mediaLocalRepository
                     .preparePendingSnapshot(
-                        ownerUserId =
-                            ownerUserId,
+                        localOwnerUserId = localOwnerUserId,
 
                         noteLocalKey =
                             noteLocalKey,
@@ -141,8 +125,7 @@ class NoteMediaPushService(
                     ?: return@runCatching NoteMediaPushResult.NoWork
 
             pushPrepared(
-                ownerUserId =
-                    ownerUserId,
+                localOwnerUserId = localOwnerUserId,
 
                 noteLocalKey =
                     noteLocalKey,
@@ -156,12 +139,11 @@ class NoteMediaPushService(
     // MARK: - Push
 
     private suspend fun pushPrepared(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteLocalKey: String,
         prepared: PreparedNoteMediaPush,
     ): NoteMediaPushResult {
-        val snapshot =
-            prepared.snapshot
+        val snapshot = prepared.snapshot
 
         return try {
             val response =
@@ -183,8 +165,8 @@ class NoteMediaPushService(
             val localImages =
                 imageLocalRepository
                     .listForNote(
-                        ownerUserId =
-                            ownerUserId,
+                        localOwnerUserId =
+                            localOwnerUserId,
 
                         noteLocalKey =
                             noteLocalKey,
@@ -198,8 +180,8 @@ class NoteMediaPushService(
 
             mediaLocalRepository
                 .applyPushSuccess(
-                    ownerUserId =
-                        ownerUserId,
+                    localOwnerUserId =
+                        localOwnerUserId,
 
                     noteLocalKey =
                         noteLocalKey,
@@ -235,8 +217,8 @@ class NoteMediaPushService(
             error: Throwable,
         ) {
             handlePushFailure(
-                ownerUserId =
-                    ownerUserId,
+                localOwnerUserId =
+                    localOwnerUserId,
 
                 noteLocalKey =
                     noteLocalKey,
@@ -251,11 +233,11 @@ class NoteMediaPushService(
     }
 
     suspend fun pushPending(
-        ownerUserId: String,
+        localOwnerUserId: String,
         limit: Int = 50,
     ): NoteMediaPushBatchResult {
         require(
-            ownerUserId.isNotBlank(),
+            localOwnerUserId.isNotBlank(),
         ) {
             "OWNER_USER_ID_REQUIRED"
         }
@@ -268,15 +250,15 @@ class NoteMediaPushService(
 
         mediaLocalRepository
             .resetInterruptedSync(
-                ownerUserId =
-                    ownerUserId,
+                localOwnerUserId =
+                    localOwnerUserId,
             )
 
         val states =
             mediaLocalRepository
                 .findNeedingSync(
-                    ownerUserId =
-                        ownerUserId,
+                    localOwnerUserId =
+                        localOwnerUserId,
 
                     limit =
                         limit,
@@ -293,8 +275,8 @@ class NoteMediaPushService(
         ) {
             val result =
                 pushOne(
-                    ownerUserId =
-                        ownerUserId,
+                    localOwnerUserId =
+                        localOwnerUserId,
 
                     noteLocalKey =
                         state.noteLocalKey,
@@ -353,7 +335,7 @@ class NoteMediaPushService(
     // MARK: - Failure
 
     private suspend fun handlePushFailure(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteLocalKey: String,
         sentSnapshot:
         PersistedNoteMediaSyncSnapshot,
@@ -371,8 +353,8 @@ class NoteMediaPushService(
             is NoteMediaSyncFailure.Retryable -> {
                 mediaLocalRepository
                     .applyRetryableFailure(
-                        ownerUserId =
-                            ownerUserId,
+                        localOwnerUserId =
+                            localOwnerUserId,
 
                         noteLocalKey =
                             noteLocalKey,
@@ -392,8 +374,8 @@ class NoteMediaPushService(
 
             is NoteMediaSyncFailure.Conflict -> {
                 hydrateVersionConflict(
-                    ownerUserId =
-                        ownerUserId,
+                    localOwnerUserId =
+                        localOwnerUserId,
 
                     noteLocalKey =
                         noteLocalKey,
@@ -415,8 +397,8 @@ class NoteMediaPushService(
             is NoteMediaSyncFailure.RemoteNotFound -> {
                 mediaLocalRepository
                     .markConflictWithoutSnapshot(
-                        ownerUserId =
-                            ownerUserId,
+                        localOwnerUserId =
+                            localOwnerUserId,
 
                         noteLocalKey =
                             noteLocalKey,
@@ -488,7 +470,7 @@ class NoteMediaPushService(
     // MARK: - Conflict
 
     private suspend fun hydrateVersionConflict(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteLocalKey: String,
         noteId: String,
         message: String?,
@@ -508,8 +490,8 @@ class NoteMediaPushService(
         ) {
             mediaLocalRepository
                 .markConflictWithoutSnapshot(
-                    ownerUserId =
-                        ownerUserId,
+                    localOwnerUserId =
+                        localOwnerUserId,
 
                     noteLocalKey =
                         noteLocalKey,
@@ -561,8 +543,8 @@ class NoteMediaPushService(
 
         mediaLocalRepository
             .markConflict(
-                ownerUserId =
-                    ownerUserId,
+                localOwnerUserId =
+                    localOwnerUserId,
 
                 noteLocalKey =
                     noteLocalKey,

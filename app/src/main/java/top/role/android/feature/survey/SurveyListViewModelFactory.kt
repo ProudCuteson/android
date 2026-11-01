@@ -6,11 +6,8 @@ import androidx.lifecycle.ViewModelProvider
 import top.role.android.core.model.survey.MobileSurveyListMode
 
 class SurveyListViewModelFactory(
-    private val mode:
-    MobileSurveyListMode,
-
-    private val repository:
-    SurveyListRepository,
+    private val mode:  MobileSurveyListMode,
+    private val repository: SurveyListRepository,
 ) : ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")
@@ -20,11 +17,8 @@ class SurveyListViewModelFactory(
     ): T {
 
         return SurveyListViewModel(
-            mode =
-                mode,
-
-            repository =
-                repository,
+            mode = mode,
+            repository = repository,
         ) as T
     }
 }

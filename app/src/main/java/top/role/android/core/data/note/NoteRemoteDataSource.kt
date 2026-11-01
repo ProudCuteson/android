@@ -27,9 +27,7 @@ class NoteRemoteDataSource(
         limit: Int = 100,
     ): Result<PullNoteChangesResponse> {
         val args = buildMap<String, Any?> {
-            if (
-                checkpoint != null
-            ) {
+            if (checkpoint != null) {
                 put( "checkpoint", mapOf(
                         "kind" to  checkpoint.kind,
                         "value" to  checkpoint.value,
@@ -38,16 +36,10 @@ class NoteRemoteDataSource(
             }
 
             if (cursor != null) {
-                put(
-                    "cursor",
-                    cursor,
-                )
+                put("cursor", cursor)
             }
 
-            put(
-                "limit",
-                limit.toDouble(),
-            )
+            put("limit", limit.toDouble())
         }
 
         return convexClient
@@ -139,49 +131,28 @@ class NoteRemoteDataSource(
 
     suspend fun archiveNote(
         noteId: String,
-        baseVersion: Long?,
     ): Result<LifecycleNoteResponse> {
         return mutateLifecycle(
-            functionName =
-                "mobile/ios/note/native/lifecycle:archiveNote",
-
-            noteId =
-                noteId,
-
-            baseVersion =
-                baseVersion,
+            functionName = "mobile/ios/note/native/lifecycle:archiveNote",
+            noteId = noteId,
         )
     }
 
     suspend fun restoreNote(
         noteId: String,
-        baseVersion: Long?,
     ): Result<LifecycleNoteResponse> {
         return mutateLifecycle(
-            functionName =
-                "mobile/ios/note/native/lifecycle:restoreNote",
-
-            noteId =
-                noteId,
-
-            baseVersion =
-                baseVersion,
+            functionName = "mobile/ios/note/native/lifecycle:restoreNote",
+            noteId = noteId,
         )
     }
 
     suspend fun softDeleteNote(
         noteId: String,
-        baseVersion: Long?,
     ): Result<LifecycleNoteResponse> {
         return mutateLifecycle(
-            functionName =
-                "mobile/ios/note/native/lifecycle:softDeleteNote",
-
-            noteId =
-                noteId,
-
-            baseVersion =
-                baseVersion,
+            functionName = "mobile/ios/note/native/lifecycle:softDeleteNote",
+            noteId = noteId
         )
     }
 
@@ -202,11 +173,9 @@ class NoteRemoteDataSource(
         }
     }
 
-
     private suspend fun mutateLifecycle(
         functionName: String,
         noteId: String,
-        baseVersion: Long?,
     ): Result<LifecycleNoteResponse> {
         return runCatching {
             convexClient.mutation<LifecycleNoteResponse>(

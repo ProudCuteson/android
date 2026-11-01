@@ -47,7 +47,7 @@ import top.role.android.feature.day.components.DayDiaryOverviewSection
 
 @Composable
 fun DayScreen(
-    ownerUserId: String,
+    localOwnerUserId: String,
     noteLocalRepository: NoteLocalRepository,
     noteImageService: NoteImageService,
     weekStart: WeekStart,
@@ -58,9 +58,9 @@ fun DayScreen(
     onOpenLibrary: () -> Unit,
 ) {
     val viewModel: DayHomeViewModel = viewModel(
-        key = "day-home:$ownerUserId",
+        key = "day-home:$localOwnerUserId",
         factory = DayHomeViewModelFactory(
-            ownerUserId = ownerUserId,
+            localOwnerUserId = localOwnerUserId,
             noteLocalRepository = noteLocalRepository,
             noteImageService = noteImageService,
         ),
@@ -160,7 +160,7 @@ fun DayScreen(
 
         item {
             Text(
-                text = "本月记录",
+                text = "当月日记",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(
@@ -173,7 +173,7 @@ fun DayScreen(
         if (state.recentNotes.isEmpty()) {
             item {
                 Text(
-                    text = "本月还没有记录",
+                    text = "尚无当月日记",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 8.dp),
@@ -210,7 +210,7 @@ fun DayScreen(
                     modifier = Modifier.size(18.dp),
                 )
                 Spacer(Modifier.size(8.dp))
-                Text("前往 记录库")
+                Text("查看全部日记和素材")
             }
         }
     }

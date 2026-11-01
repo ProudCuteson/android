@@ -21,17 +21,9 @@ import top.role.android.core.payment.WechatPayResultBus
 
 
 data class MarketDetailUiState(
-    val loading:
-    Boolean = false,
-
-    val signedOut:
-    Boolean = false,
-
-    val listing:
-    MobileMarketDetail? = null,
-
-    val errorMessage:
-    String? = null,
+    val loading: Boolean = false,
+    val listing: MobileMarketDetail? = null,
+    val errorMessage: String? = null,
 
     /*
      * ------------------------------------------------
@@ -39,26 +31,13 @@ data class MarketDetailUiState(
      * ------------------------------------------------
      */
 
-    val quantity:
-    Double = 1.0,
-
-    val selectedRegion:
-    MarketRegionSelection? = null,
-
-    val receiverName:
-    String = "",
-
-    val receiverPhone:
-    String = "",
-
-    val addressLine1:
-    String = "",
-
-    val postalCode:
-    String = "",
-
-    val buyerNote:
-    String = "",
+    val quantity: Double = 1.0,
+    val selectedRegion: MarketRegionSelection? = null,
+    val receiverName: String = "",
+    val receiverPhone: String = "",
+    val addressLine1: String = "",
+    val postalCode: String = "",
+    val buyerNote: String = "",
 
     /*
      * ------------------------------------------------
@@ -66,115 +45,78 @@ data class MarketDetailUiState(
      * ------------------------------------------------
      */
 
-    val paying:
-    Boolean = false,
-
-    val confirming:
-    Boolean = false,
-
-    val paymentError:
-    String? = null,
-
-    val paymentSuccess:
-    Boolean = false,
-
-    val purchasedOrderId:
-    String? = null,
+    val paying: Boolean = false,
+    val confirming: Boolean = false,
+    val paymentError: String? = null,
+    val paymentSuccess: Boolean = false,
+    val purchasedOrderId: String? = null,
 )
 
 
 class MarketDetailViewModel(
-    private val listingId:
-    String,
-
-    private val repository:
-    MarketDetailRepository,
-
-    private val wechatPayLauncher:
-    WechatPayLauncher,
+    private val listingId: String,
+    private val repository: MarketDetailRepository,
+    private val wechatPayLauncher: WechatPayLauncher,
 ) : ViewModel() {
 
     companion object {
-
-        private val STATUS_POLL_INTERVAL =
-            800.milliseconds
-
-        private const val STATUS_POLL_MAX_ATTEMPTS =
-            10
+        private val STATUS_POLL_INTERVAL = 800.milliseconds
+        private const val STATUS_POLL_MAX_ATTEMPTS = 10
     }
 
+    private val _uiState = MutableStateFlow(
+        MarketDetailUiState()
+    )
 
-    private val _uiState =
-        MutableStateFlow(
-            MarketDetailUiState()
-        )
-
-    val uiState:
-            StateFlow<MarketDetailUiState> =
+    val uiState: StateFlow<MarketDetailUiState> =
         _uiState.asStateFlow()
 
+    /*
+     * 详情数据订阅。
+     */
+    private var observeJob: Job? = null
 
-    private var observeJob:
-            Job? = null
-
-    private var paymentResultJob:
-            Job? = null
-
+    /*
+     * 微信支付结果监听。
+     *
+     * 独立于详情数据订阅，
+     * 不随 stop() 停止。
+     */
+    private var paymentResultJob: Job? = null
 
     /*
      * 当前这一次微信支付关联的订单。
      */
-
-    private var pendingOrderId:
-            String? = null
-
-    private var pendingOutTradeNo:
-            String? = null
-
+    private var pendingOrderId: String? = null
+    private var pendingOutTradeNo: String? = null
 
     init {
         observeWechatPaymentResult()
     }
 
 
-    fun start() {
+    /*
+     * ------------------------------------------------
+     * Authentication lifecycle
+     * ------------------------------------------------
+     */
 
-        if (
-            observeJob?.isActive ==
-            true
-        ) {
+    fun start() {
+        if (observeJob?.isActive == true) {
             return
         }
 
         observeDetail()
     }
 
-
-    fun showSignedOut() {
-
+    fun stop() {
         observeJob?.cancel()
         observeJob = null
-
-        pendingOrderId =
-            null
-
-        pendingOutTradeNo =
-            null
-
-        _uiState.value =
-            MarketDetailUiState(
-                signedOut =
-                    true,
-            )
     }
 
-
     fun retry() {
-
-        observeJob?.cancel()
-        observeJob = null
-
-        observeDetail()
+        stop()
+        start()
     }
 
 
@@ -185,82 +127,54 @@ class MarketDetailViewModel(
      */
 
     private fun observeDetail() {
+        _uiState.value = _uiState.value.copy(
+            loading = true,
+            errorMessage = null,
+        )
 
-        _uiState.value =
-            _uiState.value.copy(
-                loading =
-                    true,
+        observeJob = viewModelScope.launch {
+            repository
+                .observeDetail(
+                    listingId = listingId,
+                )
+                .collect { result ->
+                    result.fold(
+                        onSuccess = { response ->
+                            if (
+                                !response.ok ||
+                                response.listing == null
+                            ) {
+                                _uiState.value =
+                                    _uiState.value.copy(
+                                        loading = false,
+                                        errorMessage =
+                                            response.code
+                                                ?: "单品不可用",
+                                    )
 
-                signedOut =
-                    false,
+                                return@fold
+                            }
 
-                errorMessage =
-                    null,
-            )
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    loading = false,
+                                    listing = response.listing,
+                                    errorMessage = null,
+                                )
+                        },
 
-        observeJob =
-            viewModelScope.launch {
-
-                repository
-                    .observeDetail(
-                        listingId =
-                            listingId,
+                        onFailure = { error ->
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    loading = false,
+                                    errorMessage =
+                                        error.message
+                                            ?: "加载单品失败",
+                                )
+                        },
                     )
-                    .collect { result ->
-
-                        result.fold(
-                            onSuccess = {
-                                    response ->
-
-                                if (
-                                    !response.ok ||
-                                    response.listing ==
-                                    null
-                                ) {
-
-                                    _uiState.value =
-                                        _uiState.value.copy(
-                                            loading =
-                                                false,
-
-                                            errorMessage =
-                                                response.code
-                                                    ?: "单品不可用",
-                                        )
-
-                                    return@fold
-                                }
-
-
-                                _uiState.value =
-                                    _uiState.value.copy(
-                                        loading =
-                                            false,
-
-                                        listing =
-                                            response.listing,
-
-                                        errorMessage =
-                                            null,
-                                    )
-                            },
-
-                            onFailure = {
-                                    error ->
-
-                                _uiState.value =
-                                    _uiState.value.copy(
-                                        loading =
-                                            false,
-
-                                        errorMessage =
-                                            error.message
-                                                ?: "加载单品失败",
-                                    )
-                            },
-                        )
-                    }
-            }
+                }
+        }
     }
 
 
@@ -271,41 +185,24 @@ class MarketDetailViewModel(
      */
 
     fun decreaseQuantity() {
-
-        val state =
-            _uiState.value
+        val state = _uiState.value
 
         if (
             state.paying ||
-            state.confirming
+            state.confirming ||
+            state.quantity <= 1.0
         ) {
             return
         }
 
-        if (
-            state.quantity <=
-            1.0
-        ) {
-            return
-        }
-
-
-        _uiState.value =
-            state.copy(
-                quantity =
-                    state.quantity -
-                            1.0,
-
-                paymentError =
-                    null,
-            )
+        _uiState.value = state.copy(
+            quantity = state.quantity - 1.0,
+            paymentError = null,
+        )
     }
 
-
     fun increaseQuantity() {
-
-        val state =
-            _uiState.value
+        val state = _uiState.value
 
         if (
             state.paying ||
@@ -314,47 +211,27 @@ class MarketDetailViewModel(
             return
         }
 
+        val listing = state.listing ?: return
 
-        val listing =
-            state.listing
-                ?: return
-
-
-        if (
-            !listing.allowMultiQuantity
-        ) {
+        if (!listing.allowMultiQuantity) {
             return
         }
 
-
-        if (
-            listing.stockMode !=
-            "unlimited"
-        ) {
-
-            val stockCount =
-                listing.stockCount
+        if (listing.stockMode != "unlimited") {
+            val stockCount = listing.stockCount
 
             if (
-                stockCount !=
-                null &&
-                state.quantity >=
-                stockCount
+                stockCount != null &&
+                state.quantity >= stockCount
             ) {
                 return
             }
         }
 
-
-        _uiState.value =
-            state.copy(
-                quantity =
-                    state.quantity +
-                            1.0,
-
-                paymentError =
-                    null,
-            )
+        _uiState.value = state.copy(
+            quantity = state.quantity + 1.0,
+            paymentError = null,
+        )
     }
 
 
@@ -365,98 +242,57 @@ class MarketDetailViewModel(
      */
 
     fun selectRegion(
-        region:
-        MarketRegionSelection,
+        region: MarketRegionSelection,
     ) {
-
-        _uiState.value =
-            _uiState.value.copy(
-                selectedRegion =
-                    region,
-
-                paymentError =
-                    null,
-            )
+        _uiState.value = _uiState.value.copy(
+            selectedRegion = region,
+            paymentError = null,
+        )
     }
-
 
     fun updateReceiverName(
-        value:
-        String,
+        value: String,
     ) {
-
-        _uiState.value =
-            _uiState.value.copy(
-                receiverName =
-                    value,
-
-                paymentError =
-                    null,
-            )
+        _uiState.value = _uiState.value.copy(
+            receiverName = value,
+            paymentError = null,
+        )
     }
-
 
     fun updateReceiverPhone(
-        value:
-        String,
+        value: String,
     ) {
-
-        _uiState.value =
-            _uiState.value.copy(
-                receiverPhone =
-                    value,
-
-                paymentError =
-                    null,
-            )
+        _uiState.value = _uiState.value.copy(
+            receiverPhone = value,
+            paymentError = null,
+        )
     }
-
 
     fun updateAddressLine1(
-        value:
-        String,
+        value: String,
     ) {
-
-        _uiState.value =
-            _uiState.value.copy(
-                addressLine1 =
-                    value,
-
-                paymentError =
-                    null,
-            )
+        _uiState.value = _uiState.value.copy(
+            addressLine1 = value,
+            paymentError = null,
+        )
     }
-
 
     fun updatePostalCode(
-        value:
-        String,
+        value: String,
     ) {
-
-        _uiState.value =
-            _uiState.value.copy(
-                postalCode =
-                    value,
-
-                paymentError =
-                    null,
-            )
+        _uiState.value = _uiState.value.copy(
+            postalCode = value,
+            paymentError = null,
+        )
     }
 
-
     fun updateBuyerNote(
-        value:
-        String,
+        value: String,
     ) {
-
-        _uiState.value =
-            _uiState.value.copy(
-                buyerNote =
-                    value,
-
-                paymentError =
-                    null,
-            )
+        _uiState.value = _uiState.value.copy(
+            buyerNote = value,
+            paymentError = null,
+        )
     }
 
 
@@ -467,10 +303,7 @@ class MarketDetailViewModel(
      */
 
     fun purchase() {
-
-        val state =
-            _uiState.value
-
+        val state = _uiState.value
 
         if (
             state.paying ||
@@ -479,230 +312,125 @@ class MarketDetailViewModel(
             return
         }
 
-
-        val listing =
-            state.listing
-                ?: return
-
+        val listing = state.listing ?: return
 
         /*
-         * ------------------------------------------------
          * Quantity validation
-         * ------------------------------------------------
          */
 
-        if (
-            state.quantity <
-            1.0
-        ) {
-
-            _uiState.value =
-                state.copy(
-                    paymentError =
-                        "INVALID_MARKET_QUANTITY",
-                )
+        if (state.quantity < 1.0) {
+            _uiState.value = state.copy(
+                paymentError = "INVALID_MARKET_QUANTITY",
+            )
 
             return
         }
 
-
-        if (
-            listing.stockMode !=
-            "unlimited"
-        ) {
-
-            val stockCount =
-                listing.stockCount
-                    ?: 0.0
+        if (listing.stockMode != "unlimited") {
+            val stockCount = listing.stockCount ?: 0.0
 
             if (
-                stockCount <=
-                0.0 ||
-                state.quantity >
-                stockCount
+                stockCount <= 0.0 ||
+                state.quantity > stockCount
             ) {
-
-                _uiState.value =
-                    state.copy(
-                        paymentError =
-                            "MARKET_STOCK_NOT_ENOUGH",
-                    )
+                _uiState.value = state.copy(
+                    paymentError = "MARKET_STOCK_NOT_ENOUGH",
+                )
 
                 return
             }
         }
 
-
         /*
-         * ------------------------------------------------
          * Shipping validation
-         * ------------------------------------------------
          */
 
         val shippingInfo =
-            if (
-                listing.needsShippingAddress
-            ) {
-
-                val region =
-                    state.selectedRegion
-
+            if (listing.needsShippingAddress) {
+                val region = state.selectedRegion
 
                 if (
-                    state.receiverName
-                        .isBlank() ||
-                    state.receiverPhone
-                        .isBlank() ||
-                    region ==
-                    null ||
-                    state.addressLine1
-                        .isBlank()
+                    state.receiverName.isBlank() ||
+                    state.receiverPhone.isBlank() ||
+                    region == null ||
+                    state.addressLine1.isBlank()
                 ) {
-
-                    _uiState.value =
-                        state.copy(
-                            paymentError =
-                                "SHIPPING_ADDRESS_REQUIRED",
-                        )
+                    _uiState.value = state.copy(
+                        paymentError = "SHIPPING_ADDRESS_REQUIRED",
+                    )
 
                     return
                 }
 
-
                 MarketShippingInfo(
-                    receiverName =
-                        state.receiverName
-                            .trim(),
-
-                    receiverPhone =
-                        state.receiverPhone
-                            .trim(),
-
-                    regionText =
-                        region.regionText,
-
-                    addressLine1 =
-                        state.addressLine1
-                            .trim(),
-
-                    postalCode =
-                        state.postalCode
-                            .trim()
-                            .takeIf {
-                                it.isNotEmpty()
-                            },
+                    receiverName = state.receiverName.trim(),
+                    receiverPhone = state.receiverPhone.trim(),
+                    regionText = region.regionText,
+                    addressLine1 = state.addressLine1.trim(),
+                    postalCode = state.postalCode
+                        .trim()
+                        .takeIf { it.isNotEmpty() },
                 )
-
             } else {
-
                 null
             }
 
-
         /*
-         * ------------------------------------------------
          * Quantity request value
-         * ------------------------------------------------
          *
          * 单数量商品可以不显式传 quantity，
          * 继续由后端使用默认 1。
          */
 
         val requestQuantity =
-            if (
-                listing.allowMultiQuantity
-            ) {
+            if (listing.allowMultiQuantity) {
                 state.quantity
             } else {
                 null
             }
 
-
-        val buyerNote =
-            state.buyerNote
-                .trim()
-                .takeIf {
-                    it.isNotEmpty()
-                }
-
+        val buyerNote = state.buyerNote
+            .trim()
+            .takeIf { it.isNotEmpty() }
 
         /*
-         * ------------------------------------------------
          * Create order
-         * ------------------------------------------------
          */
 
         viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                paying = true,
+                confirming = false,
+                paymentError = null,
+                paymentSuccess = false,
+                purchasedOrderId = null,
+            )
 
-            _uiState.value =
-                _uiState.value.copy(
-                    paying =
-                        true,
-
-                    confirming =
-                        false,
-
-                    paymentError =
-                        null,
-
-                    paymentSuccess =
-                        false,
-
-                    purchasedOrderId =
-                        null,
-                )
-
-
-            val result =
-                repository.createPurchase(
-                    request =
-                        CreateMarketPurchaseRequest(
-                            listingId =
-                                listingId,
-
-                            quantity =
-                                requestQuantity,
-
-                            shippingInfo =
-                                shippingInfo,
-
-                            buyerNote =
-                                buyerNote,
-                        ),
-                )
-
+            val result = repository.createPurchase(
+                request = CreateMarketPurchaseRequest(
+                    listingId = listingId,
+                    quantity = requestQuantity,
+                    shippingInfo = shippingInfo,
+                    buyerNote = buyerNote,
+                ),
+            )
 
             result.fold(
-                onSuccess = {
-                        response ->
-
-                    val purchase =
-                        response.purchase
-
-                    val payment =
-                        response.payment
-
+                onSuccess = { response ->
+                    val purchase = response.purchase
+                    val payment = response.payment
 
                     if (
                         !response.ok ||
-                        purchase ==
-                        null ||
-                        payment ==
-                        null
+                        purchase == null ||
+                        payment == null
                     ) {
-
-                        pendingOrderId =
-                            null
-
-                        pendingOutTradeNo =
-                            null
-
+                        pendingOrderId = null
+                        pendingOutTradeNo = null
 
                         _uiState.value =
                             _uiState.value.copy(
-                                paying =
-                                    false,
-
+                                paying = false,
                                 paymentError =
                                     response.code
                                         ?: response.message
@@ -712,48 +440,31 @@ class MarketDetailViewModel(
                         return@fold
                     }
 
-
                     /*
                      * 订单已经真实存在。
                      */
 
-                    pendingOrderId =
-                        purchase.orderId
-
-                    pendingOutTradeNo =
-                        purchase.outTradeNo
-
+                    pendingOrderId = purchase.orderId
+                    pendingOutTradeNo = purchase.outTradeNo
 
                     val launchResult =
-                        wechatPayLauncher.launch(
-                            payment
-                        )
-
+                        wechatPayLauncher.launch(payment)
 
                     launchResult
                         .exceptionOrNull()
                         ?.let { error ->
-
                             /*
                              * 微信未成功拉起，
                              * 但 pending order 仍保留在服务端。
                              */
 
-                            pendingOrderId =
-                                null
-
-                            pendingOutTradeNo =
-                                null
-
+                            pendingOrderId = null
+                            pendingOutTradeNo = null
 
                             _uiState.value =
                                 _uiState.value.copy(
-                                    paying =
-                                        false,
-
-                                    confirming =
-                                        false,
-
+                                    paying = false,
+                                    confirming = false,
                                     paymentError =
                                         error.message
                                             ?: "WECHAT_PAY_LAUNCH_FAILED",
@@ -761,25 +472,14 @@ class MarketDetailViewModel(
                         }
                 },
 
-
-                onFailure = {
-                        error ->
-
-                    pendingOrderId =
-                        null
-
-                    pendingOutTradeNo =
-                        null
-
+                onFailure = { error ->
+                    pendingOrderId = null
+                    pendingOutTradeNo = null
 
                     _uiState.value =
                         _uiState.value.copy(
-                            paying =
-                                false,
-
-                            confirming =
-                                false,
-
+                            paying = false,
+                            confirming = false,
                             paymentError =
                                 error.message
                                     ?: "CREATE_MARKET_PURCHASE_FAILED",
@@ -797,114 +497,73 @@ class MarketDetailViewModel(
      */
 
     private fun observeWechatPaymentResult() {
+        paymentResultJob?.cancel()
 
-        paymentResultJob
-            ?.cancel()
+        paymentResultJob = viewModelScope.launch {
+            WechatPayResultBus
+                .results
+                .collect { result ->
+                    val outTradeNo =
+                        pendingOutTradeNo ?: return@collect
 
+                    when (result.errCode) {
 
-        paymentResultJob =
-            viewModelScope.launch {
+                        /*
+                         * 微信 SDK 正常返回。
+                         *
+                         * 这里不能认为已经支付成功，
+                         * 必须确认真实订单状态。
+                         */
 
-                WechatPayResultBus
-                    .results
-                    .collect { result ->
-
-                        val outTradeNo =
-                            pendingOutTradeNo
-                                ?: return@collect
-
-
-                        when (
-                            result.errCode
-                        ) {
-
-                            /*
-                             * 微信 SDK 正常返回。
-                             *
-                             * 这里不能认为已经支付成功，
-                             * 必须确认真实订单状态。
-                             */
-
-                            0 -> {
-
-                                _uiState.value =
-                                    _uiState.value.copy(
-                                        paying =
-                                            false,
-
-                                        confirming =
-                                            true,
-
-                                        paymentError =
-                                            null,
-                                    )
-
-
-                                confirmPurchase(
-                                    outTradeNo =
-                                        outTradeNo,
+                        0 -> {
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    paying = false,
+                                    confirming = true,
+                                    paymentError = null,
                                 )
-                            }
 
+                            confirmPurchase(
+                                outTradeNo = outTradeNo,
+                            )
+                        }
 
-                            /*
-                             * 用户取消。
-                             *
-                             * pending order 保留，
-                             * 后续可从订单详情继续支付。
-                             */
+                        /*
+                         * 用户取消。
+                         *
+                         * pending order 保留，
+                         * 后续可从订单详情继续支付。
+                         */
 
-                            -2 -> {
+                        -2 -> {
+                            pendingOrderId = null
+                            pendingOutTradeNo = null
 
-                                pendingOrderId =
-                                    null
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    paying = false,
+                                    confirming = false,
+                                    paymentError = null,
+                                )
+                        }
 
-                                pendingOutTradeNo =
-                                    null
+                        else -> {
+                            pendingOrderId = null
+                            pendingOutTradeNo = null
 
-
-                                _uiState.value =
-                                    _uiState.value.copy(
-                                        paying =
-                                            false,
-
-                                        confirming =
-                                            false,
-
-                                        paymentError =
-                                            null,
-                                    )
-                            }
-
-
-                            else -> {
-
-                                pendingOrderId =
-                                    null
-
-                                pendingOutTradeNo =
-                                    null
-
-
-                                _uiState.value =
-                                    _uiState.value.copy(
-                                        paying =
-                                            false,
-
-                                        confirming =
-                                            false,
-
-                                        paymentError =
-                                            result.errStr
-                                                ?.takeIf {
-                                                    it.isNotBlank()
-                                                }
-                                                ?: "WECHAT_PAY_FAILED",
-                                    )
-                            }
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    paying = false,
+                                    confirming = false,
+                                    paymentError =
+                                        result.errStr
+                                            ?.takeIf { it.isNotBlank() }
+                                            ?: "WECHAT_PAY_FAILED",
+                                )
                         }
                     }
-            }
+                }
+        }
     }
 
 
@@ -915,37 +574,19 @@ class MarketDetailViewModel(
      */
 
     private suspend fun confirmPurchase(
-        outTradeNo:
-        String,
+        outTradeNo: String,
     ) {
-
-        repeat(
-            STATUS_POLL_MAX_ATTEMPTS
-        ) { attempt ->
-
-            if (
-                attempt >
-                0
-            ) {
-
-                delay(
-                    STATUS_POLL_INTERVAL
-                )
+        repeat(STATUS_POLL_MAX_ATTEMPTS) { attempt ->
+            if (attempt > 0) {
+                delay(STATUS_POLL_INTERVAL)
             }
 
+            val result = repository.getPurchaseStatus(
+                outTradeNo = outTradeNo,
+            )
 
-            val result =
-                repository
-                    .getPurchaseStatus(
-                        outTradeNo =
-                            outTradeNo,
-                    )
-
-
-            val response =
-                result.getOrNull()
-                    ?: return@repeat
-
+            val response = result.getOrNull()
+                ?: return@repeat
 
             if (
                 !response.ok ||
@@ -954,78 +595,43 @@ class MarketDetailViewModel(
                 return@repeat
             }
 
-
-            when (
-                response.status
-            ) {
+            when (response.status) {
 
                 /*
                  * 真实 marketOrders.status。
                  */
 
                 "paid" -> {
+                    val orderId = response.orderId
+                        .takeIf { it.isNotBlank() }
+                        ?: pendingOrderId
 
-                    val orderId =
-                        response.orderId
-                            .takeIf {
-                                it.isNotBlank()
-                            }
-                            ?: pendingOrderId
-
-
-                    pendingOrderId =
-                        null
-
-                    pendingOutTradeNo =
-                        null
-
+                    pendingOrderId = null
+                    pendingOutTradeNo = null
 
                     _uiState.value =
                         _uiState.value.copy(
-                            paying =
-                                false,
-
-                            confirming =
-                                false,
-
-                            paymentError =
-                                null,
-
-                            paymentSuccess =
-                                true,
-
-                            purchasedOrderId =
-                                orderId,
+                            paying = false,
+                            confirming = false,
+                            paymentError = null,
+                            paymentSuccess = true,
+                            purchasedOrderId = orderId,
                         )
-
 
                     return
                 }
 
-
                 "cancelled",
                 "refunded" -> {
-
-                    pendingOrderId =
-                        null
-
-                    pendingOutTradeNo =
-                        null
-
+                    pendingOrderId = null
+                    pendingOutTradeNo = null
 
                     _uiState.value =
                         _uiState.value.copy(
-                            paying =
-                                false,
-
-                            confirming =
-                                false,
-
+                            paying = false,
+                            confirming = false,
                             paymentError =
-                                when (
-                                    response.status
-                                ) {
-
+                                when (response.status) {
                                     "cancelled" ->
                                         "MARKET_ORDER_CANCELLED"
 
@@ -1034,21 +640,17 @@ class MarketDetailViewModel(
                                 },
                         )
 
-
                     return
                 }
-
 
                 /*
                  * notify / settle 尚未完成，
                  * 继续下一轮。
                  */
 
-                "pending" ->
-                    Unit
+                "pending" -> Unit
             }
         }
-
 
         /*
          * 微信已经返回成功，
@@ -1057,23 +659,14 @@ class MarketDetailViewModel(
          * 这里不是业务失败。
          */
 
-        pendingOrderId =
-            null
-
-        pendingOutTradeNo =
-            null
-
+        pendingOrderId = null
+        pendingOutTradeNo = null
 
         _uiState.value =
             _uiState.value.copy(
-                paying =
-                    false,
-
-                confirming =
-                    false,
-
-                paymentError =
-                    "MARKET_PAYMENT_CONFIRMING",
+                paying = false,
+                confirming = false,
+                paymentError = "MARKET_PAYMENT_CONFIRMING",
             )
     }
 
@@ -1085,24 +678,27 @@ class MarketDetailViewModel(
      */
 
     fun consumePaymentSuccess() {
+        _uiState.value = _uiState.value.copy(
+            paymentSuccess = false,
+            purchasedOrderId = null,
+        )
+    }
 
-        _uiState.value =
-            _uiState.value.copy(
-                paymentSuccess =
-                    false,
-
-                purchasedOrderId =
-                    null,
-            )
+    fun clearPaymentError() {
+        _uiState.value = _uiState.value.copy(
+            paymentError = null,
+        )
     }
 
 
-    fun clearPaymentError() {
+    /*
+     * ------------------------------------------------
+     * ViewModel lifecycle
+     * ------------------------------------------------
+     */
 
-        _uiState.value =
-            _uiState.value.copy(
-                paymentError =
-                    null,
-            )
+    override fun onCleared() {
+        stop()
+        super.onCleared()
     }
 }

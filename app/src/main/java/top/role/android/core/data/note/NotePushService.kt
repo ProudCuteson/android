@@ -1,5 +1,6 @@
 package top.role.android.core.data.note
 
+import kotlinx.coroutines.CancellationException
 import top.role.android.core.model.note.NoteRemoteStatus
 import top.role.android.core.model.note.NoteSyncFailure
 import top.role.android.core.database.note.LocalNoteEntity
@@ -11,48 +12,47 @@ class NotePushService(
 ) {
 
     suspend fun pushOne(
-        ownerUserId: String,
+        localOwnerUserId: String,
         localKey: String,
     ): Result<Unit> {
-        return runCatching {
+        return try {
             val note = noteLocalRepository
                 .findByLocalKey(
-                    ownerUserId = ownerUserId,
+                    localOwnerUserId,
                     localKey = localKey,
                 )
-                ?: return@runCatching
+                ?: return Result.success(Unit)
 
             when (note.pendingRemoteStatus) {
                 NoteRemoteStatus.Deleted -> {
                     pushDelete(
-                        ownerUserId = ownerUserId,
-                        localKey = localKey,
-                        noteId = note.noteId,
-                        baseVersion = note.remoteVersion,
+                        localOwnerUserId,
+                        localKey,
+                        note.noteId,
                     )
                 }
 
                 NoteRemoteStatus.Archived -> {
                     when {
                         hasPendingContentWork(note) -> {
-                            pushContent(ownerUserId, localKey)
+                            pushContent(localOwnerUserId, localKey)
                         }
 
                         note.pinned != note.syncedPinned -> {
                             pushPinned(
-                                ownerUserId = ownerUserId,
-                                localKey = localKey,
-                                noteId = requireNotNull(note.noteId),
-                                pinned = note.pinned,
+                                localOwnerUserId,
+                                localKey,
+                                requireNotNull(note.noteId),
+                                note.pinned,
                             )
                         }
 
                         else -> {
                             pushArchive(
-                                ownerUserId = ownerUserId,
-                                localKey = localKey,
-                                noteId = note.noteId,
-                                baseVersion = note.remoteVersion,
+                                localOwnerUserId,
+                                localKey,
+                                note.noteId,
+                                note.remoteVersion,
                             )
                         }
                     }
@@ -60,35 +60,37 @@ class NotePushService(
 
                 NoteRemoteStatus.Active -> {
                     pushRestore(
-                        ownerUserId = ownerUserId,
-                        localKey = localKey,
-                        noteId = note.noteId,
-                        baseVersion = note.remoteVersion,
+                        localOwnerUserId,
+                        localKey,
+                        note.noteId,
                     )
                 }
 
-                /*
-                 * ------------------------------------------------
-                 * 普通 content sync
-                 * ------------------------------------------------
-                 */
                 null -> {
                     when {
                         hasPendingContentWork(note) -> {
-                            pushContent(ownerUserId, localKey)
+                            pushContent(localOwnerUserId, localKey)
                         }
 
                         note.pinned != note.syncedPinned -> {
                             pushPinned(
-                                ownerUserId = ownerUserId,
-                                localKey = localKey,
-                                noteId = requireNotNull(note.noteId),
-                                pinned = note.pinned,
+                                localOwnerUserId,
+                                localKey,
+                                requireNotNull(note.noteId),
+                                note.pinned,
                             )
                         }
                     }
                 }
             }
+
+            Result.success(Unit)
+
+        } catch (error: CancellationException) {
+            throw error
+
+        } catch (error: Exception) {
+            Result.failure(error)
         }
     }
 
@@ -99,7 +101,7 @@ class NotePushService(
     }
 
     private suspend fun pushPinned(
-        ownerUserId: String,
+        localOwnerUserId: String,
         localKey: String,
         noteId: String,
         pinned: Boolean,
@@ -109,7 +111,7 @@ class NotePushService(
             pinned = pinned,
         ).getOrElse { error ->
             noteLocalRepository.applyPinnedFailure(
-                ownerUserId = ownerUserId,
+                localOwnerUserId = localOwnerUserId,
                 localKey = localKey,
                 noteId = noteId,
                 sentPinned = pinned,
@@ -119,7 +121,7 @@ class NotePushService(
         }
 
         noteLocalRepository.applyPinnedSuccess(
-            ownerUserId = ownerUserId,
+            localOwnerUserId = localOwnerUserId,
             localKey = localKey,
             noteId = noteId,
             sentPinned = pinned,
@@ -129,111 +131,66 @@ class NotePushService(
     // MARK: - Content
 
     private suspend fun pushContent(
-        ownerUserId: String,
+        localOwnerUserId: String,
         localKey: String,
     ) {
         val prepared =
             noteLocalRepository
                 .preparePendingSnapshot(
-                    ownerUserId =
-                        ownerUserId,
-
-                    localKey =
-                        localKey,
+                    localOwnerUserId = localOwnerUserId,
+                    localKey = localKey,
                 )
                 ?: return
 
-        val sentSnapshot =
-            prepared.snapshot
+        val sentSnapshot = prepared.snapshot
 
-        val response =
-            noteRemoteDataSource
-                .upsertNote(
-                    snapshot =
-                        sentSnapshot,
-                )
-                .getOrElse { error ->
-                    noteLocalRepository
-                        .applyPushFailure(
-                            ownerUserId =
-                                ownerUserId,
-
-                            localKey =
-                                localKey,
-
-                            sentSnapshot =
-                                sentSnapshot,
-
-                            failure =
-                                classifyFailure(
-                                    error,
-                                ),
-                        )
-
-                    throw error
-                }
+        val response = noteRemoteDataSource
+            .upsertNote(snapshot = sentSnapshot)
+            .getOrElse { error ->
+                noteLocalRepository
+                    .applyPushFailure(
+                        localOwnerUserId = localOwnerUserId,
+                        localKey = localKey,
+                        sentSnapshot = sentSnapshot,
+                        failure = classifyFailure(error),
+                    )
+                throw error
+            }
 
         noteLocalRepository
             .applyPushSuccess(
-                ownerUserId =
-                    ownerUserId,
-
-                localKey =
-                    localKey,
-
-                sentSnapshot =
-                    sentSnapshot,
-
-                outcome =
-                    response.outcome,
-
-                remote =
-                    response.note,
+                localOwnerUserId = localOwnerUserId,
+                localKey = localKey,
+                sentSnapshot = sentSnapshot,
+                outcome = response.outcome,
+                remote = response.note,
             )
     }
 
     // MARK: - Archive
 
     private suspend fun pushArchive(
-        ownerUserId: String,
+        localOwnerUserId: String,
         localKey: String,
         noteId: String?,
         baseVersion: Long?,
     ) {
-        val remoteNoteId =
-            requireRemoteNoteId(
-                noteId =
-                    noteId,
-
-                operation =
-                    "archive",
+        val remoteNoteId = requireRemoteNoteId(
+                noteId = noteId,
+                operation = "archive",
             )
 
-        val response =
-            noteRemoteDataSource
+        val response = noteRemoteDataSource
                 .archiveNote(
-                    noteId =
-                        remoteNoteId,
-
-                    baseVersion =
-                        baseVersion,
+                    noteId = remoteNoteId,
                 )
                 .getOrElse { error ->
                     noteLocalRepository
                         .applyLifecycleFailure(
-                            ownerUserId =
-                                ownerUserId,
-
-                            localKey =
-                                localKey,
-
-                            expectedStatus =
-                                NoteRemoteStatus.Archived,
-
-                            failure =
-                                classifyFailure(
-                                    error,
-                                ),
+                            localOwnerUserId = localOwnerUserId,
+                            localKey = localKey,
+                            expectedStatus = NoteRemoteStatus.Archived,
+                            failure = classifyFailure(error),
                         )
 
                     throw error
@@ -241,62 +198,36 @@ class NotePushService(
 
         noteLocalRepository
             .applyLifecycleSuccess(
-                ownerUserId =
-                    ownerUserId,
-
-                localKey =
-                    localKey,
-
-                expectedStatus =
-                    NoteRemoteStatus.Archived,
-
-                remote =
-                    response.note,
+                localOwnerUserId = localOwnerUserId,
+                localKey = localKey,
+                expectedStatus = NoteRemoteStatus.Archived,
+                remote = response.note,
             )
     }
 
     // MARK: - Restore
 
     private suspend fun pushRestore(
-        ownerUserId: String,
+        localOwnerUserId: String,
         localKey: String,
         noteId: String?,
-        baseVersion: Long?,
     ) {
-        val remoteNoteId =
-            requireRemoteNoteId(
-                noteId =
-                    noteId,
+        val remoteNoteId = requireRemoteNoteId(
+            noteId = noteId,
+            operation = "restore",
+        )
 
-                operation =
-                    "restore",
-            )
-
-        val response =
-            noteRemoteDataSource
+        val response = noteRemoteDataSource
                 .restoreNote(
-                    noteId =
-                        remoteNoteId,
-
-                    baseVersion =
-                        baseVersion,
+                    noteId = remoteNoteId,
                 )
                 .getOrElse { error ->
                     noteLocalRepository
                         .applyLifecycleFailure(
-                            ownerUserId =
-                                ownerUserId,
-
-                            localKey =
-                                localKey,
-
-                            expectedStatus =
-                                NoteRemoteStatus.Active,
-
-                            failure =
-                                classifyFailure(
-                                    error,
-                                ),
+                            localOwnerUserId = localOwnerUserId,
+                            localKey = localKey,
+                            expectedStatus = NoteRemoteStatus.Active,
+                            failure = classifyFailure(error),
                         )
 
                     throw error
@@ -304,87 +235,46 @@ class NotePushService(
 
         noteLocalRepository
             .applyLifecycleSuccess(
-                ownerUserId =
-                    ownerUserId,
-
-                localKey =
-                    localKey,
-
-                expectedStatus =
-                    NoteRemoteStatus.Active,
-
-                remote =
-                    response.note,
+                localOwnerUserId = localOwnerUserId,
+                localKey = localKey,
+                expectedStatus = NoteRemoteStatus.Active,
+                remote = response.note,
             )
     }
 
     // MARK: - Delete
 
     private suspend fun pushDelete(
-        ownerUserId: String,
+        localOwnerUserId: String,
         localKey: String,
         noteId: String?,
-        baseVersion: Long?,
     ) {
-        /*
-         * markForDelete() 对纯本地 Note
-         * 已经直接进行了 deleteLocal。
-         *
-         * 因此能够进入这里的 Note
-         * 理论上必须已经存在远端 identity。
-         */
-        val remoteNoteId =
-            requireRemoteNoteId(
-                noteId =
-                    noteId,
 
-                operation =
-                    "delete",
-            )
+        val remoteNoteId = requireRemoteNoteId(
+            noteId = noteId,
+            operation = "delete",
+        )
 
-        val response =
-            noteRemoteDataSource
-                .softDeleteNote(
-                    noteId =
-                        remoteNoteId,
+        val response = noteRemoteDataSource
+            .softDeleteNote(noteId = remoteNoteId)
+            .getOrElse { error ->
+                noteLocalRepository
+                    .applyLifecycleFailure(
+                        localOwnerUserId = localOwnerUserId,
+                        localKey = localKey,
+                        expectedStatus = NoteRemoteStatus.Deleted,
+                        failure = classifyFailure(error),
+                    )
 
-                    baseVersion =
-                        baseVersion,
-                )
-                .getOrElse { error ->
-                    noteLocalRepository
-                        .applyLifecycleFailure(
-                            ownerUserId =
-                                ownerUserId,
-
-                            localKey =
-                                localKey,
-
-                            expectedStatus =
-                                NoteRemoteStatus.Deleted,
-
-                            failure =
-                                classifyFailure(
-                                    error,
-                                ),
-                        )
-
-                    throw error
-                }
+                throw error
+            }
 
         noteLocalRepository
             .applyLifecycleSuccess(
-                ownerUserId =
-                    ownerUserId,
-
-                localKey =
-                    localKey,
-
-                expectedStatus =
-                    NoteRemoteStatus.Deleted,
-
-                remote =
-                    response.note,
+                localOwnerUserId = localOwnerUserId,
+                localKey = localKey,
+                expectedStatus = NoteRemoteStatus.Deleted,
+                remote = response.note,
             )
     }
 
@@ -395,94 +285,39 @@ class NotePushService(
         operation: String,
     ): String {
         return noteId
-            ?.takeIf {
-                it.isNotBlank()
-            }
-            ?: throw IllegalStateException(
-                "Remote noteId is required for $operation"
-            )
+            ?.takeIf { it.isNotBlank() }
+            ?: throw IllegalStateException( "Remote noteId is required for $operation" )
     }
 
     private fun classifyFailure(
         error: Throwable,
     ): NoteSyncFailure {
-        val message =
-            error.message
-                ?: "Note sync failed"
+        val message = error.message ?: "Note sync failed"
 
         return when {
-            /*
-             * 明确的乐观并发冲突。
-             */
             message.contains(
                 "NOTE_VERSION_CONFLICT",
                 ignoreCase = true,
             ) ->
-                NoteSyncFailure.Conflict(
-                    message =
-                        message,
-                )
+                NoteSyncFailure.Conflict(message = message)
 
-            /*
-             * 本应具有 remote identity，
-             * 但服务端找不到。
-             *
-             * 这种情况继续自动 Retry
-             * 一般也不会恢复，
-             * 所以先进入 Conflict，
-             * 后续由 conflict resolver 处理。
-             */
             message.contains(
                 "NOTE_NOT_FOUND",
                 ignoreCase = true,
             ) ->
-                NoteSyncFailure.Conflict(
-                    message =
-                        message,
-                )
+                NoteSyncFailure.Conflict(message = message)
 
-            /*
-             * 已有远端 Note 的 mutation
-             * 缺少 baseVersion，
-             * 属于本地同步状态异常，
-             * 重试本身无法解决。
-             */
-            message.contains(
-                "NOTE_BASE_VERSION_REQUIRED",
-                ignoreCase = true,
-            ) ->
-                NoteSyncFailure.Conflict(
-                    message =
-                        message,
-                )
-
-            message.contains(
-                "NOTE_DELETED",
-                ignoreCase = true,
-            ) ->
-                NoteSyncFailure.RemoteDeleted(
-                    message =
-                        message,
-                )
+            message.contains( "NOTE_DELETED", ignoreCase = true ) ->
+                NoteSyncFailure.RemoteDeleted(message = message)
 
             message.contains(
                 "NOTE_ARCHIVED",
                 ignoreCase = true,
             ) ->
-                NoteSyncFailure.RemoteArchived(
-                    message =
-                        message,
-                )
+                NoteSyncFailure.RemoteArchived( message = message )
 
-            /*
-             * 网络错误、临时服务错误等
-             * 第一版统一视为可重试。
-             */
             else ->
-                NoteSyncFailure.Retryable(
-                    message =
-                        message,
-                )
+                NoteSyncFailure.Retryable( message = message )
         }
     }
 }

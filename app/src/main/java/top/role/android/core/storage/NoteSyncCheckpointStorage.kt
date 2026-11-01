@@ -17,47 +17,35 @@ class NoteSyncCheckpointStorage(
 ) {
 
     suspend fun getPullCheckpoint(
-        ownerUserId: String,
+        localOwnerUserId: String,
     ): NotePullCheckpoint? {
-        val key =
-            pullUpdatedAtKey(
-                ownerUserId,
-            )
+        val key = pullUpdatedAtKey(localOwnerUserId)
 
-        val preferences =
-            context.noteSyncDataStore
-                .data
-                .first()
+        val preferences = context.noteSyncDataStore
+            .data
+            .first()
 
-        val value =
-            preferences[key]
-                ?: return null
+        val value = preferences[key] ?: return null
 
         return NotePullCheckpoint(
-            kind =
-                "updatedAt",
-            value =
-                value,
+            kind = "updatedAt",
+            value = value,
         )
     }
 
     suspend fun savePullCheckpoint(
-        ownerUserId: String,
+        localOwnerUserId: String,
         checkpoint: NotePullCheckpoint,
     ) {
         when (
             checkpoint.kind
         ) {
             "updatedAt" -> {
-                val key =
-                    pullUpdatedAtKey(
-                        ownerUserId,
-                    )
+                val key = pullUpdatedAtKey(localOwnerUserId)
 
-                context.noteSyncDataStore
-                    .edit { preferences ->
-                        preferences[key] =
-                            checkpoint.value
+                context
+                    .noteSyncDataStore
+                    .edit { preferences ->  preferences[key] = checkpoint.value
                     }
             }
 
@@ -70,12 +58,9 @@ class NoteSyncCheckpointStorage(
     }
 
     suspend fun clearPullCheckpoint(
-        ownerUserId: String,
+        localOwnerUserId: String,
     ) {
-        val key =
-            pullUpdatedAtKey(
-                ownerUserId,
-            )
+        val key = pullUpdatedAtKey(localOwnerUserId)
 
         context.noteSyncDataStore
             .edit { preferences ->
@@ -86,9 +71,9 @@ class NoteSyncCheckpointStorage(
     }
 
     private fun pullUpdatedAtKey(
-        ownerUserId: String,
+        localOwnerUserId: String,
     ) =
         doublePreferencesKey(
-            "note_pull_updated_at_$ownerUserId"
+            "note_pull_updated_at_$localOwnerUserId"
         )
 }

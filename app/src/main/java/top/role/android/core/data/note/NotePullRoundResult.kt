@@ -4,9 +4,6 @@ import top.role.android.core.model.note.NotePullCheckpoint
 import top.role.android.core.model.note.RemoteNoteSnapshot
 
 data class NotePullRoundResult(
-    val changes:
-    List<RemoteNoteSnapshot>,
-
-    val nextCheckpoint:
-    NotePullCheckpoint,
+    val changes: List<RemoteNoteSnapshot>,
+    val nextCheckpoint: NotePullCheckpoint,
 )

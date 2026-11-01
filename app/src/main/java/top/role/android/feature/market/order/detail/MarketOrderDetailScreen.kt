@@ -42,22 +42,67 @@ import androidx.compose.ui.unit.dp
 
 import coil3.compose.AsyncImage
 
+import top.role.android.core.auth.AuthState
+import top.role.android.ui.auth.AuthStatusContent
 import top.role.android.core.model.market.MobileMarketOrderDetail
 import top.role.android.core.model.market.MobileMarketOrderFulfillment
 import top.role.android.core.model.market.MobileMarketOrderShippingInfo
+import top.role.android.ui.components.RemoteMessageState
 
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-
-@OptIn(
-    ExperimentalMaterial3Api::class
-)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MarketOrderDetailScreen(
     state: MarketOrderDetailUiState,
 
+    authState: AuthState,
+    remoteOnline: Boolean,
+
+    onLogin: () -> Unit,
+    onRetryAuth: () -> Unit,
+    onReSignIn: () -> Unit,
+
+    onBack: () -> Unit,
+    onProductClick: (String) -> Unit,
+    onRetry: () -> Unit,
+) {
+    AuthStatusContent(
+        authState = authState,
+        onLogin = onLogin,
+        onRetry = onRetryAuth,
+        onReSignIn = onReSignIn,
+    ) { _ ->
+
+        if (!remoteOnline) {
+            RemoteMessageState(
+                title = "当前处于离线状态",
+                description = "连接网络后将自动恢复订单详情。",
+            )
+        } else {
+            MarketOrderDetailContentScreen(
+                state = state,
+                onBack = onBack,
+                onProductClick = onProductClick,
+                onRetry = onRetry,
+            )
+        }
+    }
+}
+
+
+/*
+ * ================================================================
+ * Order Detail Screen Content
+ * ================================================================
+ */
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MarketOrderDetailContentScreen(
+    state: MarketOrderDetailUiState,
     onBack: () -> Unit,
     onProductClick: (String) -> Unit,
     onRetry: () -> Unit,
@@ -66,61 +111,29 @@ fun MarketOrderDetailScreen(
         topBar = {
             TopAppBar(
                 title = {
-
                     Column {
-
                         Text(
-                            text =
-                                "订单详情",
-
-                            style =
-                                MaterialTheme
-                                    .typography
-                                    .titleMedium,
+                            text = "订单详情",
+                            style = MaterialTheme.typography.titleMedium,
                         )
-
 
                         state.order
                             ?.statusLabel
-                            ?.takeIf {
-                                it.isNotBlank()
-                            }
+                            ?.takeIf { it.isNotBlank() }
                             ?.let { status ->
-
                                 Text(
-                                    text =
-                                        status,
-
-                                    style =
-                                        MaterialTheme
-                                            .typography
-                                            .labelSmall,
-
-                                    color =
-                                        MaterialTheme
-                                            .colorScheme
-                                            .onSurfaceVariant,
+                                    text = status,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                     }
                 },
-
                 navigationIcon = {
-
-                    IconButton(
-                        onClick =
-                            onBack,
-                    ) {
-
+                    IconButton(onClick = onBack) {
                         Icon(
-                            imageVector =
-                                Icons
-                                    .AutoMirrored
-                                    .Filled
-                                    .ArrowBack,
-
-                            contentDescription =
-                                "返回",
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "返回",
                         )
                     }
                 },
@@ -129,67 +142,44 @@ fun MarketOrderDetailScreen(
     ) { innerPadding ->
 
         when {
-
-            state.isLoading &&
-                    state.order == null -> {
-
+            state.isLoading && state.order == null -> {
                 Column(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .padding(
-                                innerPadding
-                            ),
-
-                    horizontalAlignment =
-                        Alignment.CenterHorizontally,
-
-                    verticalArrangement =
-                        Arrangement.Center,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
                 ) {
-
                     CircularProgressIndicator()
                 }
             }
 
-
             state.order != null -> {
-
                 MarketOrderDetailContent(
-                    order =
-                        state.order,
-
-                    modifier =
-                        Modifier.padding(
-                            innerPadding
-                        ),
-
-                    onProductClick =
-                        onProductClick,
+                    order = state.order,
+                    modifier = Modifier.padding(innerPadding),
+                    onProductClick = onProductClick,
                 )
             }
 
-
             else -> {
-
                 MarketOrderDetailError(
-                    message =
-                        state.errorMessage
-                            ?: "订单详情加载失败",
-
-                    modifier =
-                        Modifier.padding(
-                            innerPadding
-                        ),
-
-                    onRetry =
-                        onRetry,
+                    message = state.errorMessage
+                        ?: "订单详情加载失败",
+                    modifier = Modifier.padding(innerPadding),
+                    onRetry = onRetry,
                 )
             }
         }
     }
 }
 
+
+/*
+ * ================================================================
+ * Order Detail Content
+ * ================================================================
+ */
 
 @Composable
 private fun MarketOrderDetailContent(
@@ -198,174 +188,93 @@ private fun MarketOrderDetailContent(
     onProductClick: (String) -> Unit,
 ) {
     Column(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .verticalScroll(
-                    rememberScrollState()
-                )
-                .navigationBarsPadding()
-                .padding(
-                    horizontal = 16.dp,
-                    vertical = 12.dp,
-                ),
-
-        verticalArrangement =
-            Arrangement.spacedBy(
-                14.dp
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .navigationBarsPadding()
+            .padding(
+                horizontal = 16.dp,
+                vertical = 12.dp,
             ),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
 
         OrderProductCard(
-            order =
-                order,
-
+            order = order,
             onClick = {
-                onProductClick(
-                    order.listingId
-                )
+                onProductClick(order.listingId)
             },
         )
 
-
         order.fulfillment
-            ?.takeIf {
-                it.hasDisplayContent()
-            }
+            ?.takeIf { it.hasDisplayContent() }
             ?.let { fulfillment ->
-
                 OrderFulfillmentCard(
-                    statusLabel =
-                        order.statusLabel,
-
-                    fulfillment =
-                        fulfillment,
+                    statusLabel = order.statusLabel,
+                    fulfillment = fulfillment,
                 )
             }
 
+        order.shippingInfo?.let { shippingInfo ->
+            OrderShippingCard(
+                shippingInfo = shippingInfo,
+            )
+        }
 
-        order.shippingInfo
-            ?.let { shippingInfo ->
-
-                OrderShippingCard(
-                    shippingInfo =
-                        shippingInfo,
-                )
-            }
-
-
-        OrderInfoCard(
-            order =
-                order,
-        )
-
+        OrderInfoCard(order = order)
 
         order.buyerNote
-            ?.takeIf {
-                it.isNotBlank()
-            }
+            ?.takeIf { it.isNotBlank() }
             ?.let { buyerNote ->
-
-                OrderSectionCard(
-                    title =
-                        "买家备注",
-                ) {
-
+                OrderSectionCard(title = "买家备注") {
                     Text(
-                        text =
-                            buyerNote,
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .bodyMedium,
-
-                        color =
-                            MaterialTheme
-                                .colorScheme
-                                .onSurfaceVariant,
+                        text = buyerNote,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
 
+        order.sellerSpace?.let { sellerSpace ->
+            OrderSectionCard(title = "卖家信息") {
+                Text(
+                    text = sellerSpace.name,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Medium,
+                )
 
-        order.sellerSpace
-            ?.let { sellerSpace ->
-
-                OrderSectionCard(
-                    title =
-                        "卖家信息",
-                ) {
-
+                sellerSpace.number?.let { number ->
                     Text(
-                        text =
-                            sellerSpace.name,
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .titleSmall,
-
-                        fontWeight =
-                            FontWeight.Medium,
+                        text = "专属号码 ${formatSpaceNumber(number)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-
-
-                    sellerSpace.number
-                        ?.let { number ->
-
-                            Text(
-                                text =
-                                    "专属号码 ${formatSpaceNumber(number)}",
-
-                                style =
-                                    MaterialTheme
-                                        .typography
-                                        .bodySmall,
-
-                                color =
-                                    MaterialTheme
-                                        .colorScheme
-                                        .onSurfaceVariant,
-                            )
-                        }
                 }
             }
-
+        }
 
         Text(
-            text =
-                "更多订单管理与售后功能，请前往 TopRole 网页版处理。",
-
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        horizontal = 8.dp,
-                        vertical = 12.dp,
-                    ),
-
-            style =
-                MaterialTheme
-                    .typography
-                    .bodySmall,
-
-            color =
-                MaterialTheme
-                    .colorScheme
-                    .onSurfaceVariant,
+            text = "更多订单管理与售后功能，请前往 TopRole 网页版处理。",
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(
+                    horizontal = 8.dp,
+                    vertical = 12.dp,
+                ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-
-        Spacer(
-            modifier =
-                Modifier.height(
-                    32.dp
-                )
-        )
+        Spacer(modifier = Modifier.height(32.dp))
     }
 }
 
+
+/*
+ * ================================================================
+ * Product Card
+ * ================================================================
+ */
 
 @Composable
 private fun OrderProductCard(
@@ -373,175 +282,81 @@ private fun OrderProductCard(
     onClick: () -> Unit,
 ) {
     Card(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clickable(
-                    onClick =
-                        onClick,
-                ),
-
-        shape =
-            RoundedCornerShape(
-                16.dp
-            ),
-
-        colors =
-            CardDefaults.cardColors(
-                containerColor =
-                    MaterialTheme
-                        .colorScheme
-                        .surfaceContainerLow,
-            ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
     ) {
-
         Row(
-            modifier =
-                Modifier.padding(
-                    14.dp
-                ),
-
-            horizontalArrangement =
-                Arrangement.spacedBy(
-                    12.dp
-                ),
+            modifier = Modifier.padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
 
-            if (
-                !order.cover
-                    .isNullOrBlank()
-            ) {
+            if (!order.cover.isNullOrBlank()) {
                 AsyncImage(
-                    model =
-                        order.cover,
-
-                    contentDescription =
-                        order.title,
-
-                    modifier =
-                        Modifier.size(
-                            80.dp
-                        ),
-
-                    contentScale =
-                        ContentScale.Crop,
+                    model = order.cover,
+                    contentDescription = order.title,
+                    modifier = Modifier.size(80.dp),
+                    contentScale = ContentScale.Crop,
                 )
             } else {
                 Surface(
-                    modifier =
-                        Modifier.size(
-                            80.dp
-                        ),
-
-                    shape =
-                        RoundedCornerShape(
-                            10.dp
-                        ),
-
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .surfaceContainerHighest,
+                    modifier = Modifier.size(80.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
                 ) {}
             }
 
             Column(
-                modifier =
-                    Modifier.weight(
-                        1f
-                    ),
-
-                verticalArrangement =
-                    Arrangement.spacedBy(
-                        6.dp
-                    ),
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-
                 Text(
-                    text =
-                        order.title,
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .titleMedium,
-
-                    fontWeight =
-                        FontWeight.SemiBold,
-
-                    maxLines =
-                        2,
-
-                    overflow =
-                        TextOverflow.Ellipsis,
+                    text = order.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
 
-
                 Text(
-                    text =
-                        "数量 ${formatQuantity(order.quantity)}",
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .bodySmall,
-
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .onSurfaceVariant,
+                    text = "数量 ${formatQuantity(order.quantity)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-
 
                 Row(
-                    modifier =
-                        Modifier.fillMaxWidth(),
-
-                    horizontalArrangement =
-                        Arrangement.SpaceBetween,
-
-                    verticalAlignment =
-                        Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-
                     Text(
-                        text =
-                            order.totalPrice,
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .titleMedium,
-
-                        fontWeight =
-                            FontWeight.SemiBold,
-
-                        color =
-                            MaterialTheme
-                                .colorScheme
-                                .primary,
+                        text = order.totalPrice,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
                     )
 
-
                     Text(
-                        text =
-                            "查看商品 ›",
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .labelMedium,
-
-                        color =
-                            MaterialTheme
-                                .colorScheme
-                                .primary,
+                        text = "查看商品 ›",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
                     )
                 }
             }
         }
     }
 }
+
+
+/*
+ * ================================================================
+ * Fulfillment
+ * ================================================================
+ */
 
 private fun MobileMarketOrderFulfillment.hasDisplayContent(): Boolean {
     return !sellerMessage.isNullOrBlank() ||
@@ -550,52 +365,28 @@ private fun MobileMarketOrderFulfillment.hasDisplayContent(): Boolean {
             !deliveryContent.isNullOrBlank()
 }
 
+
 @Composable
 private fun OrderFulfillmentCard(
     statusLabel: String,
     fulfillment: MobileMarketOrderFulfillment,
 ) {
     OrderSectionCard(
-        title =
-            "履约信息",
-
+        title = "履约信息",
         trailing = {
-
-            if (
-                statusLabel.isNotBlank()
-            ) {
-
+            if (statusLabel.isNotBlank()) {
                 Surface(
-                    shape =
-                        RoundedCornerShape(
-                            999.dp
-                        ),
-
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .primaryContainer,
+                    shape = RoundedCornerShape(999.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
                 ) {
-
                     Text(
-                        text =
-                            statusLabel,
-
-                        modifier =
-                            Modifier.padding(
-                                horizontal = 9.dp,
-                                vertical = 4.dp,
-                            ),
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .labelSmall,
-
-                        color =
-                            MaterialTheme
-                                .colorScheme
-                                .onPrimaryContainer,
+                        text = statusLabel,
+                        modifier = Modifier.padding(
+                            horizontal = 9.dp,
+                            vertical = 4.dp,
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
                 }
             }
@@ -603,237 +394,150 @@ private fun OrderFulfillmentCard(
     ) {
 
         fulfillment.sellerMessage
-            ?.takeIf {
-                it.isNotBlank()
-            }
+            ?.takeIf { it.isNotBlank() }
             ?.let { message ->
-
                 OrderDetailBlock(
-                    label =
-                        "卖家留言",
-
-                    value =
-                        message,
+                    label = "卖家留言",
+                    value = message,
                 )
             }
-
 
         fulfillment.deliveryTrackingCompany
-            ?.takeIf {
-                it.isNotBlank()
-            }
+            ?.takeIf { it.isNotBlank() }
             ?.let { company ->
-
                 OrderDetailRow(
-                    label =
-                        "物流公司",
-
-                    value =
-                        company,
+                    label = "物流公司",
+                    value = company,
                 )
             }
-
 
         fulfillment.deliveryTrackingNo
-            ?.takeIf {
-                it.isNotBlank()
-            }
+            ?.takeIf { it.isNotBlank() }
             ?.let { trackingNo ->
-
                 OrderDetailRow(
-                    label =
-                        "物流单号",
-
-                    value =
-                        trackingNo,
+                    label = "物流单号",
+                    value = trackingNo,
                 )
             }
 
-
         fulfillment.deliveryContent
-            ?.takeIf {
-                it.isNotBlank()
-            }
+            ?.takeIf { it.isNotBlank() }
             ?.let { content ->
-
                 OrderDetailBlock(
-                    label =
-                        "交付内容",
-
-                    value =
-                        content,
+                    label = "交付内容",
+                    value = content,
                 )
             }
     }
 }
 
+
+/*
+ * ================================================================
+ * Shipping Information
+ * ================================================================
+ */
 
 @Composable
 private fun OrderShippingCard(
     shippingInfo: MobileMarketOrderShippingInfo,
 ) {
-    OrderSectionCard(
-        title =
-            "收货信息",
-    ) {
+    OrderSectionCard(title = "收货信息") {
 
         Row(
-            horizontalArrangement =
-                Arrangement.spacedBy(
-                    12.dp
-                ),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-
             Text(
-                text =
-                    shippingInfo.receiverName,
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleSmall,
-
-                fontWeight =
-                    FontWeight.Medium,
+                text = shippingInfo.receiverName,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Medium,
             )
 
-
             Text(
-                text =
-                    shippingInfo.receiverPhone,
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodyMedium,
-
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .onSurfaceVariant,
+                text = shippingInfo.receiverPhone,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
-
         Text(
-            text =
-                buildString {
+            text = buildString {
+                append(shippingInfo.regionText)
 
-                    append(
-                        shippingInfo.regionText
-                    )
+                if (
+                    shippingInfo.regionText.isNotBlank() &&
+                    shippingInfo.addressLine1.isNotBlank()
+                ) {
+                    append(" ")
+                }
 
-                    if (
-                        shippingInfo.regionText.isNotBlank() &&
-                        shippingInfo.addressLine1.isNotBlank()
-                    ) {
-                        append(" ")
-                    }
-
-                    append(
-                        shippingInfo.addressLine1
-                    )
-                },
-
-            style =
-                MaterialTheme
-                    .typography
-                    .bodyMedium,
+                append(shippingInfo.addressLine1)
+            },
+            style = MaterialTheme.typography.bodyMedium,
         )
 
-
         shippingInfo.postalCode
-            ?.takeIf {
-                it.isNotBlank()
-            }
+            ?.takeIf { it.isNotBlank() }
             ?.let { postalCode ->
-
                 Text(
-                    text =
-                        "邮编 $postalCode",
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .bodySmall,
-
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .onSurfaceVariant,
+                    text = "邮编 $postalCode",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
     }
 }
 
+
+/*
+ * ================================================================
+ * Order Information
+ * ================================================================
+ */
 
 @Composable
 private fun OrderInfoCard(
     order: MobileMarketOrderDetail,
 ) {
-    OrderSectionCard(
-        title =
-            "订单信息",
-    ) {
+    OrderSectionCard(title = "订单信息") {
 
         order.outTradeNo
-            ?.takeIf {
-                it.isNotBlank()
-            }
+            ?.takeIf { it.isNotBlank() }
             ?.let { outTradeNo ->
-
                 OrderDetailRow(
-                    label =
-                        "订单号",
-
-                    value =
-                        outTradeNo,
+                    label = "订单号",
+                    value = outTradeNo,
                 )
             }
 
-
         OrderDetailRow(
-            label =
-                "下单时间",
-
-            value =
-                formatOrderDateTime(
-                    order.createdAt
-                ),
+            label = "下单时间",
+            value = formatOrderDateTime(order.createdAt),
         )
 
-
         order.paidAt
-            ?.takeIf {
-                it > 0.0
-            }
+            ?.takeIf { it > 0.0 }
             ?.let { paidAt ->
-
                 OrderDetailRow(
-                    label =
-                        "支付时间",
-
-                    value =
-                        formatOrderDateTime(
-                            paidAt
-                        ),
+                    label = "支付时间",
+                    value = formatOrderDateTime(paidAt),
                 )
             }
 
-
         OrderDetailRow(
-            label =
-                "实付金额",
-
-            value =
-                order.totalPrice,
-
-            valueEmphasis =
-                true,
+            label = "实付金额",
+            value = order.totalPrice,
+            valueEmphasis = true,
         )
     }
 }
 
+
+/*
+ * ================================================================
+ * Shared Section Card
+ * ================================================================
+ */
 
 @Composable
 private fun OrderSectionCard(
@@ -842,69 +546,41 @@ private fun OrderSectionCard(
     content: @Composable () -> Unit,
 ) {
     Card(
-        modifier =
-            Modifier.fillMaxWidth(),
-
-        shape =
-            RoundedCornerShape(
-                16.dp
-            ),
-
-        colors =
-            CardDefaults.cardColors(
-                containerColor =
-                    MaterialTheme
-                        .colorScheme
-                        .surfaceContainerLow,
-            ),
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
     ) {
-
         Column(
-            modifier =
-                Modifier.padding(
-                    16.dp
-                ),
-
-            verticalArrangement =
-                Arrangement.spacedBy(
-                    12.dp
-                ),
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-
             Row(
-                modifier =
-                    Modifier.fillMaxWidth(),
-
-                horizontalArrangement =
-                    Arrangement.SpaceBetween,
-
-                verticalAlignment =
-                    Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-
                 Text(
-                    text =
-                        title,
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .titleMedium,
-
-                    fontWeight =
-                        FontWeight.SemiBold,
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
                 )
 
-
-                trailing
-                    ?.invoke()
+                trailing?.invoke()
             }
-
 
             content()
         }
     }
 }
+
+
+/*
+ * ================================================================
+ * Detail Row
+ * ================================================================
+ */
 
 @Composable
 private fun OrderDetailRow(
@@ -913,76 +589,42 @@ private fun OrderDetailRow(
     valueEmphasis: Boolean = false,
 ) {
     Row(
-        modifier =
-            Modifier.fillMaxWidth(),
-
-        verticalAlignment =
-            Alignment.Top,
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top,
     ) {
-
         Text(
-            text =
-                label,
-
-            modifier =
-                Modifier.weight(
-                    0.32f
-                ),
-
-            style =
-                MaterialTheme
-                    .typography
-                    .bodyMedium,
-
-            color =
-                MaterialTheme
-                    .colorScheme
-                    .onSurfaceVariant,
+            text = label,
+            modifier = Modifier.weight(0.32f),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-
         Text(
-            text =
-                value,
-
-            modifier =
-                Modifier
-                    .weight(
-                        0.68f
-                    )
-                    .padding(
-                        start = 16.dp
-                    ),
-
-            style =
-                MaterialTheme
-                    .typography
-                    .bodyMedium,
-
-            fontWeight =
-                if (
-                    valueEmphasis
-                ) {
-                    FontWeight.SemiBold
-                } else {
-                    FontWeight.Normal
-                },
-
-            color =
-                if (
-                    valueEmphasis
-                ) {
-                    MaterialTheme
-                        .colorScheme
-                        .primary
-                } else {
-                    MaterialTheme
-                        .colorScheme
-                        .onSurface
-                },
+            text = value,
+            modifier = Modifier
+                .weight(0.68f)
+                .padding(start = 16.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (valueEmphasis) {
+                FontWeight.SemiBold
+            } else {
+                FontWeight.Normal
+            },
+            color = if (valueEmphasis) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
         )
     }
 }
+
+
+/*
+ * ================================================================
+ * Detail Block
+ * ================================================================
+ */
 
 @Composable
 private fun OrderDetailBlock(
@@ -990,40 +632,27 @@ private fun OrderDetailBlock(
     value: String,
 ) {
     Column(
-        verticalArrangement =
-            Arrangement.spacedBy(
-                5.dp
-            ),
+        verticalArrangement = Arrangement.spacedBy(5.dp),
     ) {
-
         Text(
-            text =
-                label,
-
-            style =
-                MaterialTheme
-                    .typography
-                    .labelMedium,
-
-            color =
-                MaterialTheme
-                    .colorScheme
-                    .onSurfaceVariant,
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-
         Text(
-            text =
-                value,
-
-            style =
-                MaterialTheme
-                    .typography
-                    .bodyMedium,
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
         )
     }
 }
 
+
+/*
+ * ================================================================
+ * Error State
+ * ================================================================
+ */
 
 @Composable
 private fun MarketOrderDetailError(
@@ -1032,61 +661,38 @@ private fun MarketOrderDetailError(
     onRetry: () -> Unit,
 ) {
     Column(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .padding(
-                    24.dp
-                ),
-
-        horizontalAlignment =
-            Alignment.CenterHorizontally,
-
-        verticalArrangement =
-            Arrangement.Center,
+        modifier = modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
-
         Text(
-            text =
-                message,
-
-            color =
-                MaterialTheme
-                    .colorScheme
-                    .error,
+            text = message,
+            color = MaterialTheme.colorScheme.error,
         )
 
-
         TextButton(
-            modifier =
-                Modifier.padding(
-                    top = 8.dp
-                ),
-
-            onClick =
-                onRetry,
+            modifier = Modifier.padding(top = 8.dp),
+            onClick = onRetry,
         ) {
-
-            Text(
-                text =
-                    "重新加载",
-            )
+            Text(text = "重新加载")
         }
     }
 }
 
 
+/*
+ * ================================================================
+ * Formatters
+ * ================================================================
+ */
+
 private fun formatQuantity(
     value: Double,
 ): String {
-
-    return if (
-        value % 1.0 ==
-        0.0
-    ) {
-        value
-            .toInt()
-            .toString()
+    return if (value % 1.0 == 0.0) {
+        value.toInt().toString()
     } else {
         value.toString()
     }
@@ -1096,11 +702,7 @@ private fun formatQuantity(
 private fun formatOrderDateTime(
     value: Double,
 ): String {
-
-    if (
-        value <=
-        0.0
-    ) {
+    if (value <= 0.0) {
         return "-"
     }
 
@@ -1108,9 +710,7 @@ private fun formatOrderDateTime(
         "yyyy-MM-dd HH:mm",
         Locale.getDefault(),
     ).format(
-        Date(
-            value.toLong()
-        )
+        Date(value.toLong())
     )
 }
 
@@ -1118,14 +718,8 @@ private fun formatOrderDateTime(
 private fun formatSpaceNumber(
     value: Double,
 ): String {
-
-    return if (
-        value % 1.0 ==
-        0.0
-    ) {
-        value
-            .toLong()
-            .toString()
+    return if (value % 1.0 == 0.0) {
+        value.toLong().toString()
     } else {
         value.toString()
     }

@@ -1,5 +1,6 @@
 package top.role.android.core.data.note
 
+import top.role.android.core.data.note.LocalNoteKeys.existing
 import top.role.android.core.database.note.LocalNoteEntity
 import top.role.android.core.model.note.NoteRemoteStatus
 import top.role.android.core.model.note.NoteSyncState
@@ -11,17 +12,17 @@ class NoteRemoteMergeService(
     NoteLocalRepository,
 ) {
     suspend fun merge(
-        ownerUserId: String,
+        localOwnerUserId: String,
         snapshot: RemoteNoteSnapshot,
     ) {
         val local = findMatchingLocalNote(
-            ownerUserId = ownerUserId,
+            localOwnerUserId = localOwnerUserId,
             snapshot = snapshot,
         )
 
         if (local == null) {
             mergeRemoteOnlyNote(
-                ownerUserId = ownerUserId,
+                localOwnerUserId = localOwnerUserId,
                 snapshot = snapshot,
             )
             return
@@ -34,7 +35,7 @@ class NoteRemoteMergeService(
     }
 
     private suspend fun findMatchingLocalNote(
-        ownerUserId: String,
+        localOwnerUserId: String,
         snapshot: RemoteNoteSnapshot,
     ): LocalNoteEntity? {
 
@@ -43,7 +44,7 @@ class NoteRemoteMergeService(
          */
         val byNoteId = noteLocalRepository
             .findByNoteId(
-                ownerUserId = ownerUserId,
+                localOwnerUserId = localOwnerUserId,
                 noteId = snapshot.noteId,
             )
 
@@ -61,7 +62,7 @@ class NoteRemoteMergeService(
         ) {
             val byClientKey = noteLocalRepository
                 .findByClientKey(
-                    ownerUserId = ownerUserId,
+                    localOwnerUserId = localOwnerUserId,
                     clientKey = clientKey,
                 )
 
@@ -79,7 +80,7 @@ class NoteRemoteMergeService(
         ) {
             return noteLocalRepository
                 .findDayOnlyNote(
-                    ownerUserId = ownerUserId,
+                    localOwnerUserId = localOwnerUserId,
                     dayKey = snapshot.dayKey,
                 )
         }
@@ -88,7 +89,7 @@ class NoteRemoteMergeService(
     }
 
     private suspend fun mergeRemoteOnlyNote(
-        ownerUserId: String,
+        localOwnerUserId: String,
         snapshot: RemoteNoteSnapshot,
     ) {
         /*
@@ -108,12 +109,12 @@ class NoteRemoteMergeService(
         val note = LocalNoteEntity(
             rowId = 0,
 
-            localKey = existingLocalKey(
-                ownerUserId = ownerUserId,
+            localKey = existing(
+                localOwnerUserId = localOwnerUserId,
                 noteId = snapshot.noteId,
             ),
 
-            ownerUserId = ownerUserId,
+            localOwnerUserId = localOwnerUserId,
             noteId = snapshot.noteId,
 
             clientKey = snapshot.clientKey
@@ -186,9 +187,9 @@ class NoteRemoteMergeService(
             pendingLifecycle == snapshot.remoteStatus &&
             !contentDirty && !pinnedDirty
         ) {
-            val owner = local.ownerUserId ?: return
+            val owner = local.localOwnerUserId
             noteLocalRepository.applyLifecycleSuccess(
-                ownerUserId = owner,
+                localOwnerUserId = owner,
                 localKey = local.localKey,
                 expectedStatus = pendingLifecycle,
                 remote = snapshot,
@@ -347,13 +348,10 @@ class NoteRemoteMergeService(
          * lifecycle goal 已达成。
          */
         if (
-            local.pendingRemoteStatus ==
-            NoteRemoteStatus.Deleted
+            local.pendingRemoteStatus == NoteRemoteStatus.Deleted
         ) {
             noteLocalRepository
-                .deleteLocal(
-                    local,
-                )
+                .deleteLocal(local)
 
             return
         }
@@ -363,13 +361,9 @@ class NoteRemoteMergeService(
          *
          * 远端删除可以直接反映到 cache。
          */
-        if (
-            !hasLocalWork
-        ) {
+        if (!hasLocalWork) {
             noteLocalRepository
-                .deleteLocal(
-                    local,
-                )
+                .deleteLocal(local)
 
             return
         }
@@ -381,25 +375,16 @@ class NoteRemoteMergeService(
          *
          * 是真正 Conflict。
          */
-        val identified =
-            adoptRemoteIdentity(
-                local =
-                    local,
-
-                snapshot =
-                    snapshot,
+        val identified = adoptRemoteIdentity(
+                local = local,
+                snapshot = snapshot,
             )
 
         noteLocalRepository
             .markConflictFromRemote(
-                note =
-                    identified,
-
-                remote =
-                    snapshot,
-
-                message =
-                    "云端记录已删除，本机仍有未同步修改",
+                note = identified,
+                remote = snapshot,
+                message =  "云端记录已删除，本机仍有未同步修改",
             )
     }
 
@@ -431,49 +416,25 @@ class NoteRemoteMergeService(
         local: LocalNoteEntity,
         snapshot: RemoteNoteSnapshot,
     ): LocalNoteEntity {
-        if (
-            local.noteId ==
-            snapshot.noteId
-        ) {
+        if ( local.noteId == snapshot.noteId ) {
             return local
         }
 
-        val ownerUserId =
-            local.ownerUserId
-                ?: return local
+        val localOwnerUserId =  local.localOwnerUserId
 
         return local.copy(
-            noteId =
-                snapshot.noteId,
-
-            localKey =
-                existingLocalKey(
-                    ownerUserId =
-                        ownerUserId,
-                    noteId =
-                        snapshot.noteId,
+            noteId = snapshot.noteId,
+            localKey = existing(
+                localOwnerUserId = localOwnerUserId,
+                noteId = snapshot.noteId,
                 ),
         )
-    }
-
-    private fun existingLocalKey(
-        ownerUserId: String,
-        noteId: String,
-    ): String {
-        return "user:$ownerUserId:note:$noteId"
     }
 
     private fun remoteClientKey(
         noteId: String,
     ): String {
-        /*
-         * 旧远端 Note 可能没有 clientKey。
-         *
-         * 已经拥有 noteId 后，
-         * clientKey 不再承担主要 identity 职责。
-         * 这里只生成一个稳定的本地占位值。
-         */
-        return "remote:$noteId"
+      return "remote:$noteId"
     }
 
     private fun maxOfNullable(

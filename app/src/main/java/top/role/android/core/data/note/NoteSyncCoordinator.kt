@@ -19,45 +19,14 @@ class NoteSyncCoordinator(
 
     private val syncMutex = Mutex()
 
-    /**
-     * 执行一轮完整 Note 同步。
-     *
-     * Content / Image Asset / Media Relation
-     * 是三个独立同步域。
-     *
-     * 顺序：
-     *
-     * 1. Content Pull
-     *
-     * 2. Content Push
-     *    → 新 Note identity 收敛
-     *    → Image / Media local identity rebind
-     *
-     * 3. Image Asset Upload
-     *    → 尽量让本地图片获得正式 imageId
-     *
-     * 4. Media Pull
-     *    → 建立 / 更新 media baseline
-     *    → Synced 状态下 hydrate remote media
-     *    → Pending 状态下不覆盖 local desired media
-     *
-     * 5. Media Push
-     *    → Pending / Waiting
-     *    → frozen snapshot
-     *    → replaceNoteMedia
-     *
-     * 6. Final Content Pull
-     *
-     * UI 始终只观察 Room。
-     */
     suspend fun sync(
-        ownerUserId: String,
+        localOwnerUserId: String,
         pageLimit: Int = 100,
     ): Result<NoteSyncResult> {
         return syncMutex.withLock {
             runCatching {
                 require(
-                    ownerUserId.isNotBlank(),
+                    localOwnerUserId.isNotBlank(),
                 ) {
                     "OWNER_USER_ID_REQUIRED"
                 }
@@ -81,7 +50,7 @@ class NoteSyncCoordinator(
                  */
                 val firstPull =
                     refreshAndPersistCheckpoint(
-                        ownerUserId = ownerUserId,
+                        localOwnerUserId = localOwnerUserId,
                         pageLimit = pageLimit,
                     )
                         .getOrThrow()
@@ -96,7 +65,7 @@ class NoteSyncCoordinator(
                 val notesToPush =
                     noteLocalRepository
                         .findNotesNeedingSync(
-                            ownerUserId = ownerUserId,
+                            localOwnerUserId = localOwnerUserId,
                         )
 
                 var pushSucceededCount = 0
@@ -112,12 +81,10 @@ class NoteSyncCoordinator(
                  * - DayOnly identity 更安全
                  * - 单条失败不影响其他 Note
                  */
-                for (
-                note in notesToPush
-                ) {
+                for (note in notesToPush) {
                     val result = notePushService
                         .pushOne(
-                            ownerUserId = ownerUserId,
+                            localOwnerUserId = localOwnerUserId,
                             localKey = note.localKey,
                         )
 
@@ -126,80 +93,29 @@ class NoteSyncCoordinator(
                     ) {
                         pushSucceededCount += 1
 
-                        /*
-                         * Content Push 成功以后，
-                         * Note identity 可能发生：
-                         *
-                         * temporary localKey
-                         *        ↓
-                         * official localKey / noteId
-                         *
-                         * clientKey 在 identity 收敛过程中稳定，
-                         * 所以重新读取最新 Room Note。
-                         */
                         val syncedNote = noteLocalRepository
                             .findByClientKey(
-                                ownerUserId = ownerUserId,
+                                localOwnerUserId = localOwnerUserId,
                                 clientKey = note.clientKey,
                             )
 
-                        val noteId =
-                            syncedNote
+                        val noteId = syncedNote
                                 ?.noteId
-                                ?.takeIf {
-                                    it.isNotBlank()
-                                }
+                                ?.takeIf { it.isNotBlank() }
 
-                        if (
-                            syncedNote != null &&
-                            noteId != null
-                        ) {
-                            /*
-                             * Image relation +
-                             * Media Sync State
-                             *
-                             * 必须跟随 Note identity 收敛。
-                             *
-                             * 即使：
-                             *
-                             * oldLocalKey == newLocalKey
-                             *
-                             * 也继续调用。
-                             *
-                             * 因为 Media State 可能只是
-                             * 刚刚获得正式 noteId。
-                             */
+                        if ( syncedNote != null && noteId != null ) {
+
                             noteImageService
                                 .rebindNote(
-                                    ownerUserId =
-                                        ownerUserId,
-
-                                    oldNoteLocalKey =
-                                        note.localKey,
-
-                                    newNoteLocalKey =
-                                        syncedNote.localKey,
-
-                                    noteId =
-                                        noteId,
+                                    localOwnerUserId = localOwnerUserId,
+                                    oldNoteLocalKey = note.localKey,
+                                    newNoteLocalKey = syncedNote.localKey,
+                                    noteId = noteId,
                                 )
                         }
 
                     } else {
-                        /*
-                         * 单条 Content Push 失败
-                         * 不终止其他 Note。
-                         *
-                         * NotePushService /
-                         * NoteLocalRepository 已负责：
-                         *
-                         * Syncing
-                         * → Waiting / Conflict
-                         *
-                         * 并保留 frozen snapshot。
-                         */
-                        pushFailedCount +=
-                            1
+                       pushFailedCount += 1
                     }
                 }
 
@@ -228,8 +144,7 @@ class NoteSyncCoordinator(
                 runCatching {
                     noteImageService
                         .uploadPending(
-                            ownerUserId =
-                                ownerUserId,
+                            localOwnerUserId = localOwnerUserId,
                         )
                 }
 
@@ -247,21 +162,14 @@ class NoteSyncCoordinator(
                  *
                  * 所以这里处理所有已有 remote noteId 的 Note。
                  */
-                val remoteBackedNotes =
-                    noteLocalRepository
-                        .findRemoteBackedNotes(
-                            ownerUserId =
-                                ownerUserId,
-                        )
+                val remoteBackedNotes = noteLocalRepository
+                    .findRemoteBackedNotes(
+                        localOwnerUserId = localOwnerUserId,
+                    )
 
-                for (
-                note in remoteBackedNotes
-                ) {
-                    val noteId =
-                        note.noteId
-                            ?.takeIf {
-                                it.isNotBlank()
-                            }
+                for ( note in remoteBackedNotes ) {
+                    val noteId = note.noteId
+                            ?.takeIf { it.isNotBlank() }
                             ?: continue
 
                     /*
@@ -294,14 +202,9 @@ class NoteSyncCoordinator(
                     runCatching {
                         noteMediaRefreshService
                             .refreshOne(
-                                ownerUserId =
-                                    ownerUserId,
-
-                                noteLocalKey =
-                                    note.localKey,
-
-                                noteId =
-                                    noteId,
+                                localOwnerUserId = localOwnerUserId,
+                                noteLocalKey = note.localKey,
+                                noteId = noteId,
                             )
                     }
                 }
@@ -332,8 +235,7 @@ class NoteSyncCoordinator(
                 runCatching {
                     noteMediaPushService
                         .pushPending(
-                            ownerUserId =
-                                ownerUserId,
+                            localOwnerUserId = localOwnerUserId,
                         )
                 }
 
@@ -362,11 +264,8 @@ class NoteSyncCoordinator(
                  */
                 val finalPull =
                     refreshAndPersistCheckpoint(
-                        ownerUserId =
-                            ownerUserId,
-
-                        pageLimit =
-                            pageLimit,
+                        localOwnerUserId = localOwnerUserId,
+                        pageLimit = pageLimit,
                     )
                         .getOrThrow()
 
@@ -386,20 +285,11 @@ class NoteSyncCoordinator(
                  * - image asset failure
                  */
                 NoteSyncResult(
-                    firstPullMergedCount =
-                        firstPull.mergedCount,
-
-                    pushAttemptedCount =
-                        notesToPush.size,
-
-                    pushSucceededCount =
-                        pushSucceededCount,
-
-                    pushFailedCount =
-                        pushFailedCount,
-
-                    finalPullMergedCount =
-                        finalPull.mergedCount,
+                    firstPullMergedCount = firstPull.mergedCount,
+                    pushAttemptedCount = notesToPush.size,
+                    pushSucceededCount = pushSucceededCount,
+                    pushFailedCount = pushFailedCount,
+                    finalPullMergedCount = finalPull.mergedCount,
                 )
             }
         }
@@ -431,16 +321,13 @@ class NoteSyncCoordinator(
      * 不修改这个方法的既有语义。
      */
     suspend fun refresh(
-        ownerUserId: String,
+        localOwnerUserId: String,
         pageLimit: Int = 100,
     ): Result<NoteRefreshResult> {
         return syncMutex.withLock {
             refreshAndPersistCheckpoint(
-                ownerUserId =
-                    ownerUserId,
-
-                pageLimit =
-                    pageLimit,
+                localOwnerUserId = localOwnerUserId,
+                pageLimit = pageLimit,
             )
         }
     }
@@ -460,30 +347,22 @@ class NoteSyncCoordinator(
      * 才允许推进。
      */
     private suspend fun refreshAndPersistCheckpoint(
-        ownerUserId: String,
+        localOwnerUserId: String,
         pageLimit: Int,
     ): Result<NoteRefreshResult> {
         return runCatching {
-            val checkpoint =
-                checkpointStorage
-                    .getPullCheckpoint(
-                        ownerUserId =
-                            ownerUserId,
-                    )
+            val checkpoint = checkpointStorage
+                .getPullCheckpoint(
+                    localOwnerUserId =localOwnerUserId,
+                )
 
-            val result =
-                noteRefreshService
-                    .refresh(
-                        ownerUserId =
-                            ownerUserId,
-
-                        checkpoint =
-                            checkpoint,
-
-                        pageLimit =
-                            pageLimit,
-                    )
-                    .getOrThrow()
+            val result = noteRefreshService
+                .refresh(
+                    localOwnerUserId = localOwnerUserId,
+                    checkpoint = checkpoint,
+                    pageLimit = pageLimit,
+                )
+                .getOrThrow()
 
             /*
              * 只有完整 Content Pull 成功
@@ -491,36 +370,12 @@ class NoteSyncCoordinator(
              */
             checkpointStorage
                 .savePullCheckpoint(
-                    ownerUserId =
-                        ownerUserId,
-
-                    checkpoint =
-                        result.nextCheckpoint,
+                    localOwnerUserId = localOwnerUserId,
+                    checkpoint = result.nextCheckpoint,
                 )
 
             result
         }
     }
 
-
-    /**
-     * Repair / 开发调试使用。
-     *
-     * 正常 logout 不调用。
-     *
-     * 与完整 sync 串行，
-     * 防止 Content Pull 正在进行时
-     * checkpoint 被清除。
-     */
-    suspend fun resetPullCheckpoint(
-        ownerUserId: String,
-    ) {
-        syncMutex.withLock {
-            checkpointStorage
-                .clearPullCheckpoint(
-                    ownerUserId =
-                        ownerUserId,
-                )
-        }
-    }
 }

@@ -37,6 +37,10 @@ object NoteNewRoute {
     const val route = "note/new"
 }
 
+object NoteAdoptionRoute {
+    const val route = "note/adoption"
+}
+
 object NoteNewDatedRoute {
 
     const val dayKeyArg = "dayKey"

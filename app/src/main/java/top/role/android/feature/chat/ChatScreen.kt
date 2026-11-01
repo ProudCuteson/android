@@ -6,121 +6,95 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
-
 import androidx.compose.runtime.Composable
-
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
+import top.role.android.core.auth.AuthState
+import top.role.android.ui.auth.AuthStatusContent
 import top.role.android.ui.components.RemoteMessageState
 import top.role.android.feature.chat.conversationlist.ChatConversationListUiState
 import top.role.android.feature.chat.conversationlist.ChatConversationRow
-
+import top.role.android.feature.chat.conversationlist.ChatConversationListViewModel
 
 @Composable
 fun ChatScreen(
-    state: ChatConversationListUiState,
-    onRetry: () -> Unit,
+    viewModel: ChatConversationListViewModel,
+    authState: AuthState,
+    remoteOnline: Boolean,
+    onLogin: () -> Unit,
+    onRetryAuth: () -> Unit,
+    onReSignIn: () -> Unit,
     onConversationClick: (String) -> Unit,
     onHideConversation: (String) -> Unit,
 ) {
-    Box(
-        modifier =
-            Modifier.fillMaxSize(),
-    ) {
-        when (state) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-            ChatConversationListUiState.Loading -> {
-                CircularProgressIndicator(
-                    modifier =
-                        Modifier.align(
-                            Alignment.Center
-                        ),
-                )
-            }
+    AuthStatusContent(
+        authState = authState,
+        onLogin = onLogin,
+        onRetry = onRetryAuth,
+        onReSignIn = onReSignIn,
+    ) { _ ->
 
-
-            ChatConversationListUiState.Offline -> {
+        when {
+            !remoteOnline -> {
                 RemoteMessageState(
                     title = "当前处于离线状态",
                     description = "连接网络后将自动恢复聊天。",
                 )
             }
 
-
-            ChatConversationListUiState.SignedOut -> {
-                RemoteMessageState(
-                    title = "登录后使用聊天",
-                    description = "请先登录账号。",
-                )
-            }
-
-
-            is ChatConversationListUiState.Error -> {
-                ChatMessageState(
-                    title =
-                        "无法加载聊天",
-
-                    description =
-                        state.message,
-
-                    actionLabel =
-                        "重试",
-
-                    onAction =
-                        onRetry,
-                )
-            }
-
-
-            is ChatConversationListUiState.Content -> {
-                if (
-                    state.conversations.isEmpty()
+            state is ChatConversationListUiState.Loading -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
                 ) {
+                    CircularProgressIndicator()
+                }
+            }
+
+            state is ChatConversationListUiState.Error -> {
+                val error = state as ChatConversationListUiState.Error
+
+                ChatMessageState(
+                    title = "无法加载聊天",
+                    description = error.message,
+                    actionLabel = "重试",
+                    onAction = viewModel::retry,
+                )
+            }
+
+            state is ChatConversationListUiState.Content -> {
+                val content = state as ChatConversationListUiState.Content
+
+                if (content.conversations.isEmpty()) {
                     ChatMessageState(
-                        title =
-                            "暂无会话",
-
-                        description =
-                            "新的聊天会显示在这里。",
+                        title = "暂无会话",
+                        description = "新的聊天会显示在这里。",
                     )
-
                 } else {
-
                     LazyColumn(
-                        modifier =
-                            Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize(),
                     ) {
                         items(
-                            items =
-                                state.conversations,
-
-                            key = {
-                                it.conversationId
-                            },
+                            items = content.conversations,
+                            key = { it.conversationId },
                         ) { item ->
-
                             ChatConversationRow(
-                                item =
-                                    item,
-
+                                item = item,
                                 onClick = {
-                                    onConversationClick(
-                                        item.conversationId
-                                    )
+                                    onConversationClick(item.conversationId)
                                 },
-
                                 onHide = {
-                                    onHideConversation(
-                                        item.conversationId
-                                    )
+                                    onHideConversation(item.conversationId)
                                 },
-
                             )
                         }
                     }
@@ -130,7 +104,6 @@ fun ChatScreen(
     }
 }
 
-
 @Composable
 private fun ChatMessageState(
     title: String,
@@ -139,29 +112,19 @@ private fun ChatMessageState(
     onAction: (() -> Unit)? = null,
 ) {
     Box(
-        modifier =
-            Modifier.fillMaxSize(),
-
-        contentAlignment =
-            Alignment.Center,
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
     ) {
         Column(
-            horizontalAlignment =
-                Alignment.CenterHorizontally,
-
-            verticalArrangement =
-                Arrangement.spacedBy(
-                    8.dp
-                ),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                text =
-                    title,
+                text =  title,
             )
 
             Text(
-                text =
-                    description,
+                text = description,
             )
 
             if (
@@ -169,12 +132,10 @@ private fun ChatMessageState(
                 onAction != null
             ) {
                 Button(
-                    onClick =
-                        onAction,
+                    onClick = onAction,
                 ) {
                     Text(
-                        text =
-                            actionLabel,
+                        text = actionLabel,
                     )
                 }
             }

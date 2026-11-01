@@ -11,7 +11,7 @@ import top.role.android.core.data.note.NoteLocalRepository
 import top.role.android.core.database.note.LocalNoteEntity
 
 class NoteLibraryViewModel(
-    private val ownerUserId: String,
+    private val localOwnerUserId: String,
     private val noteLocalRepository:
     NoteLocalRepository,
 ) : ViewModel() {
@@ -93,11 +93,8 @@ class NoteLibraryViewModel(
                          */
                         noteLocalRepository
                             .searchNotes(
-                                ownerUserId =
-                                    ownerUserId,
-
-                                query =
-                                    query,
+                                localOwnerUserId = localOwnerUserId,
+                                query = query,
                             )
                     } else {
                         when (
@@ -106,29 +103,25 @@ class NoteLibraryViewModel(
                             NoteLibrarySection.Recent ->
                                 noteLocalRepository
                                     .observeRecentNotes(
-                                        ownerUserId =
-                                            ownerUserId,
+                                        localOwnerUserId = localOwnerUserId,
                                     )
 
                             NoteLibrarySection.Pinned ->
                                 noteLocalRepository
                                     .observePinnedNotes(
-                                        ownerUserId =
-                                            ownerUserId,
+                                        localOwnerUserId = localOwnerUserId,
                                     )
 
                             NoteLibrarySection.Diary ->
                                 noteLocalRepository
                                     .observeDiaryNotes(
-                                        ownerUserId =
-                                            ownerUserId,
+                                        localOwnerUserId = localOwnerUserId,
                                     )
 
                             NoteLibrarySection.Archived ->
                                 noteLocalRepository
                                     .observeArchivedNotes(
-                                        ownerUserId =
-                                            ownerUserId,
+                                        localOwnerUserId = localOwnerUserId,
                                     )
                         }
                     }
@@ -136,14 +129,9 @@ class NoteLibraryViewModel(
                 flow.collect { notes ->
                     _uiState.value =
                         _uiState.value.copy(
-                            notes =
-                                notes,
-
-                            loading =
-                                false,
-
-                            errorMessage =
-                                null,
+                            notes = notes,
+                            loading = false,
+                            errorMessage = null,
                         )
                 }
             }
@@ -195,12 +183,11 @@ class NoteLibraryViewModel(
                         )
 
                 marked
-                    ?.ownerUserId
-                    ?.let { owner ->
+                    .localOwnerUserId
+                    .let { owner ->
                         noteLocalRepository
                             .requestSync(
-                                ownerUserId =
-                                    owner,
+                                localOwnerUserId = owner,
                             )
                     }
             } catch (
@@ -221,20 +208,17 @@ class NoteLibraryViewModel(
     ) {
         viewModelScope.launch {
             try {
-                val marked =
-                    noteLocalRepository
-                        .markForRestore(
-                            note =
-                                note,
-                        )
+                val marked = noteLocalRepository
+                    .markForRestore(
+                        note = note,
+                    )
 
                 marked
-                    ?.ownerUserId
-                    ?.let { owner ->
+                    .localOwnerUserId
+                    .let { owner ->
                         noteLocalRepository
                             .requestSync(
-                                ownerUserId =
-                                    owner,
+                                localOwnerUserId = owner,
                             )
                     }
             } catch (
@@ -271,12 +255,11 @@ class NoteLibraryViewModel(
                  * 等待 lifecycle soft delete。
                  */
                 marked
-                    ?.ownerUserId
+                    ?.localOwnerUserId
                     ?.let { owner ->
                         noteLocalRepository
                             .requestSync(
-                                ownerUserId =
-                                    owner,
+                                localOwnerUserId = owner,
                             )
                     }
             } catch (

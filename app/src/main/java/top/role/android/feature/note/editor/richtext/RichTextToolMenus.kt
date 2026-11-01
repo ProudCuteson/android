@@ -22,7 +22,6 @@ internal fun RichTextToolMenu(
     expanded: Boolean,
     onDismiss: () -> Unit,
 ) {
-    val hasSelection = !editor.field.selection.collapsed
     val activeLine = editor.activeLine
     val listType = activeLine.list?.type
 

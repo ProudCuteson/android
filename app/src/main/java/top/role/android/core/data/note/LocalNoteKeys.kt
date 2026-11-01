@@ -5,22 +5,22 @@ import java.util.UUID
 object LocalNoteKeys {
 
     fun existing(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteId: String,
     ): String {
-        return "user:$ownerUserId:note:$noteId"
+        return "user:$localOwnerUserId:note:$noteId"
     }
 
     fun day(
-        ownerUserId: String,
+        localOwnerUserId: String,
         dayKey: String,
     ): String {
-        return "user:$ownerUserId:day:$dayKey"
+        return "user:$localOwnerUserId:day:$dayKey"
     }
 
     fun new(
-        ownerUserId: String,
+        localOwnerUserId: String,
     ): String {
-        return "user:$ownerUserId:new:${UUID.randomUUID()}"
+        return "user:$localOwnerUserId:new:${UUID.randomUUID()}"
     }
 }

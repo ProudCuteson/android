@@ -112,7 +112,7 @@ fun DayDiaryOverviewSection(
                 )
 
                 Text(
-                    text = if (hasDiary) "已记录" else "未记录",
+                    text = if (hasDiary) "当日已记录" else "当日未记录",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,

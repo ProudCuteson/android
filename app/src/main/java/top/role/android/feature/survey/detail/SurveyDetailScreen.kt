@@ -21,330 +21,201 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
+import top.role.android.core.auth.AuthState
 import top.role.android.core.model.survey.MobileSurveyItem
 import top.role.android.core.model.survey.MobileSurveyOption
+import top.role.android.ui.auth.AuthStatusContent
 
+
+// MARK: Survey Detail Screen
 
 @Composable
 fun SurveyDetailScreen(
-    state:
-    SurveyDetailUiState,
-
-    onAnswerChange:
-        (
-        fieldId: String,
-        value: Any?,
-    ) -> Unit,
-
-    onPrevious:
-        () -> Unit,
-
-    onNext:
-        () -> Unit,
-
-    onSubmit:
-        () -> Unit,
+    viewModel: SurveyDetailViewModel,
+    authState: AuthState,
+    onLogin: () -> Unit,
+    onRetryAuth: () -> Unit,
+    onReSignIn: () -> Unit,
+    onAnswerChange: (String, Any?) -> Unit,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onSubmit: () -> Unit,
+    onRetry: () -> Unit,
 ) {
-    when {
-        state.signedOut -> {
-            SurveyDetailSignedOutContent()
-        }
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-        state.loading &&
-                state.detail == null -> {
-            SurveyDetailLoadingContent()
-        }
+    AuthStatusContent(
+        authState = authState,
+        onLogin = onLogin,
+        onRetry = onRetryAuth,
+        onReSignIn = onReSignIn,
+    ) { _ ->
 
-        state.submitted -> {
-            SurveySubmittedContent(
-                message =
-                    state.submitMessage
-                        ?: "提交成功",
-            )
-        }
+        when {
+            state.loading && state.detail == null -> {
+                SurveyDetailLoadingContent()
+            }
 
-        state.detail != null -> {
-            SurveyDetailContent(
-                state =
-                    state,
+            state.submitted -> {
+                SurveySubmittedContent(
+                    message = state.submitMessage ?: "提交成功",
+                )
+            }
 
-                onAnswerChange =
-                    onAnswerChange,
+            state.detail != null -> {
+                SurveyDetailContent(
+                    state = state,
+                    onAnswerChange = onAnswerChange,
+                    onPrevious = onPrevious,
+                    onNext = onNext,
+                    onSubmit = onSubmit,
+                )
+            }
 
-                onPrevious =
-                    onPrevious,
+            state.errorMessage != null -> {
+                SurveyDetailErrorContent(
+                    message = state.errorMessage ?: "加载调查失败",
+                    onRetry = onRetry,
+                )
+            }
 
-                onNext =
-                    onNext,
-
-                onSubmit =
-                    onSubmit,
-            )
-        }
-
-        state.errorMessage != null -> {
-            SurveyDetailErrorContent(
-                message =
-                    state.errorMessage,
-            )
-        }
-
-        else -> {
-            SurveyDetailErrorContent(
-                message =
-                    "调查不可用",
-            )
+            else -> {
+                SurveyDetailErrorContent(
+                    message = "调查不可用",
+                    onRetry = onRetry,
+                )
+            }
         }
     }
 }
 
 
+// MARK: Survey Detail Content
+
 @Composable
 private fun SurveyDetailContent(
-    state:
-    SurveyDetailUiState,
-
-    onAnswerChange:
-        (
-        fieldId: String,
-        value: Any?,
-    ) -> Unit,
-
-    onPrevious:
-        () -> Unit,
-
-    onNext:
-        () -> Unit,
-
-    onSubmit:
-        () -> Unit,
+    state: SurveyDetailUiState,
+    onAnswerChange: (String, Any?) -> Unit,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onSubmit: () -> Unit,
 ) {
-    val detail =
-        state.detail
-            ?: return
+    val detail = state.detail ?: return
+    val groups = state.groups
 
-    val groups =
-        state.groups
+    val groupIndex = state.currentGroupIndex.coerceIn(
+        minimumValue = 0,
+        maximumValue = groups.lastIndex.coerceAtLeast(0),
+    )
 
-    val groupIndex =
-        state.currentGroupIndex
-            .coerceIn(
-                minimumValue = 0,
-                maximumValue =
-                    groups
-                        .lastIndex
-                        .coerceAtLeast(0),
-            )
+    val currentGroup = groups.getOrNull(groupIndex)
 
-    val currentGroup =
-        groups.getOrNull(
-            groupIndex
-        )
-
-    val isLastGroup =
-        groups.isEmpty() ||
-                groupIndex >=
-                groups.lastIndex
+    val isLastGroup = groups.isEmpty() ||
+            groupIndex >= groups.lastIndex
 
     Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .verticalScroll(
-                    rememberScrollState()
-                )
-                .padding(
-                    horizontal = 16.dp,
-                    vertical = 16.dp,
-                ),
-
-        verticalArrangement =
-            Arrangement.spacedBy(
-                16.dp
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(
+                horizontal = 16.dp,
+                vertical = 16.dp,
             ),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-
         Text(
-            text =
-                detail.title,
-
-            style =
-                MaterialTheme
-                    .typography
-                    .headlineSmall,
-
-            fontWeight =
-                FontWeight.SemiBold,
+            text = detail.title,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.SemiBold,
         )
 
-        if (
-            detail.description
-                .isNotBlank()
-        ) {
+        if (detail.description.isNotBlank()) {
             Text(
-                text =
-                    detail.description,
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodyMedium,
-
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .onSurfaceVariant,
+                text = detail.description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
-        if (
-            groups.size > 1 &&
-            currentGroup != null
-        ) {
+        if (groups.size > 1 && currentGroup != null) {
             Text(
-                text =
-                    "第 ${groupIndex + 1} / ${groups.size} 组",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .labelLarge,
-
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .primary,
+                text = "第 ${groupIndex + 1} / ${groups.size} 组",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
             )
 
-            if (
-                currentGroup.title
-                    .isNotBlank()
-            ) {
+            if (currentGroup.title.isNotBlank()) {
                 Text(
-                    text =
-                        currentGroup.title,
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .titleSmall,
+                    text = currentGroup.title,
+                    style = MaterialTheme.typography.titleSmall,
                 )
             }
         }
 
         HorizontalDivider()
 
-        val items =
-            currentGroup
-                ?.items
-                ?: emptyList()
+        val items = currentGroup?.items ?: emptyList()
 
         items.forEach { item ->
-
             SurveyItemContent(
-                item =
-                    item,
-
-                answer =
-                    item.fieldId
-                        ?.let {
-                            state.answers[it]
-                        },
-
-                onAnswerChange =
-                    onAnswerChange,
+                item = item,
+                answer = item.fieldId?.let {
+                    state.answers[it]
+                },
+                onAnswerChange = onAnswerChange,
             )
         }
 
-        if (
-            !state.errorMessage
-                .isNullOrBlank()
-        ) {
+        if (!state.errorMessage.isNullOrBlank()) {
             Text(
-                text =
-                    state.errorMessage,
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodyMedium,
-
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .error,
+                text = state.errorMessage ?: "",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
             )
         }
 
         Row(
-            modifier =
-                Modifier.fillMaxWidth(),
-
-            horizontalArrangement =
-                Arrangement.SpaceBetween,
-
-            verticalAlignment =
-                Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-
-            if (
-                groupIndex > 0
-            ) {
+            if (groupIndex > 0) {
                 TextButton(
-                    onClick =
-                        onPrevious,
+                    onClick = onPrevious,
                 ) {
-                    Text(
-                        text =
-                            "上一组"
-                    )
+                    Text("上一组")
                 }
             } else {
-                Text(
-                    text =
-                        ""
-                )
+                Text("")
             }
 
-            if (
-                !isLastGroup
-            ) {
+            if (!isLastGroup) {
                 Button(
-                    onClick =
-                        onNext,
+                    onClick = onNext,
                 ) {
-                    Text(
-                        text =
-                            "下一组"
-                    )
+                    Text("下一组")
                 }
             } else {
                 Button(
-                    enabled =
-                        !state.submitting,
-
-                    onClick =
-                        onSubmit,
+                    enabled = !state.submitting,
+                    onClick = onSubmit,
                 ) {
-                    if (
-                        state.submitting
-                    ) {
-                        Text(
-                            text =
-                                "提交中..."
-                        )
-                    } else {
-                        Text(
-                            text =
-                                "提交"
-                        )
-                    }
+                    Text(
+                        if (state.submitting) {
+                            "提交中..."
+                        } else {
+                            "提交"
+                        }
+                    )
                 }
             }
         }
@@ -352,124 +223,69 @@ private fun SurveyDetailContent(
 }
 
 
+// MARK: Survey Item
+
 @Composable
 private fun SurveyItemContent(
-    item:
-    MobileSurveyItem,
-
-    answer:
-    Any?,
-
-    onAnswerChange:
-        (
-        fieldId: String,
-        value: Any?,
-    ) -> Unit,
+    item: MobileSurveyItem,
+    answer: Any?,
+    onAnswerChange: (String, Any?) -> Unit,
 ) {
-    when (
-        item.kind
-    ) {
+    when (item.kind) {
         "content" -> {
-            SurveyContentItem(
-                item =
-                    item,
-            )
+            SurveyContentItem(item = item)
         }
 
         "question" -> {
             SurveyQuestionItem(
-                item =
-                    item,
-
-                answer =
-                    answer,
-
-                onAnswerChange =
-                    onAnswerChange,
+                item = item,
+                answer = answer,
+                onAnswerChange = onAnswerChange,
             )
         }
 
         else -> {
-            SurveyUnsupportedItem(
-                item =
-                    item,
-            )
+            SurveyUnsupportedItem(item = item)
         }
     }
 }
 
 
+// MARK: Content Item
+
 @Composable
 private fun SurveyContentItem(
-    item:
-    MobileSurveyItem,
+    item: MobileSurveyItem,
 ) {
-    when (
-        item.type
-    ) {
+    when (item.type) {
         "heading" -> {
             Text(
-                text =
-                    item.title
-                        ?: item.content
-                        ?: "",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleMedium,
-
-                fontWeight =
-                    FontWeight.SemiBold,
-
-                modifier =
-                    Modifier.padding(
-                        top = 8.dp
-                    ),
+                text = item.title ?: item.content ?: "",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 8.dp),
             )
         }
 
         "paragraph" -> {
             Text(
-                text =
-                    item.content
-                        ?: item.title
-                        ?: "",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodyMedium,
-
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .onSurfaceVariant,
+                text = item.content ?: item.title ?: "",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
         "divider" -> {
             HorizontalDivider(
-                modifier =
-                    Modifier.padding(
-                        vertical = 8.dp
-                    )
+                modifier = Modifier.padding(vertical = 8.dp),
             )
         }
 
         else -> {
-            if (
-                !item.content
-                    .isNullOrBlank()
-            ) {
+            if (!item.content.isNullOrBlank()) {
                 Text(
-                    text =
-                        item.content,
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .bodyMedium,
+                    text = item.content,
+                    style = MaterialTheme.typography.bodyMedium,
                 )
             }
         }
@@ -477,725 +293,386 @@ private fun SurveyContentItem(
 }
 
 
+// MARK: Question Item
+
 @Composable
 private fun SurveyQuestionItem(
-    item:
-    MobileSurveyItem,
-
-    answer:
-    Any?,
-
-    onAnswerChange:
-        (
-        fieldId: String,
-        value: Any?,
-    ) -> Unit,
+    item: MobileSurveyItem,
+    answer: Any?,
+    onAnswerChange: (String, Any?) -> Unit,
 ) {
-    val fieldId =
-        item.fieldId
-            ?: return
+    val fieldId = item.fieldId ?: return
 
     Column(
-        modifier =
-            Modifier.fillMaxWidth(),
-
-        verticalArrangement =
-            Arrangement.spacedBy(
-                10.dp
-            ),
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-
         Row(
-            horizontalArrangement =
-                Arrangement.spacedBy(
-                    4.dp
-                ),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
-                text =
-                    item.title
-                        ?: "未命名题目",
-
-                modifier =
-                    Modifier.weight(1f),
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleSmall,
-
-                fontWeight =
-                    FontWeight.Medium,
+                text = item.title ?: "未命名题目",
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Medium,
             )
 
-            if (
-                item.required
-            ) {
+            if (item.required) {
                 Text(
-                    text =
-                        "*",
-
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .error,
+                    text = "*",
+                    color = MaterialTheme.colorScheme.error,
                 )
             }
         }
 
-        if (
-            !item.description
-                .isNullOrBlank()
-        ) {
+        if (!item.description.isNullOrBlank()) {
             Text(
-                text =
-                    item.description,
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodySmall,
-
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .onSurfaceVariant,
+                text = item.description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
-        when (
-            item.type
-        ) {
+        when (item.type) {
             "singleChoice" -> {
                 SurveySingleChoiceQuestion(
-                    options =
-                        item.options,
-
-                    answer =
-                        answer as? String,
-
+                    options = item.options,
+                    answer = answer as? String,
                     onChange = {
-                        onAnswerChange(
-                            fieldId,
-                            it,
-                        )
+                        onAnswerChange(fieldId, it)
                     },
                 )
             }
 
             "multipleChoice" -> {
                 SurveyMultipleChoiceQuestion(
-                    options =
-                        item.options,
-
-                    answer =
-                        answer,
-
+                    options = item.options,
+                    answer = answer,
                     onChange = {
-                        onAnswerChange(
-                            fieldId,
-                            it,
-                        )
+                        onAnswerChange(fieldId, it)
                     },
                 )
             }
 
             "shortText" -> {
                 SurveyTextQuestion(
-                    value =
-                        answer as? String
-                            ?: "",
-
-                    placeholder =
-                        item.placeholder
-                            ?: "",
-
-                    singleLine =
-                        true,
-
+                    value = answer as? String ?: "",
+                    placeholder = item.placeholder ?: "",
+                    singleLine = true,
                     onChange = {
-                        onAnswerChange(
-                            fieldId,
-                            it,
-                        )
+                        onAnswerChange(fieldId, it)
                     },
                 )
             }
 
             "longText" -> {
                 SurveyTextQuestion(
-                    value =
-                        answer as? String
-                            ?: "",
-
-                    placeholder =
-                        item.placeholder
-                            ?: "",
-
-                    singleLine =
-                        false,
-
+                    value = answer as? String ?: "",
+                    placeholder = item.placeholder ?: "",
+                    singleLine = false,
                     onChange = {
-                        onAnswerChange(
-                            fieldId,
-                            it,
-                        )
+                        onAnswerChange(fieldId, it)
                     },
                 )
             }
 
             "rating" -> {
                 SurveyRatingQuestion(
-                    item =
-                        item,
-
-                    answer =
-                        answer,
-
+                    item = item,
+                    answer = answer,
                     onChange = {
-                        onAnswerChange(
-                            fieldId,
-                            it,
-                        )
+                        onAnswerChange(fieldId, it)
                     },
                 )
             }
 
             "number" -> {
                 SurveyNumberQuestion(
-                    item =
-                        item,
-
-                    answer =
-                        answer,
-
+                    item = item,
+                    answer = answer,
                     onChange = {
-                        onAnswerChange(
-                            fieldId,
-                            it,
-                        )
+                        onAnswerChange(fieldId, it)
                     },
                 )
             }
 
             "boolean" -> {
                 SurveyBooleanQuestion(
-                    item =
-                        item,
-
-                    answer =
-                        answer as? Boolean,
-
+                    item = item,
+                    answer = answer as? Boolean,
                     onChange = {
-                        onAnswerChange(
-                            fieldId,
-                            it,
-                        )
+                        onAnswerChange(fieldId, it)
                     },
                 )
             }
 
             else -> {
                 Text(
-                    text =
-                        "暂不支持此题型：${item.type}",
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .bodySmall,
-
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .error,
+                    text = "暂不支持此题型：${item.type}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
                 )
             }
         }
     }
 }
 
+
+// MARK: Single Choice
 
 @Composable
 private fun SurveySingleChoiceQuestion(
-    options:
-    List<MobileSurveyOption>,
-
-    answer:
-    String?,
-
-    onChange:
-        (String) -> Unit,
+    options: List<MobileSurveyOption>,
+    answer: String?,
+    onChange: (String) -> Unit,
 ) {
     Column(
-        verticalArrangement =
-            Arrangement.spacedBy(
-                6.dp
-            ),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         options.forEach { option ->
-
             Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            onChange(
-                                option.value
-                            )
-                        },
-
-                verticalAlignment =
-                    Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        onChange(option.value)
+                    },
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 RadioButton(
-                    selected =
-                        answer ==
-                                option.value,
-
+                    selected = answer == option.value,
                     onClick = {
-                        onChange(
-                            option.value
-                        )
+                        onChange(option.value)
                     },
                 )
 
                 Text(
-                    text =
-                        option.label,
-
-                    modifier =
-                        Modifier.padding(
-                            start = 6.dp
-                        ),
+                    text = option.label,
+                    modifier = Modifier.padding(start = 6.dp),
                 )
             }
         }
     }
 }
 
+
+// MARK: Multiple Choice
 
 @Composable
 private fun SurveyMultipleChoiceQuestion(
-    options:
-    List<MobileSurveyOption>,
-
-    answer:
-    Any?,
-
-    onChange:
-        (List<String>) -> Unit,
+    options: List<MobileSurveyOption>,
+    answer: Any?,
+    onChange: (List<String>) -> Unit,
 ) {
-    val selected =
-        when (
-            answer
-        ) {
-            is List<*> ->
-                answer
-                    .filterIsInstance<String>()
-                    .toSet()
-
-            else ->
-                emptySet()
+    val selected = when (answer) {
+        is List<*> -> {
+            answer.filterIsInstance<String>().toSet()
         }
 
+        else -> {
+            emptySet()
+        }
+    }
+
     Column(
-        verticalArrangement =
-            Arrangement.spacedBy(
-                6.dp
-            ),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         options.forEach { option ->
-
-            val checked =
-                option.value in selected
+            val checked = option.value in selected
 
             Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable {
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        val next = selected.toMutableSet()
 
-                            val next =
-                                selected
-                                    .toMutableSet()
-
-                            if (
-                                checked
-                            ) {
-                                next.remove(
-                                    option.value
-                                )
-                            } else {
-                                next.add(
-                                    option.value
-                                )
-                            }
-
-                            onChange(
-                                next.toList()
-                            )
-                        },
-
-                verticalAlignment =
-                    Alignment.CenterVertically,
-            ) {
-                Checkbox(
-                    checked =
-                        checked,
-
-                    onCheckedChange = {
-
-                        val next =
-                            selected
-                                .toMutableSet()
-
-                        if (
-                            checked
-                        ) {
-                            next.remove(
-                                option.value
-                            )
+                        if (checked) {
+                            next.remove(option.value)
                         } else {
-                            next.add(
-                                option.value
-                            )
+                            next.add(option.value)
                         }
 
-                        onChange(
-                            next.toList()
-                        )
+                        onChange(next.toList())
+                    },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Checkbox(
+                    checked = checked,
+                    onCheckedChange = {
+                        val next = selected.toMutableSet()
+
+                        if (checked) {
+                            next.remove(option.value)
+                        } else {
+                            next.add(option.value)
+                        }
+
+                        onChange(next.toList())
                     },
                 )
 
                 Text(
-                    text =
-                        option.label,
-
-                    modifier =
-                        Modifier.padding(
-                            start = 6.dp
-                        ),
+                    text = option.label,
+                    modifier = Modifier.padding(start = 6.dp),
                 )
             }
         }
     }
 }
 
+
+// MARK: Text Question
 
 @Composable
 private fun SurveyTextQuestion(
-    value:
-    String,
-
-    placeholder:
-    String,
-
-    singleLine:
-    Boolean,
-
-    onChange:
-        (String) -> Unit,
+    value: String,
+    placeholder: String,
+    singleLine: Boolean,
+    onChange: (String) -> Unit,
 ) {
     OutlinedTextField(
-        value =
-            value,
-
-        onValueChange =
-            onChange,
-
-        modifier =
-            Modifier.fillMaxWidth(),
-
-        singleLine =
-            singleLine,
-
-        minLines =
-            if (
-                singleLine
-            ) {
-                1
-            } else {
-                4
-            },
-
+        value = value,
+        onValueChange = onChange,
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = singleLine,
+        minLines = if (singleLine) 1 else 4,
         placeholder = {
-            if (
-                placeholder
-                    .isNotBlank()
-            ) {
-                Text(
-                    text =
-                        placeholder
-                )
+            if (placeholder.isNotBlank()) {
+                Text(text = placeholder)
             }
         },
     )
 }
 
+
+// MARK: Rating Question
 
 @Composable
 private fun SurveyRatingQuestion(
-    item:
-    MobileSurveyItem,
-
-    answer:
-    Any?,
-
-    onChange:
-        (Double) -> Unit,
+    item: MobileSurveyItem,
+    answer: Any?,
+    onChange: (Double) -> Unit,
 ) {
-    val min =
-        item.rating
-            ?.min
-            ?: 1.0
+    val min = item.rating?.min ?: 1.0
+    val max = item.rating?.max ?: item.ratingScale ?: 5.0
 
-    val max =
-        item.rating
-            ?.max
-            ?: item.ratingScale
-            ?: 5.0
+    val current = when (answer) {
+        is Double -> answer
+        is Int -> answer.toDouble()
+        else -> null
+    }
 
-    val current =
-        when (
-            answer
-        ) {
-            is Double ->
-                answer
-
-            is Int ->
-                answer.toDouble()
-
-            else ->
-                null
-        }
-
-    val minInt =
-        min.toInt()
-
-    val maxInt =
-        max.toInt()
+    val minInt = min.toInt()
+    val maxInt = max.toInt()
 
     Column(
-        verticalArrangement =
-            Arrangement.spacedBy(
-                8.dp
-            ),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-
         Row(
-            modifier =
-                Modifier.fillMaxWidth(),
-
-            horizontalArrangement =
-                Arrangement.spacedBy(
-                    8.dp
-                ),
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            for (
-            value in
-            minInt..maxInt
-            ) {
+            for (value in minInt..maxInt) {
                 Text(
-                    text =
-                        value.toString(),
-
-                    modifier =
-                        Modifier
-                            .clickable {
-                                onChange(
-                                    value.toDouble()
-                                )
-                            }
-                            .padding(
-                                horizontal = 10.dp,
-                                vertical = 8.dp,
-                            ),
-
-                    fontWeight =
-                        if (
-                            current ==
-                            value.toDouble()
-                        ) {
-                            FontWeight.Bold
-                        } else {
-                            FontWeight.Normal
-                        },
-
-                    color =
-                        if (
-                            current ==
-                            value.toDouble()
-                        ) {
-                            MaterialTheme
-                                .colorScheme
-                                .primary
-                        } else {
-                            MaterialTheme
-                                .colorScheme
-                                .onSurface
-                        },
+                    text = value.toString(),
+                    modifier = Modifier
+                        .clickable {
+                            onChange(value.toDouble())
+                        }
+                        .padding(
+                            horizontal = 10.dp,
+                            vertical = 8.dp,
+                        ),
+                    fontWeight = if (current == value.toDouble()) {
+                        FontWeight.Bold
+                    } else {
+                        FontWeight.Normal
+                    },
+                    color = if (current == value.toDouble()) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
                 )
             }
         }
 
-        val minLabel =
-            item.rating
-                ?.minLabel
+        val minLabel = item.rating?.minLabel
+        val maxLabel = item.rating?.maxLabel
 
-        val maxLabel =
-            item.rating
-                ?.maxLabel
-
-        if (
-            !minLabel.isNullOrBlank() ||
-            !maxLabel.isNullOrBlank()
-        ) {
+        if (!minLabel.isNullOrBlank() || !maxLabel.isNullOrBlank()) {
             Row(
-                modifier =
-                    Modifier.fillMaxWidth(),
-
-                horizontalArrangement =
-                    Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
-                    text =
-                        minLabel ?: "",
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .bodySmall,
-
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .onSurfaceVariant,
+                    text = minLabel ?: "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
                 Text(
-                    text =
-                        maxLabel ?: "",
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .bodySmall,
-
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .onSurfaceVariant,
+                    text = maxLabel ?: "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
     }
 }
 
+
+// MARK: Number Question
 
 @Composable
 private fun SurveyNumberQuestion(
-    item:
-    MobileSurveyItem,
-
-    answer:
-    Any?,
-
-    onChange:
-        (Double?) -> Unit,
+    item: MobileSurveyItem,
+    answer: Any?,
+    onChange: (Double?) -> Unit,
 ) {
-    val current =
-        when (
-            answer
-        ) {
-            is Double ->
-                answer.toString()
-
-            is Int ->
-                answer.toString()
-
-            else ->
-                ""
-        }
+    val current = when (answer) {
+        is Double -> answer.toString()
+        is Int -> answer.toString()
+        else -> ""
+    }
 
     OutlinedTextField(
-        value =
-            current,
-
-        onValueChange = {
-                raw ->
-
-            if (
-                raw.isBlank()
-            ) {
-                onChange(
-                    null
-                )
+        value = current,
+        onValueChange = { raw ->
+            if (raw.isBlank()) {
+                onChange(null)
             } else {
-                raw
-                    .toDoubleOrNull()
-                    ?.let {
-                            value ->
+                raw.toDoubleOrNull()?.let { value ->
+                    val min = item.min
+                    val max = item.max
 
-                        val min =
-                            item.min
-
-                        val max =
-                            item.max
-
-                        if (
-                            min != null &&
-                            value < min
-                        ) {
-                            return@let
-                        }
-
-                        if (
-                            max != null &&
-                            value > max
-                        ) {
-                            return@let
-                        }
-
-                        onChange(
-                            value
-                        )
+                    if (min != null && value < min) {
+                        return@let
                     }
+
+                    if (max != null && value > max) {
+                        return@let
+                    }
+
+                    onChange(value)
+                }
             }
         },
-
-        modifier =
-            Modifier.fillMaxWidth(),
-
-        singleLine =
-            true,
-
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
         supportingText = {
-            val texts =
-                buildList {
-                    item.min
-                        ?.let {
-                            add(
-                                "最小 $it"
-                            )
-                        }
-
-                    item.max
-                        ?.let {
-                            add(
-                                "最大 $it"
-                            )
-                        }
+            val texts = buildList {
+                item.min?.let {
+                    add("最小 $it")
                 }
 
-            if (
-                texts.isNotEmpty()
-            ) {
+                item.max?.let {
+                    add("最大 $it")
+                }
+            }
+
+            if (texts.isNotEmpty()) {
                 Text(
-                    text =
-                        texts.joinToString(
-                            " · "
-                        )
+                    text = texts.joinToString(" · "),
                 )
             }
         },
@@ -1203,243 +680,147 @@ private fun SurveyNumberQuestion(
 }
 
 
+// MARK: Boolean Question
+
 @Composable
 private fun SurveyBooleanQuestion(
-    item:
-    MobileSurveyItem,
-
-    answer:
-    Boolean?,
-
-    onChange:
-        (Boolean) -> Unit,
+    item: MobileSurveyItem,
+    answer: Boolean?,
+    onChange: (Boolean) -> Unit,
 ) {
-    val trueLabel =
-        item.booleanLabels
-            ?.trueLabel
-            ?.takeIf {
-                it.isNotBlank()
-            }
-            ?: "是"
+    val trueLabel = item.booleanLabels
+        ?.trueLabel
+        ?.takeIf { it.isNotBlank() }
+        ?: "是"
 
-    val falseLabel =
-        item.booleanLabels
-            ?.falseLabel
-            ?.takeIf {
-                it.isNotBlank()
-            }
-            ?: "否"
+    val falseLabel = item.booleanLabels
+        ?.falseLabel
+        ?.takeIf { it.isNotBlank() }
+        ?: "否"
 
     Column(
-        verticalArrangement =
-            Arrangement.spacedBy(
-                6.dp
-            ),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-
         Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        onChange(
-                            true
-                        )
-                    },
-
-            verticalAlignment =
-                Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    onChange(true)
+                },
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             RadioButton(
-                selected =
-                    answer == true,
-
+                selected = answer == true,
                 onClick = {
-                    onChange(
-                        true
-                    )
+                    onChange(true)
                 },
             )
 
-            Text(
-                text =
-                    trueLabel
-            )
+            Text(text = trueLabel)
         }
 
         Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        onChange(
-                            false
-                        )
-                    },
-
-            verticalAlignment =
-                Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    onChange(false)
+                },
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             RadioButton(
-                selected =
-                    answer == false,
-
+                selected = answer == false,
                 onClick = {
-                    onChange(
-                        false
-                    )
+                    onChange(false)
                 },
             )
 
-            Text(
-                text =
-                    falseLabel
-            )
+            Text(text = falseLabel)
         }
     }
 }
 
 
+// MARK: Unsupported Item
+
 @Composable
 private fun SurveyUnsupportedItem(
-    item:
-    MobileSurveyItem,
+    item: MobileSurveyItem,
 ) {
     Text(
-        text =
-            item.reason
-                ?: "暂不支持此内容",
-
-        style =
-            MaterialTheme
-                .typography
-                .bodySmall,
-
-        color =
-            MaterialTheme
-                .colorScheme
-                .error,
+        text = item.reason ?: "暂不支持此内容",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.error,
     )
 }
 
+
+// MARK: Loading
 
 @Composable
 private fun SurveyDetailLoadingContent() {
     Column(
-        modifier =
-            Modifier.fillMaxSize(),
-
-        horizontalAlignment =
-            Alignment.CenterHorizontally,
-
-        verticalArrangement =
-            Arrangement.Center,
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
         CircularProgressIndicator()
     }
 }
 
 
-@Composable
-private fun SurveyDetailSignedOutContent() {
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-
-        horizontalAlignment =
-            Alignment.CenterHorizontally,
-
-        verticalArrangement =
-            Arrangement.Center,
-    ) {
-        Text(
-            text =
-                "登录后参与调查"
-        )
-    }
-}
-
+// MARK: Error
 
 @Composable
 private fun SurveyDetailErrorContent(
-    message:
-    String,
+    message: String,
+    onRetry: () -> Unit,
 ) {
     Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-
-        horizontalAlignment =
-            Alignment.CenterHorizontally,
-
-        verticalArrangement =
-            Arrangement.Center,
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
         Text(
-            text =
-                message,
-
-            color =
-                MaterialTheme
-                    .colorScheme
-                    .error,
+            text = message,
+            color = MaterialTheme.colorScheme.error,
         )
+
+        Button(
+            modifier = Modifier.padding(top = 16.dp),
+            onClick = onRetry,
+        ) {
+            Text("重试")
+        }
     }
 }
 
 
+// MARK: Submitted
+
 @Composable
 private fun SurveySubmittedContent(
-    message:
-    String,
+    message: String,
 ) {
     Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-
-        horizontalAlignment =
-            Alignment.CenterHorizontally,
-
-        verticalArrangement =
-            Arrangement.Center,
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
         Text(
-            text =
-                "提交完成",
-
-            style =
-                MaterialTheme
-                    .typography
-                    .headlineSmall,
-
-            fontWeight =
-                FontWeight.SemiBold,
+            text = "提交完成",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.SemiBold,
         )
 
         Text(
-            text =
-                message,
-
-            modifier =
-                Modifier.padding(
-                    top = 12.dp
-                ),
-
-            style =
-                MaterialTheme
-                    .typography
-                    .bodyMedium,
-
-            color =
-                MaterialTheme
-                    .colorScheme
-                    .onSurfaceVariant,
+            text = message,
+            modifier = Modifier.padding(top = 12.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

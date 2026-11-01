@@ -1,5 +1,6 @@
 package top.role.android.core.data.note
 
+import kotlinx.coroutines.CancellationException
 import top.role.android.core.model.note.NotePullCheckpoint
 
 data class NoteRefreshResult(
@@ -8,50 +9,29 @@ data class NoteRefreshResult(
 )
 
 class NoteRefreshService(
-    private val noteRemoteDataSource:
-    NoteRemoteDataSource,
-
-    private val noteRemoteMergeService:
-    NoteRemoteMergeService,
+    private val noteRemoteDataSource: NoteRemoteDataSource,
+    private val noteRemoteMergeService: NoteRemoteMergeService,
 ) {
 
     suspend fun refresh(
-        ownerUserId: String,
-
-        checkpoint:
-        NotePullCheckpoint? =
-            null,
-
-        pageLimit:
-        Int =
-            100,
+        localOwnerUserId: String,
+        checkpoint: NotePullCheckpoint? = null,
+        pageLimit: Int = 100,
     ): Result<NoteRefreshResult> {
-        return runCatching {
-            var cursor:
-                    String? =
-                null
 
-            var mergedCount =
-                0
-
-            var finalCheckpoint:
-                    NotePullCheckpoint? =
-                null
+        return try {
+            var cursor: String? = null
+            var mergedCount = 0
+            var finalCheckpoint: NotePullCheckpoint? = null
 
             while (true) {
-                val response =
-                    noteRemoteDataSource
-                        .pullNoteChanges(
-                            checkpoint =
-                                checkpoint,
-
-                            cursor =
-                                cursor,
-
-                            limit =
-                                pageLimit,
-                        )
-                        .getOrThrow()
+                val response = noteRemoteDataSource
+                    .pullNoteChanges(
+                        checkpoint = checkpoint,
+                        cursor = cursor,
+                        limit = pageLimit,
+                    )
+                    .getOrThrow()
 
                 /*
                  * 每页拿到后立即 merge Room。
@@ -63,63 +43,53 @@ class NoteRefreshService(
                  * 下一轮会从旧 checkpoint 重拉，
                  * merge 层负责幂等处理。
                  */
-                for (
-                snapshot in
-                response.changes
-                ) {
-                    noteRemoteMergeService
-                        .merge(
-                            ownerUserId =
-                                ownerUserId,
-
-                            snapshot =
-                                snapshot,
-                        )
+                for (snapshot in response.changes) {
+                    noteRemoteMergeService.merge(
+                        localOwnerUserId = localOwnerUserId,
+                        snapshot = snapshot,
+                    )
 
                     mergedCount += 1
                 }
 
-                if (
-                    response.isDone
-                ) {
-                    finalCheckpoint =
-                        response.nextCheckpoint
-                            ?: throw IllegalStateException(
-                                "Note pull completed without checkpoint"
-                            )
+                if (response.isDone) {
+                    finalCheckpoint = response.nextCheckpoint
+                        ?: throw IllegalStateException(
+                            "Note pull completed without checkpoint"
+                        )
 
                     break
                 }
 
-                val nextCursor =
-                    response.continueCursor
-                        ?: throw IllegalStateException(
-                            "Note pull is not done but continueCursor is missing"
-                        )
+                val nextCursor = response.continueCursor
+                    ?: throw IllegalStateException(
+                        "Note pull is not done but continueCursor is missing"
+                    )
 
-                if (
-                    nextCursor ==
-                    cursor
-                ) {
+                if (nextCursor == cursor) {
                     throw IllegalStateException(
                         "Note pull cursor did not advance"
                     )
                 }
 
-                cursor =
-                    nextCursor
+                cursor = nextCursor
             }
 
-            NoteRefreshResult(
-                mergedCount =
-                    mergedCount,
-
-                nextCheckpoint =
-                    finalCheckpoint
+            Result.success(
+                NoteRefreshResult(
+                    mergedCount = mergedCount,
+                    nextCheckpoint = finalCheckpoint
                         ?: throw IllegalStateException(
                             "Note pull checkpoint missing"
                         ),
+                )
             )
+
+        } catch (error: CancellationException) {
+            throw error
+
+        } catch (error: Exception) {
+            Result.failure(error)
         }
     }
 }

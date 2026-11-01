@@ -6,177 +6,140 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-
 import androidx.compose.runtime.Composable
-
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
+import top.role.android.core.auth.AuthState
 import top.role.android.core.model.content.MobileContentCard
 import top.role.android.core.model.discover.MobileDiscoverPage
 import top.role.android.core.model.space.MobileSpaceCard
 import top.role.android.core.model.space.SpaceListMode
 import top.role.android.core.model.topic.MobileTopicCard
-
 import top.role.android.feature.discover.components.DiscoverSectionHeader
 import top.role.android.feature.discover.components.EntityCard
 import top.role.android.feature.discover.components.PublishedCard
 import top.role.android.feature.discover.components.TopicCard
-import top.role.android.ui.components.RemoteMessageState
+import top.role.android.ui.auth.AuthStatusContent
 
 
 @Composable
 fun DiscoverScreen(
-    state: DiscoverUiState,
-
+    viewModel: DiscoverViewModel,
+    authState: AuthState,
+    remoteOnline: Boolean,
+    onLogin: () -> Unit,
+    onRetryAuth: () -> Unit,
+    onReSignIn: () -> Unit,
     onEntityClick: (MobileSpaceCard) -> Unit = {},
     onTopicClick: (MobileTopicCard) -> Unit = {},
     onDocClick: (MobileContentCard) -> Unit = {},
-
     onMoreEntities: (SpaceListMode) -> Unit = {},
     onMoreTopics: () -> Unit = {},
     onMoreContent: () -> Unit = {},
 ) {
-    when {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-        state.isSignedOut -> {
-            RemoteMessageState(
-                title =
-                    "登录后浏览发现",
+    AuthStatusContent(
+        authState = authState,
+        onLogin = onLogin,
+        onRetry = onRetryAuth,
+        onReSignIn = onReSignIn,
+    ) { _ ->
+        val page = state.page
+        val errorMessage = state.errorMessage
 
-                description =
-                    "请先登录账号，以获取最新的空间、话题和内容。",
-            )
-        }
+        when {
+            !remoteOnline -> {
+                DiscoverOffline()
+            }
 
+            state.isLoading -> {
+                DiscoverLoading()
+            }
 
-        state.isOffline -> {
-            RemoteMessageState(
-                title =
-                    "当前处于离线状态",
+            errorMessage != null -> {
+                DiscoverError(message = errorMessage)
+            }
 
-                description =
-                    "连接网络后将自动恢复浏览。",
-            )
-        }
+            page != null -> {
+                DiscoverContent(
+                    page = page,
+                    onEntityClick = onEntityClick,
+                    onTopicClick = onTopicClick,
+                    onDocClick = onDocClick,
+                    onMoreEntities = onMoreEntities,
+                    onMoreTopics = onMoreTopics,
+                    onMoreContent = onMoreContent,
+                )
+            }
 
-
-        state.isLoading -> {
-            DiscoverLoading()
-        }
-
-
-        state.errorMessage != null -> {
-            DiscoverError(
-                message =
-                    state.errorMessage,
-            )
-        }
-
-
-        state.page != null -> {
-            DiscoverContent(
-                page =
-                    state.page,
-
-                onEntityClick =
-                    onEntityClick,
-
-                onTopicClick =
-                    onTopicClick,
-
-                onDocClick =
-                    onDocClick,
-
-                onMoreEntities =
-                    onMoreEntities,
-
-                onMoreTopics =
-                    onMoreTopics,
-
-                onMoreContent =
-                    onMoreContent,
-            )
-        }
-
-
-        else -> {
-            DiscoverEmpty()
+            else -> {
+                DiscoverEmpty()
+            }
         }
     }
 }
 
+@Composable
+private fun DiscoverOffline() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = "当前处于离线状态",
+            style = MaterialTheme.typography.titleMedium,
+        )
+
+        Text(
+            text = "连接网络后即可继续浏览发现内容。",
+            modifier = Modifier.padding(top = 8.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
 
 @Composable
 private fun DiscoverContent(
     page: MobileDiscoverPage,
-
-    onEntityClick:
-        (MobileSpaceCard) -> Unit,
-
-    onTopicClick:
-        (MobileTopicCard) -> Unit,
-
-    onDocClick:
-        (MobileContentCard) -> Unit,
-
-    onMoreEntities:
-        (SpaceListMode) -> Unit,
-
-    onMoreTopics:
-        () -> Unit,
-
-    onMoreContent:
-        () -> Unit,
+    onEntityClick: (MobileSpaceCard) -> Unit,
+    onTopicClick: (MobileTopicCard) -> Unit,
+    onDocClick: (MobileContentCard) -> Unit,
+    onMoreEntities: (SpaceListMode) -> Unit,
+    onMoreTopics: () -> Unit,
+    onMoreContent: () -> Unit,
 ) {
 
-    val featuredSpaces =
-        page.featuredSpaces
+    val featuredSpaces = page.featuredSpaces
 
+    val featuredIds = featuredSpaces
+        .asSequence()
+        .map { it.id }
+        .toSet()
 
-    val featuredIds =
-        featuredSpaces
-            .asSequence()
-            .map {
-                it.id
-            }
-            .toSet()
+    val followingSpaces = page.followingSpaces
+        .filterNot { it.id in featuredIds }
 
+    val followingIds = followingSpaces
+        .asSequence()
+        .map { it.id }
+        .toSet()
 
-    val followingSpaces =
-        page.followingSpaces
-            .filterNot {
-                it.id in
-                        featuredIds
-            }
-
-
-    val followingIds =
-        followingSpaces
-            .asSequence()
-            .map {
-                it.id
-            }
-            .toSet()
-
-
-    val latestSpaces =
-        page.latestSpaces
-            .filterNot {
-                it.id in
-                        featuredIds ||
-                        it.id in
-                        followingIds
-            }
-
+    val latestSpaces = page.latestSpaces
+        .filterNot { it.id in featuredIds || it.id in followingIds }
 
     LazyColumn(
         modifier =
@@ -202,44 +165,27 @@ private fun DiscoverContent(
                 .isNotEmpty()
         ) {
             item(
-                key =
-                    "featured-header"
+                key = "featured-header"
             ) {
                 DiscoverSectionHeader(
-                    title =
-                        "推荐",
-
+                    title = "推荐",
                     onMoreClick = {
-                        onMoreEntities(
-                            SpaceListMode.Featured
-                        )
+                        onMoreEntities(SpaceListMode.Featured)
                     },
                 )
             }
 
-
             items(
-                items =
-                    featuredSpaces,
-
-                key = {
-                    "featured:${it.id}"
-                },
+                items = featuredSpaces,
+                key = { "featured:${it.id}" },
             ) { item ->
 
                 EntityCard(
-                    item =
-                        item,
-
-                    onClick = {
-                        onEntityClick(
-                            item
-                        )
-                    },
+                    item = item,
+                    onClick = { onEntityClick(item) },
                 )
             }
         }
-
 
         /*
          * 我关注的空间

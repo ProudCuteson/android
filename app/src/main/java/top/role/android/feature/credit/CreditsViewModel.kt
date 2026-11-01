@@ -3,7 +3,6 @@ package top.role.android.feature.credit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,84 +10,101 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
 import kotlin.time.Duration.Companion.milliseconds
 
+import top.role.android.core.auth.AuthState
 import top.role.android.core.model.account.CreateCreditPurchaseRequest
 import top.role.android.core.model.account.MobileCreditPurchaseOption
 import top.role.android.core.model.account.MobileRecentCreditPurchase
 import top.role.android.core.payment.WechatPayLauncher
 import top.role.android.core.payment.WechatPayResultBus
 
-
 class CreditsViewModel(
-    private val repository:
-    CreditsRepository,
-
-    private val wechatPayLauncher:
-    WechatPayLauncher,
+    private val repository: CreditsRepository,
+    private val wechatPayLauncher: WechatPayLauncher,
 ) : ViewModel() {
+    private val _uiState = MutableStateFlow(
+        CreditsUiState()
+    )
 
-    private val _uiState =
-        MutableStateFlow(
-            CreditsUiState()
-        )
+    val uiState: StateFlow<CreditsUiState> = _uiState.asStateFlow()
 
-    val uiState:
-            StateFlow<CreditsUiState> =
-        _uiState.asStateFlow()
+    private var currentAuthState: AuthState = AuthState.Loading
 
+    private var purchaseOptionsJob: Job? = null
+    private var recentPurchasesJob: Job? = null
 
-    private var paymentResultJob:
-            Job? = null
-
-    private var pendingOutTradeNo:
-            String? = null
-
+    private var paymentResultJob: Job? = null
+    private var pendingOutTradeNo: String? = null
 
     init {
-        observePurchaseOptions()
-        observeRecentPurchases()
         observeWechatPaymentResult()
     }
 
+    fun setAuthState(authState: AuthState) {
+        if (currentAuthState == authState) return
+
+        val previousUserId =
+            (currentAuthState as? AuthState.SignedIn)?.userId
+
+        val nextUserId =
+            (authState as? AuthState.SignedIn)?.userId
+
+        currentAuthState = authState
+
+        if (nextUserId == null) {
+            purchaseOptionsJob?.cancel()
+            recentPurchasesJob?.cancel()
+
+            purchaseOptionsJob = null
+            recentPurchasesJob = null
+
+            return
+        }
+
+        if (previousUserId == nextUserId) return
+
+        purchaseOptionsJob?.cancel()
+        recentPurchasesJob?.cancel()
+
+        _uiState.update {
+            it.copy(
+                loading = true,
+                recentLoading = true,
+                packs = emptyList(),
+                custom = null,
+                recentPurchases = emptyList(),
+                errorMessage = null,
+            )
+        }
+
+        observePurchaseOptions()
+        observeRecentPurchases()
+    }
 
     private fun observePurchaseOptions() {
+        purchaseOptionsJob?.cancel()
 
-        viewModelScope.launch {
-
+        purchaseOptionsJob = viewModelScope.launch {
             repository
                 .observePurchaseOptions()
                 .collect { result ->
-
                     result
                         .onSuccess { response ->
-
                             _uiState.update {
                                 it.copy(
-                                    loading =
-                                        false,
-
-                                    packs =
-                                        response.packs,
-
-                                    custom =
-                                        response.custom,
-
-                                    errorMessage =
-                                        null,
+                                    loading = false,
+                                    packs = response.packs,
+                                    custom = response.custom,
+                                    errorMessage = null,
                                 )
                             }
                         }
                         .onFailure {
-
                             _uiState.update {
                                 it.copy(
-                                    loading =
-                                        false,
-
-                                    errorMessage =
-                                        "暂时无法加载 Credits 购买选项。",
+                                    loading = false,
+                                    errorMessage = "暂时无法加载 Credits 购买选项。",
                                 )
                             }
                         }
@@ -96,45 +112,32 @@ class CreditsViewModel(
         }
     }
 
-
     private fun observeRecentPurchases() {
+        recentPurchasesJob?.cancel()
 
-        viewModelScope.launch {
-
+        recentPurchasesJob = viewModelScope.launch {
             repository
                 .observeRecentPurchases()
                 .collect { result ->
-
                     result
                         .onSuccess { response ->
-
                             _uiState.update {
                                 it.copy(
-                                    recentPurchases =
-                                        response.items,
-
-                                    recentLoading =
-                                        false,
+                                    recentPurchases = response.items,
+                                    recentLoading = false,
                                 )
                             }
                         }
                         .onFailure {
-
-                            /*
-                             * 最近购买加载失败不阻塞
-                             * Credits 购买页面。
-                             */
                             _uiState.update {
                                 it.copy(
-                                    recentLoading =
-                                        false,
+                                    recentLoading = false,
                                 )
                             }
                         }
                 }
         }
     }
-
 
     private fun observeWechatPaymentResult() {
 

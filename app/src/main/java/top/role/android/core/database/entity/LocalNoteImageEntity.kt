@@ -9,13 +9,13 @@ import androidx.room.PrimaryKey
     indices = [
         Index(
             value = [
-                "ownerUserId",
+                "localOwnerUserId",
                 "noteLocalKey",
             ],
         ),
         Index(
             value = [
-                "ownerUserId",
+                "localOwnerUserId",
                 "imageId",
             ],
         ),
@@ -31,7 +31,7 @@ data class LocalNoteImageEntity(
     @PrimaryKey
     val localImageKey: String,
 
-    val ownerUserId: String,
+    val localOwnerUserId: String,
 
     val noteLocalKey: String,
 

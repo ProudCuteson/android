@@ -2,29 +2,33 @@ package top.role.android.feature.main
 
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
-
 import androidx.compose.material3.Scaffold
-
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-
 import androidx.compose.ui.Modifier
-
-import top.role.android.app.navigation.AccountRoute
-
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.map
 
+import top.role.android.app.navigation.AccountRoute
 import top.role.android.app.navigation.ChatFriendLookupRoute
 import top.role.android.app.navigation.ChatFriendsRoute
 import top.role.android.app.navigation.ChatGroupCreateRoute
 import top.role.android.app.navigation.MarketOrderListRoute
 import top.role.android.app.navigation.NoteLibraryRoute
 import top.role.android.app.navigation.SpaceListRoute
+import top.role.android.app.navigation.SettingsRoute
+import top.role.android.app.navigation.NoteAdoptionRoute
 
+import top.role.android.core.auth.AuthState
+import top.role.android.core.payment.WechatPayLauncher
+import top.role.android.core.preferences.AppAppearance
+import top.role.android.core.preferences.WeekStart
 import top.role.android.core.data.image.ImageRepository
 import top.role.android.core.data.image.NoteImageService
+import top.role.android.core.data.note.NoteAdoptionLocalRepository
 import top.role.android.core.data.note.NoteLocalRepository
 import top.role.android.core.data.note.ai.NoteAiRemoteDataSource
 import top.role.android.core.model.space.SpaceListMode
@@ -33,21 +37,16 @@ import top.role.android.feature.chat.conversation.ChatConversationRepository
 import top.role.android.feature.chat.conversationlist.ChatConversationListRepository
 import top.role.android.feature.chat.friends.ChatFriendsRepository
 import top.role.android.feature.chat.group.ChatGroupRepository
-
 import top.role.android.feature.discover.DiscoverRepository
 import top.role.android.feature.discover.content.ContentListRepository
 import top.role.android.feature.discover.space.SpaceListRepository
 import top.role.android.feature.discover.topic.TopicListRepository
-
 import top.role.android.feature.entity.EntityDetailRepository
-
 import top.role.android.feature.main.navigation.MainNavGraph
 import top.role.android.feature.main.navigation.MainNavigationDependencies
-
 import top.role.android.feature.reading.DocDetailRepository
 import top.role.android.feature.slide.SlideDetailRepository
 import top.role.android.feature.topic.TopicDetailRepository
-
 import top.role.android.feature.engage.EngageRepository
 import top.role.android.feature.survey.SurveyListRepository
 import top.role.android.feature.survey.detail.SurveyDetailRepository
@@ -56,20 +55,19 @@ import top.role.android.feature.bounty.detail.BountyDetailRepository
 import top.role.android.feature.market.MarketListRepository
 import top.role.android.feature.market.detail.MarketDetailRepository
 import top.role.android.feature.membership.MembershipRepository
-import top.role.android.core.payment.WechatPayLauncher
-import top.role.android.core.preferences.AppAppearance
-import top.role.android.core.preferences.WeekStart
+
 import top.role.android.feature.account.AccountRepository
 import top.role.android.feature.account.password.AccountPasswordRepository
 import top.role.android.feature.chat.conversation.ChatImagePreviewRepository
 import top.role.android.feature.credit.CreditsRepository
 import top.role.android.feature.market.order.MarketOrderListRepository
 import top.role.android.feature.market.order.detail.MarketOrderDetailRepository
+import top.role.android.feature.banner.BannerRepository
 
 @Composable
 fun MainScreen(
     localOwnerUserId: String,
-    remoteAuthenticated: Boolean,
+    authState: AuthState,
     remoteOnline: Boolean,
 
     noteLocalRepository: NoteLocalRepository,
@@ -108,12 +106,16 @@ fun MainScreen(
     accountRepository: AccountRepository,
     accountPasswordRepository: AccountPasswordRepository,
     creditsRepository: CreditsRepository,
+    noteAdoptionLocalRepository: NoteAdoptionLocalRepository,
+    bannerRepository: BannerRepository,
 
     appearance: AppAppearance,
     weekStart: WeekStart,
     onAppearanceChange: (AppAppearance) -> Unit,
     onWeekStartChange: (WeekStart) -> Unit,
 
+    onLogin: () -> Unit,
+    onRetryAuth: () -> Unit,
     onReSignIn: () -> Unit,
     onSignOut: () -> Unit,
 ) {
@@ -136,15 +138,31 @@ fun MainScreen(
             null
         }
 
-    val shellState = resolveMainShellState(
+    val adoptionCount by remember(
+        noteAdoptionLocalRepository,
+        localOwnerUserId,
+    ) {
+        noteAdoptionLocalRepository
+            .observeUnclaimedNotes(localOwnerUserId)
+            .map { it.size }
+    }.collectAsStateWithLifecycle(initialValue = 0)
+
+    val baseShellState = resolveMainShellState(
         route = currentRoute,
         spaceListMode = currentSpaceListMode,
+    )
+
+    val shellState = baseShellState.copy(
+        showAdoption =
+            baseShellState.showAdoption &&
+                    authState is AuthState.SignedIn &&
+                    adoptionCount > 0,
     )
 
     val navigationDependencies =
         remember(
             localOwnerUserId,
-            remoteAuthenticated,
+            authState,
             remoteOnline,
 
             noteLocalRepository,
@@ -184,10 +202,13 @@ fun MainScreen(
             accountPasswordRepository,
             creditsRepository,
 
+            noteAdoptionLocalRepository,
+            bannerRepository,
+
         ) {
             MainNavigationDependencies(
                 localOwnerUserId = localOwnerUserId,
-                remoteAuthenticated = remoteAuthenticated,
+                authState = authState,
                 remoteOnline = remoteOnline,
 
                 noteLocalRepository = noteLocalRepository,
@@ -226,6 +247,9 @@ fun MainScreen(
                 accountRepository = accountRepository,
                 accountPasswordRepository = accountPasswordRepository,
                 creditsRepository = creditsRepository,
+
+                noteAdoptionLocalRepository = noteAdoptionLocalRepository,
+                bannerRepository = bannerRepository,
             )
         }
 
@@ -250,6 +274,12 @@ fun MainScreen(
                             launchSingleTop = true
                         }
                     },
+                    onAdoption = {
+                        navController.navigate(NoteAdoptionRoute.route) {
+                            launchSingleTop = true
+                        }
+                    },
+                    adoptionCount = adoptionCount,
                     onAccount = {
                         navController.navigate(AccountRoute.route) {
                             launchSingleTop = true
@@ -272,6 +302,11 @@ fun MainScreen(
                     },
                     onMarketOrders = {
                         navController.navigate(MarketOrderListRoute.route)
+                    },
+                    onSettings = {
+                        navController.navigate(SettingsRoute.route) {
+                            launchSingleTop = true
+                        }
                     },
                 )
             }
@@ -297,6 +332,8 @@ fun MainScreen(
             weekStart = weekStart,
             onAppearanceChange = onAppearanceChange,
             onWeekStartChange = onWeekStartChange,
+            onLogin = onLogin,
+            onRetryAuth = onRetryAuth,
             onReSignIn = onReSignIn,
             onSignOut = onSignOut,
         )

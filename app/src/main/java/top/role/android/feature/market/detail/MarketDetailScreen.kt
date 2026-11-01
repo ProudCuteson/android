@@ -33,8 +33,13 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-
 import coil3.compose.AsyncImage
+
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
+import top.role.android.core.auth.AuthState
+import top.role.android.ui.auth.AuthStatusContent
+import top.role.android.ui.components.RemoteMessageState
 
 import top.role.android.core.model.region.ChinaRegionNode
 import top.role.android.core.model.region.MarketRegionSelection
@@ -44,229 +49,119 @@ import top.role.android.core.region.ChinaRegionRepository
 import top.role.android.feature.market.detail.components.MarketPurchaseSection
 import top.role.android.feature.market.detail.components.MarketRegionPicker
 
-
 @Composable
 fun MarketDetailScreen(
-    state:
-    MarketDetailUiState,
+    viewModel: MarketDetailViewModel,
+    authState: AuthState,
+    remoteOnline: Boolean,
+    onLogin: () -> Unit,
+    onRetryAuth: () -> Unit,
+    onReSignIn: () -> Unit,
 
-    onRetry:
-        () -> Unit,
-
-    onDecreaseQuantity:
-        () -> Unit,
-
-    onIncreaseQuantity:
-        () -> Unit,
-
-    onReceiverNameChange:
-        (String) -> Unit,
-
-    onReceiverPhoneChange:
-        (String) -> Unit,
-
-    onAddressLine1Change:
-        (String) -> Unit,
-
-    onPostalCodeChange:
-        (String) -> Unit,
-
-    onBuyerNoteChange:
-        (String) -> Unit,
-
-    onRegionSelected:
-        (MarketRegionSelection) -> Unit,
-
-    onBuy:
-        () -> Unit,
+    onRetry: () -> Unit,
+    onDecreaseQuantity: () -> Unit,
+    onIncreaseQuantity: () -> Unit,
+    onReceiverNameChange: (String) -> Unit,
+    onReceiverPhoneChange: (String) -> Unit,
+    onAddressLine1Change: (String) -> Unit,
+    onPostalCodeChange: (String) -> Unit,
+    onBuyerNoteChange: (String) -> Unit,
+    onRegionSelected: (MarketRegionSelection) -> Unit,
+    onBuy: () -> Unit,
 ) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-    /*
-     * ------------------------------------------------
-     * Region picker
-     * ------------------------------------------------
-     *
-     * Picker 是否打开属于纯 UI state，
-     * 不进入 ViewModel。
-     */
-
-    var showRegionPicker by
-    rememberSaveable {
-        mutableStateOf(
-            false
-        )
+    var showRegionPicker by rememberSaveable {
+        mutableStateOf(false)
     }
 
+    val context = LocalContext.current
 
-    /*
-     * pca.json 是纯静态 Android asset。
-     *
-     * 这里通过 Repository 读取即可，
-     * 不需要为了地区数据继续扩大
-     * MarketDetailViewModel / AppContainer 边界。
-     */
+    val regionRepository = remember(context) {
+        ChinaRegionRepository(context)
+    }
 
-    val context =
-        LocalContext.current
-
-    val regionRepository =
-        remember(
-            context
-        ) {
-            ChinaRegionRepository(
-                context =
-                    context,
-            )
-        }
-
-
-    val regions by
-    produceState<
-            List<ChinaRegionNode>
-            >(
-        initialValue =
-            emptyList(),
-
-        key1 =
-            regionRepository,
+    val regions by produceState<List<ChinaRegionNode>>(
+        initialValue = emptyList(),
+        key1 = regionRepository,
     ) {
-
-        value =
-            runCatching {
-                regionRepository
-                    .getRegions()
-            }
-                .getOrElse {
-                    emptyList()
-                }
-    }
-
-
-    /*
-     * ------------------------------------------------
-     * Page
-     * ------------------------------------------------
-     */
-
-    when {
-
-        state.signedOut -> {
-
-            MarketDetailCenterMessage(
-                text =
-                    "登录后查看单品",
-            )
-        }
-
-
-        state.loading &&
-                state.listing == null -> {
-
-            MarketDetailLoading()
-        }
-
-
-        state.listing != null -> {
-
-            MarketDetailContent(
-                state =
-                    state,
-
-                onDecreaseQuantity =
-                    onDecreaseQuantity,
-
-                onIncreaseQuantity =
-                    onIncreaseQuantity,
-
-                onRegionClick = {
-
-                    /*
-                     * 正常情况下 pca.json 很快已经读取完。
-                     *
-                     * 如果数据尚未完成读取，
-                     * 暂时不打开空 Picker。
-                     */
-                    if (
-                        regions.isNotEmpty()
-                    ) {
-                        showRegionPicker =
-                            true
-                    }
-                },
-
-                onReceiverNameChange =
-                    onReceiverNameChange,
-
-                onReceiverPhoneChange =
-                    onReceiverPhoneChange,
-
-                onAddressLine1Change =
-                    onAddressLine1Change,
-
-                onPostalCodeChange =
-                    onPostalCodeChange,
-
-                onBuyerNoteChange =
-                    onBuyerNoteChange,
-
-                onBuy =
-                    onBuy,
-            )
-        }
-
-
-        else -> {
-
-            MarketDetailError(
-                message =
-                    state.errorMessage
-                        ?: "单品不可用",
-
-                onRetry =
-                    onRetry,
-            )
+        value = runCatching {
+            regionRepository.getRegions()
+        }.getOrElse {
+            emptyList()
         }
     }
 
+    AuthStatusContent(
+        authState = authState,
+        onLogin = onLogin,
+        onRetry = onRetryAuth,
+        onReSignIn = onReSignIn,
+    ) { _ ->
 
-    /*
-     * ------------------------------------------------
-     * Region Picker
-     * ------------------------------------------------
-     */
-
-    if (
-        showRegionPicker &&
-        regions.isNotEmpty()
-    ) {
-
-        MarketRegionPicker(
-            regions =
-                regions,
-
-            onDismiss = {
-                showRegionPicker =
-                    false
-            },
-
-            onSelected = {
-                    region ->
-
-                /*
-                 * 最终选择结果交给 ViewModel。
-                 */
-
-                onRegionSelected(
-                    region
+        when {
+            !remoteOnline -> {
+                RemoteMessageState(
+                    title = "当前处于离线状态",
+                    description = "连接网络后将自动恢复单品浏览。",
                 )
+            }
 
-                showRegionPicker =
-                    false
-            },
-        )
+            state.loading && state.listing == null -> {
+                MarketDetailLoading()
+            }
+
+            state.listing != null -> {
+                MarketDetailContent(
+                    state = state,
+                    onDecreaseQuantity = onDecreaseQuantity,
+                    onIncreaseQuantity = onIncreaseQuantity,
+                    onRegionClick = {
+                        if (regions.isNotEmpty()) {
+                            showRegionPicker = true
+                        }
+                    },
+                    onReceiverNameChange = onReceiverNameChange,
+                    onReceiverPhoneChange = onReceiverPhoneChange,
+                    onAddressLine1Change = onAddressLine1Change,
+                    onPostalCodeChange = onPostalCodeChange,
+                    onBuyerNoteChange = onBuyerNoteChange,
+                    onBuy = onBuy,
+                )
+            }
+
+            else -> {
+                MarketDetailError(
+                    message = state.errorMessage ?: "单品不可用",
+                    onRetry = onRetry,
+                )
+            }
+        }
+
+        /*
+         * ------------------------------------------------
+         * Region Picker
+         * ------------------------------------------------
+         */
+        if (
+            remoteOnline &&
+            state.listing != null &&
+            showRegionPicker &&
+            regions.isNotEmpty()
+        ) {
+            MarketRegionPicker(
+                regions = regions,
+                onDismiss = {
+                    showRegionPicker = false
+                },
+                onSelected = { region ->
+                    onRegionSelected(region)
+                    showRegionPicker = false
+                },
+            )
+        }
     }
 }
-
 
 @Composable
 private fun MarketDetailContent(
@@ -986,24 +881,12 @@ private fun MarketDetailCenterMessage(
 private fun MarketDetailError(
     message:
     String,
-
-    onRetry:
-        () -> Unit,
+    onRetry: () -> Unit,
 ) {
-
     Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(
-                    24.dp
-                ),
-
-        horizontalAlignment =
-            Alignment.CenterHorizontally,
-
-        verticalArrangement =
-            Arrangement.Center,
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
 
         Text(
@@ -1047,11 +930,9 @@ private fun resolveMarketPaymentError(
     code:
     String,
 ): String {
-
     return when (
         code
     ) {
-
         "SHIPPING_ADDRESS_REQUIRED" ->
             "请完整填写收货信息"
 

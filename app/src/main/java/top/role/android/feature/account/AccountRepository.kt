@@ -10,15 +10,10 @@ class AccountRepository(
     private val convexClient: ConvexMobileClient,
 ) {
 
-    fun observeAccountHome():
-            Flow<Result<MobileAccountHome>> {
-
+    fun observeAccountHome(): Flow<Result<MobileAccountHome>> {
         return convexClient.subscribe(
-            name =
-                "mobile/native/account/get:getMobileAccountHome",
-
-            args =
-                emptyMap(),
+            name = "mobile/native/account/get:getMobileAccountHome",
+            args = emptyMap(),
         )
     }
 }

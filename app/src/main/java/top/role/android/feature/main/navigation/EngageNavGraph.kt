@@ -4,669 +4,340 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalUriHandler
-
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-
+import top.role.android.core.auth.AuthState
 import top.role.android.app.navigation.BountyDetailRoute
 import top.role.android.app.navigation.BountyListRoute
-import top.role.android.app.navigation.MainDestination
 import top.role.android.app.navigation.MarketDetailRoute
 import top.role.android.app.navigation.MarketListRoute
 import top.role.android.app.navigation.MarketOrderDetailRoute
 import top.role.android.app.navigation.MarketOrderListRoute
 import top.role.android.app.navigation.SurveyDetailRoute
 import top.role.android.app.navigation.SurveyListRoute
-
 import top.role.android.core.model.bounty.MobileBountyListMode
 import top.role.android.core.model.market.MobileMarketListMode
 import top.role.android.core.model.survey.MobileSurveyListMode
-
-import top.role.android.feature.engage.EngageScreen
-import top.role.android.feature.engage.EngageViewModel
-import top.role.android.feature.engage.EngageViewModelFactory
-
+import top.role.android.app.navigation.NoteAdoptionRoute
+import top.role.android.feature.note.adoption.NoteAdoptionScreen
 import top.role.android.feature.survey.SurveyListScreen
 import top.role.android.feature.survey.SurveyListViewModel
 import top.role.android.feature.survey.SurveyListViewModelFactory
-
 import top.role.android.feature.survey.detail.SurveyDetailScreen
 import top.role.android.feature.survey.detail.SurveyDetailViewModel
 import top.role.android.feature.survey.detail.SurveyDetailViewModelFactory
-
 import top.role.android.feature.bounty.BountyListScreen
 import top.role.android.feature.bounty.BountyListViewModel
 import top.role.android.feature.bounty.BountyListViewModelFactory
-
 import top.role.android.feature.bounty.detail.BountyDetailScreen
 import top.role.android.feature.bounty.detail.BountyDetailViewModel
 import top.role.android.feature.bounty.detail.BountyDetailViewModelFactory
-
 import top.role.android.feature.market.MarketListScreen
 import top.role.android.feature.market.MarketListViewModel
 import top.role.android.feature.market.MarketListViewModelFactory
-
 import top.role.android.feature.market.detail.MarketDetailScreen
 import top.role.android.feature.market.detail.MarketDetailViewModel
 import top.role.android.feature.market.detail.MarketDetailViewModelFactory
-
 import top.role.android.feature.market.order.MarketOrderListScreen
 import top.role.android.feature.market.order.MarketOrderListViewModel
 import top.role.android.feature.market.order.MarketOrderListViewModelFactory
-
 import top.role.android.feature.market.order.detail.MarketOrderDetailScreen
 import top.role.android.feature.market.order.detail.MarketOrderDetailViewModel
-
+import androidx.compose.runtime.remember
+import top.role.android.core.data.note.NoteAdoptionLocalRepository
 
 fun NavGraphBuilder.engageNavGraph(
     navController: NavHostController,
     dependencies: MainNavigationDependencies,
+    onLogin: () -> Unit,
+    onRetryAuth: () -> Unit,
+    onReSignIn: () -> Unit,
 ) {
-
-    /*
-     * ================================================================
-     * Engage Home
-     * ================================================================
-     */
-
-    composable(
-        route =
-            MainDestination.Engage.route,
-    ) {
-
-        val factory =
-            remember(
-                dependencies
-                    .engageRepository,
-            ) {
-                EngageViewModelFactory(
-                    repository =
-                        dependencies
-                            .engageRepository,
-                )
-            }
-
-
-        val engageViewModel:
-                EngageViewModel =
-            viewModel(
-                key =
-                    "engage-home",
-
-                factory =
-                    factory,
-            )
-
-
-        LaunchedEffect(
-            dependencies.remoteAuthenticated,
-            dependencies.remoteOnline,
-        ) {
-            when {
-                !dependencies.remoteAuthenticated -> {
-                    engageViewModel.showSignedOut()
-                }
-
-                !dependencies.remoteOnline -> {
-                    engageViewModel.showOffline()
-                }
-
-                else -> {
-                    engageViewModel.start()
-                }
-            }
-        }
-
-
-        val state by
-        engageViewModel
-            .uiState
-            .collectAsStateWithLifecycle()
-
-
-        EngageScreen(
-            state =
-                state,
-
-            onRetry =
-                engageViewModel::retry,
-
-
-            /*
-             * Survey
-             */
-
-            onSurveyClick = { surveyId ->
-
-                navController.navigate(
-                    SurveyDetailRoute.create(
-                        surveyId =
-                            surveyId,
-                    )
-                )
-            },
-
-            onSurveyMore = {
-
-                navController.navigate(
-                    SurveyListRoute.create(
-                        mode =
-                            MobileSurveyListMode.Featured,
-                    )
-                )
-            },
-
-
-            /*
-             * Bounty
-             */
-
-            onBountyClick = { bountyId ->
-
-                navController.navigate(
-                    BountyDetailRoute.create(
-                        bountyId =
-                            bountyId,
-                    )
-                )
-            },
-
-            onBountyMore = {
-
-                navController.navigate(
-                    BountyListRoute.create(
-                        mode =
-                            MobileBountyListMode.Featured,
-                    )
-                )
-            },
-
-
-            /*
-             * Market
-             */
-
-            onMarketClick = { listingId ->
-
-                navController.navigate(
-                    MarketDetailRoute.create(
-                        listingId =
-                            listingId,
-                    )
-                )
-            },
-
-            onMarketMore = {
-
-                navController.navigate(
-                    MarketListRoute.create(
-                        mode =
-                            MobileMarketListMode.Featured,
-                    )
-                )
-            },
-        )
-    }
-
 
     /*
      * ================================================================
      * Survey List
      * ================================================================
      */
-
     composable(
-        route =
-            SurveyListRoute.route,
-
-        arguments =
-            listOf(
-                navArgument(
-                    SurveyListRoute
-                        .modeArg
-                ) {
-                    type =
-                        NavType.StringType
-                }
-            ),
+        route = SurveyListRoute.route,
+        arguments = listOf(
+            navArgument(SurveyListRoute.modeArg) {
+                type = NavType.StringType
+            }
+        ),
     ) { backStackEntry ->
 
-        val mode =
-            MobileSurveyListMode
-                .fromValue(
-                    backStackEntry
-                        .arguments
-                        ?.getString(
-                            SurveyListRoute
-                                .modeArg
-                        )
-                )
-
-
-        val factory =
-            remember(
-                mode,
-                dependencies
-                    .surveyListRepository,
-            ) {
-                SurveyListViewModelFactory(
-                    mode =
-                        mode,
-
-                    repository =
-                        dependencies
-                            .surveyListRepository,
-                )
-            }
-
-
-        val viewModel:
-                SurveyListViewModel =
-            viewModel(
-                key =
-                    "survey-list:${mode.value}",
-
-                factory =
-                    factory,
+        val mode = MobileSurveyListMode.fromValue(
+            backStackEntry.arguments?.getString(
+                SurveyListRoute.modeArg
             )
+        )
 
+        val factory = remember(
+            mode,
+            dependencies.surveyListRepository,
+        ) {
+            SurveyListViewModelFactory(
+                mode = mode,
+                repository = dependencies.surveyListRepository,
+            )
+        }
+
+        val viewModel: SurveyListViewModel = viewModel(
+            key = "survey-list:${mode.value}",
+            factory = factory,
+        )
 
         LaunchedEffect(
-            dependencies
-                .remoteAuthenticated,
+            dependencies.authState,
+            dependencies.remoteOnline,
         ) {
             if (
-                dependencies
-                    .remoteAuthenticated
+                dependencies.authState is AuthState.SignedIn &&
+                dependencies.remoteOnline
             ) {
-                viewModel
-                    .start()
+                viewModel.start()
             } else {
-                viewModel
-                    .showSignedOut()
+                viewModel.stop()
             }
         }
 
-
-        val state by
-        viewModel
-            .uiState
-            .collectAsStateWithLifecycle()
-
-
         SurveyListScreen(
-            state =
-                state,
+            viewModel = viewModel,
+            authState = dependencies.authState,
+            onLogin = onLogin,
+            onRetryAuth = onRetryAuth,
+            onReSignIn = onReSignIn,
 
             onModeChange = { targetMode ->
-
-                if (
-                    targetMode !=
-                    mode
-                ) {
+                if (targetMode != mode) {
                     navController.navigate(
                         SurveyListRoute.create(
-                            mode =
-                                targetMode,
+                            mode = targetMode,
                         )
                     ) {
-                        popUpTo(
-                            SurveyListRoute.route
-                        ) {
-                            inclusive =
-                                true
+                        popUpTo(SurveyListRoute.route) {
+                            inclusive = true
                         }
                     }
                 }
             },
 
             onSurveyClick = { surveyId ->
-
                 navController.navigate(
                     SurveyDetailRoute.create(
-                        surveyId =
-                            surveyId,
+                        surveyId = surveyId,
                     )
                 )
             },
 
-            onLoadMore =
-                viewModel::loadMore,
-
-            onRetry =
-                viewModel::retry,
+            onLoadMore = viewModel::loadMore,
+            onRetry = viewModel::retry,
         )
     }
-
 
     /*
      * ================================================================
      * Survey Detail
      * ================================================================
      */
-
     composable(
-        route =
-            SurveyDetailRoute.route,
-
-        arguments =
-            listOf(
-                navArgument(
-                    SurveyDetailRoute
-                        .surveyIdArg
-                ) {
-                    type =
-                        NavType.StringType
-                }
-            ),
+        route = SurveyDetailRoute.route,
+        arguments = listOf(
+            navArgument(SurveyDetailRoute.surveyIdArg) {
+                type = NavType.StringType
+            }
+        ),
     ) { backStackEntry ->
 
-        val surveyId =
-            backStackEntry
-                .arguments
-                ?.getString(
-                    SurveyDetailRoute
-                        .surveyIdArg
-                )
-                ?: return@composable
+        val surveyId = backStackEntry.arguments
+            ?.getString(SurveyDetailRoute.surveyIdArg)
+            ?: return@composable
 
-
-        val factory =
-            remember(
-                surveyId,
-                dependencies
-                    .surveyDetailRepository,
-            ) {
-                SurveyDetailViewModelFactory(
-                    surveyId =
-                        surveyId,
-
-                    repository =
-                        dependencies
-                            .surveyDetailRepository,
-                )
-            }
-
-
-        val viewModel:
-                SurveyDetailViewModel =
-            viewModel(
-                key =
-                    "survey-detail:$surveyId",
-
-                factory =
-                    factory,
+        val factory = remember(
+            surveyId,
+            dependencies.surveyDetailRepository,
+        ) {
+            SurveyDetailViewModelFactory(
+                surveyId = surveyId,
+                repository = dependencies.surveyDetailRepository,
             )
+        }
 
+        val viewModel: SurveyDetailViewModel = viewModel(
+            key = "survey-detail:$surveyId",
+            factory = factory,
+        )
 
         LaunchedEffect(
-            dependencies
-                .remoteAuthenticated,
+            dependencies.authState,
+            dependencies.remoteOnline,
         ) {
             if (
-                dependencies
-                    .remoteAuthenticated
+                dependencies.authState is AuthState.SignedIn &&
+                dependencies.remoteOnline
             ) {
-                viewModel
-                    .start()
+                viewModel.start()
             } else {
-                viewModel
-                    .showSignedOut()
+                viewModel.stop()
             }
         }
 
-
-        val state by
-        viewModel
-            .uiState
-            .collectAsStateWithLifecycle()
-
-
         SurveyDetailScreen(
-            state =
-                state,
-
-            onAnswerChange =
-                viewModel::updateAnswer,
-
-            onPrevious =
-                viewModel::previousGroup,
-
-            onNext =
-                viewModel::nextGroup,
-
-            onSubmit =
-                viewModel::submit,
+            viewModel = viewModel,
+            authState = dependencies.authState,
+            onLogin = onLogin,
+            onRetryAuth = onRetryAuth,
+            onReSignIn = onReSignIn,
+            onAnswerChange = viewModel::updateAnswer,
+            onPrevious = viewModel::previousGroup,
+            onNext = viewModel::nextGroup,
+            onSubmit = viewModel::submit,
+            onRetry = viewModel::retry,
         )
     }
-
 
     /*
      * ================================================================
      * Bounty List
      * ================================================================
      */
-
     composable(
-        route =
-            BountyListRoute.route,
-
-        arguments =
-            listOf(
-                navArgument(
-                    BountyListRoute
-                        .modeArg
-                ) {
-                    type =
-                        NavType.StringType
-                }
-            ),
+        route = BountyListRoute.route,
+        arguments = listOf(
+            navArgument(BountyListRoute.modeArg) {
+                type = NavType.StringType
+            }
+        ),
     ) { backStackEntry ->
 
-        val mode =
-            MobileBountyListMode
-                .fromValue(
-                    backStackEntry
-                        .arguments
-                        ?.getString(
-                            BountyListRoute
-                                .modeArg
-                        )
-                )
-
-
-        val factory =
-            remember(
-                mode,
-                dependencies
-                    .bountyListRepository,
-            ) {
-                BountyListViewModelFactory(
-                    mode =
-                        mode,
-
-                    repository =
-                        dependencies
-                            .bountyListRepository,
-                )
-            }
-
-
-        val bountyViewModel:
-                BountyListViewModel =
-            viewModel(
-                key =
-                    "bounty-list:${mode.value}",
-
-                factory =
-                    factory,
+        val mode = MobileBountyListMode.fromValue(
+            backStackEntry.arguments?.getString(
+                BountyListRoute.modeArg
             )
+        )
 
+        val factory = remember(
+            mode,
+            dependencies.bountyListRepository,
+        ) {
+            BountyListViewModelFactory(
+                mode = mode,
+                repository = dependencies.bountyListRepository,
+            )
+        }
+
+        val bountyViewModel: BountyListViewModel = viewModel(
+            key = "bounty-list:${mode.value}",
+            factory = factory,
+        )
 
         LaunchedEffect(
-            dependencies
-                .remoteAuthenticated,
+            bountyViewModel,
+            dependencies.authState,
+            dependencies.remoteOnline,
         ) {
             if (
-                dependencies
-                    .remoteAuthenticated
+                dependencies.authState is AuthState.SignedIn &&
+                dependencies.remoteOnline
             ) {
-                bountyViewModel
-                    .start()
+                bountyViewModel.start()
             } else {
-                bountyViewModel
-                    .showSignedOut()
+                bountyViewModel.stop()
             }
         }
 
-
-        val state by
-        bountyViewModel
-            .uiState
-            .collectAsStateWithLifecycle()
-
-
         BountyListScreen(
-            state =
-                state,
-
+            viewModel = bountyViewModel,
+            authState = dependencies.authState,
+            onLogin = onLogin,
+            onRetryAuth = onRetryAuth,
+            onReSignIn = onReSignIn,
             onModeChange = { targetMode ->
-
-                if (
-                    targetMode !=
-                    mode
-                ) {
+                if (targetMode != mode) {
                     navController.navigate(
                         BountyListRoute.create(
-                            mode =
-                                targetMode,
+                            mode = targetMode
                         )
                     )
                 }
             },
-
             onBountyClick = { bountyId ->
-
                 navController.navigate(
                     BountyDetailRoute.create(
-                        bountyId =
-                            bountyId,
+                        bountyId = bountyId
                     )
                 )
             },
-
-            onLoadMore =
-                bountyViewModel::loadMore,
-
-            onRetry =
-                bountyViewModel::retry,
+            onLoadMore = bountyViewModel::loadMore,
+            onRetry = bountyViewModel::retry,
         )
     }
-
 
     /*
      * ================================================================
      * Bounty Detail
      * ================================================================
      */
-
     composable(
-        route =
-            BountyDetailRoute.route,
-
-        arguments =
-            listOf(
-                navArgument(
-                    BountyDetailRoute
-                        .bountyIdArg
-                ) {
-                    type =
-                        NavType.StringType
-                }
-            ),
+        route = BountyDetailRoute.route,
+        arguments = listOf(
+            navArgument(BountyDetailRoute.bountyIdArg) {
+                type = NavType.StringType
+            }
+        ),
     ) { backStackEntry ->
 
-        val bountyId =
-            backStackEntry
-                .arguments
-                ?.getString(
-                    BountyDetailRoute
-                        .bountyIdArg
-                )
-                ?: return@composable
+        val bountyId = backStackEntry.arguments
+            ?.getString(BountyDetailRoute.bountyIdArg)
+            ?: return@composable
 
-
-        val factory =
-            remember(
-                bountyId,
-                dependencies
-                    .bountyDetailRepository,
-            ) {
-                BountyDetailViewModelFactory(
-                    bountyId =
-                        bountyId,
-
-                    repository =
-                        dependencies
-                            .bountyDetailRepository,
-                )
-            }
-
-
-        val bountyViewModel:
-                BountyDetailViewModel =
-            viewModel(
-                key =
-                    "bounty-detail:$bountyId",
-
-                factory =
-                    factory,
+        val factory = remember(
+            bountyId,
+            dependencies.bountyDetailRepository,
+        ) {
+            BountyDetailViewModelFactory(
+                bountyId = bountyId,
+                repository = dependencies.bountyDetailRepository,
             )
+        }
 
+        val bountyViewModel: BountyDetailViewModel = viewModel(
+            key = "bounty-detail:$bountyId",
+            factory = factory,
+        )
 
         LaunchedEffect(
-            dependencies
-                .remoteAuthenticated,
+            bountyViewModel,
+            dependencies.authState,
+            dependencies.remoteOnline,
         ) {
             if (
-                dependencies
-                    .remoteAuthenticated
+                dependencies.authState is AuthState.SignedIn &&
+                dependencies.remoteOnline
             ) {
-                bountyViewModel
-                    .start()
+                bountyViewModel.start()
             } else {
-                bountyViewModel
-                    .showSignedOut()
+                bountyViewModel.stop()
             }
         }
 
-
-        val state by
-        bountyViewModel
-            .uiState
-            .collectAsStateWithLifecycle()
-
-
-        val uriHandler =
-            LocalUriHandler.current
-
+        val uriHandler = LocalUriHandler.current
 
         BountyDetailScreen(
-            state =
-                state,
-
-            onRetry =
-                bountyViewModel::retry,
-
-            onTake =
-                bountyViewModel::take,
-
+            viewModel = bountyViewModel,
+            authState = dependencies.authState,
+            onLogin = onLogin,
+            onRetryAuth = onRetryAuth,
+            onReSignIn = onReSignIn,
+            onRetry = bountyViewModel::retry,
+            onTake = bountyViewModel::take,
             onOpenWeb = {
                 uriHandler.openUri(
                     "https://role.top/dashboard/bounty/$bountyId/submissions"
@@ -675,286 +346,189 @@ fun NavGraphBuilder.engageNavGraph(
         )
     }
 
-
     /*
      * ================================================================
      * Market List
      * ================================================================
      */
-
     composable(
-        route =
-            MarketListRoute.route,
-
-        arguments =
-            listOf(
-                navArgument(
-                    MarketListRoute
-                        .modeArg
-                ) {
-                    type =
-                        NavType.StringType
-                }
-            ),
+        route = MarketListRoute.route,
+        arguments = listOf(
+            navArgument(MarketListRoute.modeArg) {
+                type = NavType.StringType
+            }
+        ),
     ) { backStackEntry ->
 
-        val mode =
-            MobileMarketListMode
-                .fromValue(
-                    backStackEntry
-                        .arguments
-                        ?.getString(
-                            MarketListRoute
-                                .modeArg
-                        )
-                )
-
-
-        val factory =
-            remember(
-                mode,
-                dependencies
-                    .marketListRepository,
-            ) {
-                MarketListViewModelFactory(
-                    mode =
-                        mode,
-
-                    repository =
-                        dependencies
-                            .marketListRepository,
-                )
-            }
-
-
-        val marketViewModel:
-                MarketListViewModel =
-            viewModel(
-                key =
-                    "market-list:${mode.value}",
-
-                factory =
-                    factory,
+        val mode = MobileMarketListMode.fromValue(
+            backStackEntry.arguments?.getString(
+                MarketListRoute.modeArg
             )
+        )
 
+        val factory = remember(
+            mode,
+            dependencies.marketListRepository,
+        ) {
+            MarketListViewModelFactory(
+                mode = mode,
+                repository = dependencies.marketListRepository,
+            )
+        }
+
+        val marketViewModel: MarketListViewModel = viewModel(
+            key = "market-list:${mode.value}",
+            factory = factory,
+        )
 
         LaunchedEffect(
-            dependencies
-                .remoteAuthenticated,
+            marketViewModel,
+            dependencies.authState,
+            dependencies.remoteOnline,
         ) {
             if (
-                dependencies
-                    .remoteAuthenticated
+                dependencies.authState is AuthState.SignedIn &&
+                dependencies.remoteOnline
             ) {
-                marketViewModel
-                    .start()
+                marketViewModel.start()
             } else {
-                marketViewModel
-                    .showSignedOut()
+                marketViewModel.stop()
             }
         }
 
-
-        val state by
-        marketViewModel
-            .uiState
-            .collectAsStateWithLifecycle()
-
-
         MarketListScreen(
-            state =
-                state,
-
+            viewModel = marketViewModel,
+            authState = dependencies.authState,
+            remoteOnline = dependencies.remoteOnline,
+            onLogin = onLogin,
+            onRetryAuth = onRetryAuth,
+            onReSignIn = onReSignIn,
             onModeChange = { targetMode ->
-
-                if (
-                    targetMode !=
-                    mode
-                ) {
+                if (targetMode != mode) {
                     navController.navigate(
                         MarketListRoute.create(
-                            mode =
-                                targetMode,
+                            mode = targetMode
                         )
                     )
                 }
             },
-
             onMarketClick = { listingId ->
-
                 navController.navigate(
                     MarketDetailRoute.create(
-                        listingId =
-                            listingId,
+                        listingId = listingId
                     )
                 )
             },
-
-            onLoadMore =
-                marketViewModel::loadMore,
-
-            onRetry =
-                marketViewModel::retry,
+            onLoadMore = marketViewModel::loadMore,
+            onRetry = marketViewModel::retry,
         )
     }
-
 
     /*
      * ================================================================
      * Market Detail
      * ================================================================
      */
-
     composable(
-        route =
-            MarketDetailRoute.route,
-
-        arguments =
-            listOf(
-                navArgument(
-                    MarketDetailRoute
-                        .listingIdArg
-                ) {
-                    type =
-                        NavType.StringType
-                }
-            ),
+        route = MarketDetailRoute.route,
+        arguments = listOf(
+            navArgument(MarketDetailRoute.listingIdArg) {
+                type = NavType.StringType
+            }
+        ),
     ) { backStackEntry ->
 
-        val listingId =
-            backStackEntry
-                .arguments
-                ?.getString(
-                    MarketDetailRoute
-                        .listingIdArg
-                )
-                ?: return@composable
+        val listingId = backStackEntry.arguments
+            ?.getString(MarketDetailRoute.listingIdArg)
+            ?: return@composable
 
-
-        val factory =
-            remember(
-                listingId,
-                dependencies
-                    .marketDetailRepository,
-            ) {
-                MarketDetailViewModelFactory(
-                    listingId =
-                        listingId,
-
-                    repository =
-                        dependencies
-                            .marketDetailRepository,
-
-                    wechatPayLauncher =
-                        dependencies
-                            .wechatPayLauncher,
-                )
-            }
-
-
-        val marketViewModel:
-                MarketDetailViewModel =
-            viewModel(
-                key =
-                    "market-detail:$listingId",
-
-                factory =
-                    factory,
-            )
-
-
-        LaunchedEffect(
-            dependencies
-                .remoteAuthenticated,
+        val factory = remember(
+            listingId,
+            dependencies.marketDetailRepository,
         ) {
-            if (
-                dependencies
-                    .remoteAuthenticated
-            ) {
-                marketViewModel
-                    .start()
-            } else {
-                marketViewModel
-                    .showSignedOut()
-            }
+            MarketDetailViewModelFactory(
+                listingId = listingId,
+                repository = dependencies.marketDetailRepository,
+                wechatPayLauncher = dependencies.wechatPayLauncher,
+            )
         }
 
-
-        val state by
-        marketViewModel
-            .uiState
-            .collectAsStateWithLifecycle()
-
+        val marketViewModel: MarketDetailViewModel = viewModel(
+            key = "market-detail:$listingId",
+            factory = factory,
+        )
 
         /*
-         * 支付成功后进入订单详情。
-         *
-         * purchasedOrderId 只有 paymentSuccess = true
-         * 时才参与导航。
+         * ------------------------------------------------
+         * Lifecycle
+         * ------------------------------------------------
          */
-        val purchasedOrderId =
-            state
-                .purchasedOrderId
-                ?.takeIf {
-                    state.paymentSuccess
-                }
-
-
         LaunchedEffect(
-            purchasedOrderId
+            dependencies.authState,
+            dependencies.remoteOnline,
         ) {
-            purchasedOrderId
-                ?.let { orderId ->
-
-                    marketViewModel
-                        .consumePaymentSuccess()
-
-                    navController.navigate(
-                        MarketOrderDetailRoute.create(
-                            orderId =
-                                orderId,
-                        )
-                    )
-                }
+            if (
+                dependencies.authState is AuthState.SignedIn &&
+                dependencies.remoteOnline
+            ) {
+                marketViewModel.start()
+            } else {
+                marketViewModel.stop()
+            }
         }
 
+        /*
+         * ------------------------------------------------
+         * Payment success navigation
+         * ------------------------------------------------
+         */
+        val state by marketViewModel.uiState.collectAsStateWithLifecycle()
 
+        val purchasedOrderId = state.purchasedOrderId
+            ?.takeIf { state.paymentSuccess }
+
+        LaunchedEffect(purchasedOrderId) {
+            purchasedOrderId?.let { orderId ->
+
+                marketViewModel.consumePaymentSuccess()
+
+                navController.navigate(
+                    MarketOrderDetailRoute.create(
+                        orderId = orderId,
+                    )
+                )
+            }
+        }
+
+        /*
+         * ------------------------------------------------
+         * Screen
+         * ------------------------------------------------
+         */
         MarketDetailScreen(
-            state =
-                state,
+            viewModel = marketViewModel,
 
-            onRetry =
-                marketViewModel::retry,
+            authState = dependencies.authState,
+            remoteOnline = dependencies.remoteOnline,
 
-            onDecreaseQuantity =
-                marketViewModel::decreaseQuantity,
+            onLogin = onLogin,
+            onRetryAuth = onRetryAuth,
+            onReSignIn = onReSignIn,
 
-            onIncreaseQuantity =
-                marketViewModel::increaseQuantity,
+            onRetry = marketViewModel::retry,
+            onDecreaseQuantity = marketViewModel::decreaseQuantity,
+            onIncreaseQuantity = marketViewModel::increaseQuantity,
 
-            onReceiverNameChange =
-                marketViewModel::updateReceiverName,
+            onReceiverNameChange = marketViewModel::updateReceiverName,
+            onReceiverPhoneChange = marketViewModel::updateReceiverPhone,
+            onAddressLine1Change = marketViewModel::updateAddressLine1,
+            onPostalCodeChange = marketViewModel::updatePostalCode,
+            onBuyerNoteChange = marketViewModel::updateBuyerNote,
 
-            onReceiverPhoneChange =
-                marketViewModel::updateReceiverPhone,
-
-            onAddressLine1Change =
-                marketViewModel::updateAddressLine1,
-
-            onPostalCodeChange =
-                marketViewModel::updatePostalCode,
-
-            onBuyerNoteChange =
-                marketViewModel::updateBuyerNote,
-
-            onRegionSelected =
-                marketViewModel::selectRegion,
-
-            onBuy =
-                marketViewModel::purchase,
+            onRegionSelected = marketViewModel::selectRegion,
+            onBuy = marketViewModel::purchase,
         )
     }
-
 
     /*
      * ================================================================
@@ -962,197 +536,162 @@ fun NavGraphBuilder.engageNavGraph(
      * ================================================================
      */
 
-    composable(
-        route =
-            MarketOrderListRoute.route,
-    ) {
+    composable(route = MarketOrderListRoute.route) {
 
-        val factory =
-            remember(
-                dependencies
-                    .marketOrderListRepository,
-            ) {
-                MarketOrderListViewModelFactory(
-                    repository =
-                        dependencies
-                            .marketOrderListRepository,
-                )
-            }
-
-
-        val marketOrderListViewModel:
-                MarketOrderListViewModel =
-            viewModel(
-                key =
-                    "market-order-list",
-
-                factory =
-                    factory,
+        val factory = remember(
+            dependencies.marketOrderListRepository,
+        ) {
+            MarketOrderListViewModelFactory(
+                repository = dependencies.marketOrderListRepository,
             )
+        }
 
+        val marketOrderListViewModel: MarketOrderListViewModel = viewModel(
+            key = "market-order-list",
+            factory = factory,
+        )
 
         LaunchedEffect(
-            dependencies
-                .remoteAuthenticated,
+            dependencies.authState,
+            dependencies.remoteOnline,
         ) {
             if (
-                dependencies
-                    .remoteAuthenticated
+                dependencies.authState is AuthState.SignedIn &&
+                dependencies.remoteOnline
             ) {
-                marketOrderListViewModel
-                    .start()
+                marketOrderListViewModel.start()
             } else {
-                marketOrderListViewModel
-                    .showSignedOut()
+                marketOrderListViewModel.stop()
             }
         }
 
-
-        val state by
-        marketOrderListViewModel
-            .uiState
-            .collectAsStateWithLifecycle()
-
+        val state by marketOrderListViewModel.uiState.collectAsStateWithLifecycle()
 
         MarketOrderListScreen(
-            state =
-                state,
+            state = state,
+            authState = dependencies.authState,
+            remoteOnline = dependencies.remoteOnline,
 
             onBack = {
-                navController
-                    .popBackStack()
+                navController.popBackStack()
             },
 
-            onOrderClick = { item ->
+            onLogin = onLogin,
+            onRetryAuth = onRetryAuth,
+            onReSignIn = onReSignIn,
 
+            onOrderClick = { item ->
                 navController.navigate(
                     MarketOrderDetailRoute.create(
-                        orderId =
-                            item.id,
+                        orderId = item.id,
                     )
                 )
             },
 
-            onLoadMore =
-                marketOrderListViewModel::loadMore,
+            onLoadMore = marketOrderListViewModel::loadMore,
+            onRetry = marketOrderListViewModel::retry,
+        )
+    }
 
-            onRetry =
-                marketOrderListViewModel::retry,
+    /*
+  * ================================================================
+  * Market Order Detail
+  * ================================================================
+  */
+    composable(
+        route = MarketOrderDetailRoute.route,
+        arguments = listOf(
+            navArgument(MarketOrderDetailRoute.orderIdArg) {
+                type = NavType.StringType
+            }
+        ),
+    ) { backStackEntry ->
+
+        val orderId = backStackEntry.arguments
+            ?.getString(MarketOrderDetailRoute.orderIdArg)
+            ?: return@composable
+
+        val factory = remember(
+            orderId,
+            dependencies.marketOrderDetailRepository,
+        ) {
+            MarketOrderDetailViewModel.factory(
+                orderId = orderId,
+                repository = dependencies.marketOrderDetailRepository,
+            )
+        }
+
+        val marketOrderDetailViewModel: MarketOrderDetailViewModel =
+            viewModel(
+                key = "market-order-detail:$orderId",
+                factory = factory,
+            )
+
+        /*
+         * 认证与网络生命周期
+         */
+        LaunchedEffect(
+            dependencies.authState,
+            dependencies.remoteOnline,
+        ) {
+            if (
+                dependencies.authState is AuthState.SignedIn &&
+                dependencies.remoteOnline
+            ) {
+                marketOrderDetailViewModel.start()
+            } else {
+                marketOrderDetailViewModel.stop()
+            }
+        }
+
+        val state by marketOrderDetailViewModel.uiState
+            .collectAsStateWithLifecycle()
+
+        MarketOrderDetailScreen(
+            state = state,
+
+            authState = dependencies.authState,
+            remoteOnline = dependencies.remoteOnline,
+
+            onLogin = onLogin,
+            onRetryAuth = onRetryAuth,
+            onReSignIn = onReSignIn,
+
+            onBack = {
+                navController.popBackStack()
+            },
+
+            onProductClick = { listingId ->
+                navController.navigate(
+                    MarketDetailRoute.create(
+                        listingId = listingId
+                    )
+                )
+            },
+
+            onRetry = marketOrderDetailViewModel::retry,
         )
     }
 
 
     /*
      * ================================================================
-     * Market Order Detail
+     * Note Adoption
      * ================================================================
      */
+    composable(NoteAdoptionRoute.route) {
 
-    composable(
-        route =
-            MarketOrderDetailRoute.route,
-
-        arguments =
-            listOf(
-                navArgument(
-                    MarketOrderDetailRoute
-                        .orderIdArg
-                ) {
-                    type =
-                        NavType.StringType
-                }
-            ),
-    ) { backStackEntry ->
-
-        val orderId =
-            backStackEntry
-                .arguments
-                ?.getString(
-                    MarketOrderDetailRoute
-                        .orderIdArg
-                )
-                ?: return@composable
-
-
-        val factory =
-            remember(
-                orderId,
-                dependencies
-                    .marketOrderDetailRepository,
-            ) {
-                MarketOrderDetailViewModel.factory(
-                    orderId =
-                        orderId,
-
-                    repository =
-                        dependencies
-                            .marketOrderDetailRepository,
-                )
-            }
-
-
-        val marketOrderDetailViewModel:
-                MarketOrderDetailViewModel =
-            viewModel(
-                key =
-                    "market-order-detail:$orderId",
-
-                factory =
-                    factory,
-            )
-
-
-        /*
-         * Order Detail 与当前 Engage / Market
-         * 其他远端页面保持同一认证生命周期。
-         */
-        LaunchedEffect(
-            dependencies
-                .remoteAuthenticated,
-        ) {
-            if (
-                dependencies
-                    .remoteAuthenticated
-            ) {
-                marketOrderDetailViewModel
-                    .start()
-            } else {
-                marketOrderDetailViewModel
-                    .showSignedOut()
-            }
-        }
-
-
-        val state by
-        marketOrderDetailViewModel
-            .uiState
-            .collectAsStateWithLifecycle()
-
-
-        MarketOrderDetailScreen(
-            state =
-                state,
-
+        NoteAdoptionScreen(
+            guestLocalOwnerId = dependencies.localOwnerUserId,
+            authState = dependencies.authState,
+            repository = dependencies.noteAdoptionLocalRepository,
+            onLogin = onLogin,
+            onRetry = onRetryAuth,
+            onReSignIn = onReSignIn,
             onBack = {
-                navController
-                    .popBackStack()
+                navController.popBackStack()
             },
-
-            /*
-             * 从订单详情重新查看原商品。
-             */
-            onProductClick = { listingId ->
-
-                navController.navigate(
-                    MarketDetailRoute.create(
-                        listingId =
-                            listingId,
-                    )
-                )
-            },
-
-            onRetry =
-                marketOrderDetailViewModel::retry,
         )
     }
+
 }

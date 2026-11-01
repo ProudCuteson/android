@@ -19,11 +19,12 @@ fun NavGraphBuilder.dayNavGraph(
     dependencies: MainNavigationDependencies,
     weekStart: WeekStart
 ) {
+
     composable(
         route = MainDestination.Day.route,
     ) {
         DayScreen(
-            ownerUserId = dependencies.localOwnerUserId,
+            localOwnerUserId = dependencies.localOwnerUserId,
             noteLocalRepository = dependencies.noteLocalRepository,
             noteImageService = dependencies.noteImageService,
             weekStart = weekStart,
@@ -65,7 +66,7 @@ fun NavGraphBuilder.dayNavGraph(
 
         if (dayKey != null) {
             NoteEditorRoute(
-                ownerUserId = dependencies.localOwnerUserId,
+                localOwnerUserId = dependencies.localOwnerUserId,
                 noteLocalRepository = dependencies.noteLocalRepository,
                 noteAiRemoteDataSource = dependencies.noteAiRemoteDataSource,
                 imageRepository = dependencies.imageRepository,
@@ -85,7 +86,7 @@ fun NavGraphBuilder.dayNavGraph(
 
         if (localKey != null) {
             NoteEditorRoute(
-                ownerUserId = dependencies.localOwnerUserId,
+                localOwnerUserId = dependencies.localOwnerUserId,
                 noteLocalRepository = dependencies.noteLocalRepository,
                 noteAiRemoteDataSource = dependencies.noteAiRemoteDataSource,
                 noteImageService = dependencies.noteImageService,
@@ -102,7 +103,7 @@ fun NavGraphBuilder.dayNavGraph(
         route = NoteLibraryRoute.route,
     ) {
         NoteLibraryScreen(
-            ownerUserId = dependencies.localOwnerUserId,
+            localOwnerUserId = dependencies.localOwnerUserId,
             noteLocalRepository = dependencies.noteLocalRepository,
             onBack = { navController.popBackStack() },
             onOpenNote = { localKey ->
@@ -120,7 +121,7 @@ fun NavGraphBuilder.dayNavGraph(
 
         if (dayKey != null) {
             NoteEditorRoute(
-                ownerUserId = dependencies.localOwnerUserId,
+                localOwnerUserId = dependencies.localOwnerUserId,
                 noteLocalRepository = dependencies.noteLocalRepository,
                 noteAiRemoteDataSource = dependencies.noteAiRemoteDataSource,
                 noteImageService = dependencies.noteImageService,
@@ -136,7 +137,7 @@ fun NavGraphBuilder.dayNavGraph(
         route = NoteNewRoute.route,
     ) {
         NoteEditorRoute(
-            ownerUserId = dependencies.localOwnerUserId,
+            localOwnerUserId = dependencies.localOwnerUserId,
             noteLocalRepository = dependencies.noteLocalRepository,
             noteAiRemoteDataSource = dependencies.noteAiRemoteDataSource,
             noteImageService = dependencies.noteImageService,

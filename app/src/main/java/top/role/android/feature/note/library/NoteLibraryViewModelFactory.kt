@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import top.role.android.core.data.note.NoteLocalRepository
 
 class NoteLibraryViewModelFactory(
-    private val ownerUserId: String,
+    private val localOwnerUserId: String,
     private val noteLocalRepository:
     NoteLocalRepository,
 ) : ViewModelProvider.Factory {
@@ -20,11 +20,8 @@ class NoteLibraryViewModelFactory(
             )
         ) {
             return NoteLibraryViewModel(
-                ownerUserId =
-                    ownerUserId,
-
-                noteLocalRepository =
-                    noteLocalRepository,
+                localOwnerUserId = localOwnerUserId,
+                noteLocalRepository = noteLocalRepository,
             ) as T
         }
 

@@ -75,7 +75,7 @@ import top.role.android.feature.note.editor.richtext.RichTextReadingView
 
 @Composable
 fun NoteEditorRoute(
-    ownerUserId: String,
+    localOwnerUserId: String,
     noteLocalRepository: NoteLocalRepository,
     noteAiRemoteDataSource: NoteAiRemoteDataSource,
     noteImageService: NoteImageService,
@@ -91,7 +91,7 @@ fun NoteEditorRoute(
         viewModel(
             factory =
                 NoteEditorViewModelFactory(
-                    ownerUserId = ownerUserId,
+                    localOwnerUserId = localOwnerUserId,
                     noteLocalRepository = noteLocalRepository,
                     noteAiRemoteDataSource = noteAiRemoteDataSource,
                     noteImageService = noteImageService,

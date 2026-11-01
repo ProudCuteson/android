@@ -21,48 +21,51 @@ class ChatConversationListViewModel(
     val uiState: StateFlow<ChatConversationListUiState> =
         _uiState.asStateFlow()
 
-    private var observeJob: Job? =
-        null
-
+    private var observeJob: Job? = null
 
     fun start() {
-        if (
-            observeJob != null
-        ) {
+        if (observeJob?.isActive == true) {
             return
         }
 
-        _uiState.value =
-            ChatConversationListUiState.Loading
+        _uiState.value = ChatConversationListUiState.Loading
 
-        observeJob =
-            viewModelScope.launch {
-
-                repository
-                    .observeConversations()
-                    .collect { result ->
-
-                        result
-                            .onSuccess { conversations ->
-
-                                _uiState.value =
-                                    ChatConversationListUiState.Content(
-                                        conversations =
-                                            conversations,
-                                    )
-                            }
-                            .onFailure {
-
-                                _uiState.value =
-                                    ChatConversationListUiState.Error(
-                                        message =
-                                            "暂时无法加载聊天，请稍后再试。",
-                                    )
-                            }
-                    }
-            }
+        observeJob = viewModelScope.launch {
+            repository
+                .observeConversations()
+                .collect { result ->
+                    result
+                        .onSuccess { conversations ->
+                            _uiState.value =
+                                ChatConversationListUiState.Content(
+                                    conversations = conversations,
+                                )
+                        }
+                        .onFailure { error ->
+                            _uiState.value =
+                                ChatConversationListUiState.Error(
+                                    message = error.message
+                                        ?: "暂时无法加载聊天，请稍后再试。",
+                                )
+                        }
+                }
+        }
     }
 
+    fun stop() {
+        observeJob?.cancel()
+        observeJob = null
+    }
+
+    fun retry() {
+        stop()
+        start()
+    }
+
+    override fun onCleared() {
+        stop()
+        super.onCleared()
+    }
 
     fun hideConversation(
         conversationId: String,
@@ -95,39 +98,4 @@ class ChatConversationListViewModel(
         }
     }
 
-
-    fun showOffline() {
-        stopSubscription()
-
-        _uiState.value =
-            ChatConversationListUiState.Offline
-    }
-
-
-    fun showSignedOut() {
-        stopSubscription()
-
-        _uiState.value =
-            ChatConversationListUiState.SignedOut
-    }
-
-
-    fun retry() {
-        stopSubscription()
-        start()
-    }
-
-
-    private fun stopSubscription() {
-        observeJob?.cancel()
-        observeJob =
-            null
-    }
-
-
-    override fun onCleared() {
-        stopSubscription()
-
-        super.onCleared()
-    }
 }

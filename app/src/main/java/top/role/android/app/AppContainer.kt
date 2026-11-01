@@ -59,6 +59,8 @@ import top.role.android.feature.account.AccountRepository
 import top.role.android.feature.account.password.AccountPasswordRepository
 import top.role.android.core.preferences.AppPreferencesRepository
 import top.role.android.feature.chat.conversation.ChatImagePreviewRepository
+import top.role.android.core.data.note.NoteAdoptionLocalRepository
+import top.role.android.feature.banner.BannerRepository
 
 class AppContainer(
     context: Context,
@@ -71,6 +73,7 @@ class AppContainer(
 
     val authApi = AuthApi(
         baseUrl = ApiConfig.BASE_URL,
+        sessionStorage = sessionStorage,
     )
 
     val authRepository = AuthRepository(
@@ -325,6 +328,14 @@ class AppContainer(
 
     val appPreferencesRepository = AppPreferencesRepository(
         context = appContext,
+    )
+
+    val noteAdoptionLocalRepository = NoteAdoptionLocalRepository(
+            database = database,
+    )
+
+    val bannerRepository = BannerRepository (
+        convexClient = convexClient
     )
 
 }

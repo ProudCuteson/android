@@ -89,14 +89,9 @@ class ConvexNoteMediaRemoteDataSource(
                     "media",
                     media.map { item ->
                         mapOf(
-                            "type" to
-                                    "image",
-
-                            "imageId" to
-                                    item.imageId,
-
-                            "order" to
-                                    item.order.toDouble(),
+                            "type" to "image",
+                            "imageId" to item.imageId,
+                            "order" to item.order.toDouble(),
                         )
                     },
                 )
@@ -104,11 +99,8 @@ class ConvexNoteMediaRemoteDataSource(
 
         return convexClient
             .mutation<RemoteReplaceNoteMediaResponse>(
-                name =
-                    "mobile/android/note:replaceMobileNoteMedia",
-
-                args =
-                    args,
+                name = "mobile/android/note:replaceMobileNoteMedia",
+                args = args,
             )
     }
 }

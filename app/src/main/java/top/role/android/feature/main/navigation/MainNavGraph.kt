@@ -8,6 +8,7 @@ import androidx.navigation.compose.NavHost
 import top.role.android.app.navigation.MainDestination
 import top.role.android.core.preferences.AppAppearance
 import top.role.android.core.preferences.WeekStart
+import top.role.android.app.navigation.InAppBrowserRoute
 
 @Composable
 fun MainNavGraph(
@@ -18,8 +19,10 @@ fun MainNavGraph(
     weekStart: WeekStart,
     onAppearanceChange: (AppAppearance) -> Unit,
     onWeekStartChange: (WeekStart) -> Unit,
+    onLogin: () -> Unit,
+    onRetryAuth: () -> Unit,
     onReSignIn: () -> Unit,
-    onSignOut: () -> Unit,
+    onSignOut: () -> Unit
 ) {
     NavHost(
         navController = navController,
@@ -35,32 +38,66 @@ fun MainNavGraph(
         discoverNavGraph(
             navController = navController,
             dependencies =  dependencies,
+            onLogin = onLogin,
+            onRetryAuth = onRetryAuth,
+            onReSignIn = onReSignIn,
         )
 
         chatNavGraph(
             navController = navController,
             dependencies = dependencies,
+            onLogin = onLogin,
+            onRetryAuth = onRetryAuth,
+            onReSignIn = onReSignIn,
         )
 
         engageNavGraph(
             navController = navController,
             dependencies = dependencies,
+            onLogin = onLogin,
+            onRetryAuth = onRetryAuth,
+            onReSignIn = onReSignIn,
         )
 
         accountNavGraph(
             navController = navController,
             dependencies = dependencies,
-            appearance = appearance,
-            weekStart = weekStart,
-            onAppearanceChange = onAppearanceChange,
-            onWeekStartChange = onWeekStartChange,
             onReSignIn = onReSignIn,
             onSignOut = onSignOut,
         )
 
-        browserNavGraph(
-            navController =
-                navController,
+        quickStartNavGraph(
+            navController = navController,
+            bannerRepository = dependencies.bannerRepository,
         )
+
+        settingsNavGraph(
+            appearance = appearance,
+            weekStart = weekStart,
+            onAppearanceChange = onAppearanceChange,
+            onWeekStartChange = onWeekStartChange,
+            versionName = "1.0",
+            onOpenTerms = {
+                navController.navigate(
+                    InAppBrowserRoute.create(
+                        title = "用户协议",
+                        url = "https://role.top/home/term",
+                    )
+                )
+            },
+            onOpenPrivacy = {
+                navController.navigate(
+                    InAppBrowserRoute.create(
+                        title = "隐私政策",
+                        url = "https://role.top/home/privacy",
+                    )
+                )
+            },
+        )
+
+        browserNavGraph(
+            navController = navController,
+        )
+
     }
 }

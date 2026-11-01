@@ -1,3 +1,4 @@
+
 package top.role.android.feature.bounty.detail
 
 import androidx.compose.foundation.layout.Arrangement
@@ -8,61 +9,79 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
+import top.role.android.core.auth.AuthState
 import top.role.android.core.model.bounty.MobileBountyDetail
 import top.role.android.feature.bounty.bountyKindLabel
+import top.role.android.ui.auth.AuthStatusContent
+
+
+// MARK: Bounty Detail Screen
 
 @Composable
 fun BountyDetailScreen(
-    state: BountyDetailUiState,
+    viewModel: BountyDetailViewModel,
+    authState: AuthState,
+    onLogin: () -> Unit,
+    onRetryAuth: () -> Unit,
+    onReSignIn: () -> Unit,
     onRetry: () -> Unit,
     onTake: () -> Unit,
     onOpenWeb: () -> Unit,
 ) {
-    when {
-        state.signedOut -> {
-            BountyCenterMessage(
-                text = "登录后查看任务",
-            )
-        }
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-        state.loading &&
-                state.bounty == null -> {
-            BountyDetailLoading()
-        }
+    AuthStatusContent(
+        authState = authState,
+        onLogin = onLogin,
+        onRetry = onRetryAuth,
+        onReSignIn = onReSignIn,
+    ) { _ ->
 
-        state.bounty != null -> {
-            BountyDetailContent(
-                bounty = state.bounty,
-                taking = state.taking,
-                takeMessage = state.takeMessage,
-                errorMessage = state.errorMessage,
-                onTake = onTake,
-                onOpenWeb = onOpenWeb,
-            )
-        }
+        when {
+            state.loading && state.bounty == null -> {
+                BountyDetailLoading()
+            }
 
-        else -> {
-            BountyDetailError(
-                message =
-                    state.errorMessage
-                        ?: "任务不可用",
+            state.bounty != null -> {
+                BountyDetailContent(
+                    bounty = state.bounty!!,
+                    taking = state.taking,
+                    takeMessage = state.takeMessage,
+                    errorMessage = state.errorMessage,
+                    onTake = onTake,
+                    onOpenWeb = onOpenWeb,
+                )
+            }
 
-                onRetry =
-                    onRetry,
-            )
+            else -> {
+                BountyDetailError(
+                    message = state.errorMessage ?: "任务不可用",
+                    onRetry = onRetry,
+                )
+            }
         }
     }
 }
+
+
+// MARK: Bounty Detail Content
 
 @Composable
 private fun BountyDetailContent(
@@ -76,76 +95,46 @@ private fun BountyDetailContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(
-                rememberScrollState()
-            )
+            .verticalScroll(rememberScrollState())
             .padding(16.dp),
-
-        verticalArrangement =
-            Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
             text = bounty.title,
-            style = MaterialTheme
-                .typography
-                .headlineSmall,
-            fontWeight =
-                FontWeight.SemiBold,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.SemiBold,
         )
 
         Row(
-            horizontalArrangement =
-                Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = bountyKindLabel(
-                    bounty.kind
-                ),
-                color = MaterialTheme
-                    .colorScheme
-                    .primary,
-                style = MaterialTheme
-                    .typography
-                    .labelLarge,
+                text = bountyKindLabel(bounty.kind),
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.labelLarge,
             )
 
             Text(
-                text = bountyStatusLabel(
-                    bounty.status,
-                ),
-                style = MaterialTheme
-                    .typography
-                    .labelLarge,
+                text = bountyStatusLabel(bounty.status),
+                style = MaterialTheme.typography.labelLarge,
             )
         }
 
         if (bounty.reward.isNotBlank()) {
             Text(
                 text = bounty.reward,
-                style = MaterialTheme
-                    .typography
-                    .titleMedium,
-                fontWeight =
-                    FontWeight.Medium,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Medium,
             )
         }
 
-        if (
-            bounty.deadlineLabel
-                .isNotBlank()
-        ) {
+        if (bounty.deadlineLabel.isNotBlank()) {
             Text(
                 text = "截止：${bounty.deadlineLabel}",
-                color = if (
-                    bounty.expired
-                ) {
-                    MaterialTheme
-                        .colorScheme
-                        .error
+                color = if (bounty.expired) {
+                    MaterialTheme.colorScheme.error
                 } else {
-                    MaterialTheme
-                        .colorScheme
-                        .onSurfaceVariant
+                    MaterialTheme.colorScheme.onSurfaceVariant
                 },
             )
         }
@@ -155,21 +144,15 @@ private fun BountyDetailContent(
         if (bounty.description.isNotBlank()) {
             Text(
                 text = bounty.description,
-                style = MaterialTheme
-                    .typography
-                    .bodyLarge,
+                style = MaterialTheme.typography.bodyLarge,
             )
         }
 
         if (bounty.content.isNotBlank()) {
             Text(
                 text = bounty.content,
-                style = MaterialTheme
-                    .typography
-                    .bodyMedium,
-                color = MaterialTheme
-                    .colorScheme
-                    .onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
@@ -178,53 +161,32 @@ private fun BountyDetailContent(
 
             Text(
                 text = "相关资料",
-                style = MaterialTheme
-                    .typography
-                    .titleMedium,
-                fontWeight =
-                    FontWeight.Medium,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Medium,
             )
 
-            bounty.references.forEach {
-                    reference ->
-
+            bounty.references.forEach { reference ->
                 Text(
-                    text =
-                        reference.label
-                            .ifBlank {
-                                reference.url
-                            },
-
-                    style = MaterialTheme
-                        .typography
-                        .bodyMedium,
-
-                    color = MaterialTheme
-                        .colorScheme
-                        .primary,
+                    text = reference.label.ifBlank {
+                        reference.url
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
         }
 
-        if (
-            !takeMessage.isNullOrBlank()
-        ) {
+        if (!takeMessage.isNullOrBlank()) {
             Text(
                 text = takeMessage,
-                color = MaterialTheme
-                    .colorScheme
-                    .primary,
+                color = MaterialTheme.colorScheme.primary,
             )
         }
 
-        if (
-            !errorMessage.isNullOrBlank()
-        ) {
+        if (!errorMessage.isNullOrBlank()) {
             Text(
                 text = errorMessage,
-                color = MaterialTheme
-                    .colorScheme
-                    .error,
+                color = MaterialTheme.colorScheme.error,
             )
         }
 
@@ -236,113 +198,61 @@ private fun BountyDetailContent(
                     bounty.status == "open"
 
         Button(
-            modifier =
-                Modifier.fillMaxWidth(),
-
-            enabled =
-                takeEnabled,
-
-            onClick =
-                onTake,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = takeEnabled,
+            onClick = onTake,
         ) {
             Text(
-                text =
-                    when {
-                        taking ->
-                            "领取中..."
-
-                        bounty.ownedByMe ->
-                            "这是你发布的任务"
-
-                        bounty.taken ->
-                            "已领取"
-
-                        bounty.expired ->
-                            "已截止"
-
-                        bounty.status != "open" ->
-                            bountyStatusLabel(
-                                bounty.status
-                            )
-
-                        else ->
-                            "领取任务"
-                    }
+                text = when {
+                    taking -> "领取中..."
+                    bounty.ownedByMe -> "这是你发布的任务"
+                    bounty.taken -> "已领取"
+                    bounty.expired -> "已截止"
+                    bounty.status != "open" ->
+                        bountyStatusLabel(bounty.status)
+                    else -> "领取任务"
+                }
             )
         }
 
-        if (
-            bounty.taken &&
-            !bounty.ownedByMe
-        ) {
+        if (bounty.taken && !bounty.ownedByMe) {
             Button(
-                modifier =
-                    Modifier.fillMaxWidth(),
-
-                onClick =
-                    onOpenWeb,
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onOpenWeb,
             ) {
-                Text(
-                    text =
-                        "前往网页版提交"
-                )
+                Text("前往网页版提交")
             }
 
             Text(
-                text =
-                    "成果提交与后续管理请在网页版完成",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodySmall,
-
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .onSurfaceVariant,
+                text = "成果提交与后续管理请在网页版完成",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
-        if (
-            bounty.ownedByMe
-        ) {
+        if (bounty.ownedByMe) {
             Button(
-                modifier =
-                    Modifier.fillMaxWidth(),
-
-                onClick =
-                    onOpenWeb,
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onOpenWeb,
             ) {
-                Text(
-                    text =
-                        "前往网页版管理"
-                )
+                Text("前往网页版管理")
             }
         }
 
-        if (
-            bounty.allowMultipleSubmissions
-        ) {
+        if (bounty.allowMultipleSubmissions) {
             Text(
-                text =
-                    "此任务允许多次提交",
-
-                style = MaterialTheme
-                    .typography
-                    .bodySmall,
-
-                color = MaterialTheme
-                    .colorScheme
-                    .onSurfaceVariant,
+                text = "此任务允许多次提交",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
 }
 
-private fun bountyStatusLabel(
-    status: String,
-): String {
+
+// MARK: Status
+
+private fun bountyStatusLabel(status: String): String {
     return when (status) {
         "open" -> "进行中"
         "resolved" -> "已解决"
@@ -351,40 +261,22 @@ private fun bountyStatusLabel(
     }
 }
 
+
+// MARK: Loading
+
 @Composable
 private fun BountyDetailLoading() {
     Column(
-        modifier =
-            Modifier.fillMaxSize(),
-
-        horizontalAlignment =
-            Alignment.CenterHorizontally,
-
-        verticalArrangement =
-            Arrangement.Center,
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
         CircularProgressIndicator()
     }
 }
 
-@Composable
-private fun BountyCenterMessage(
-    text: String,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
 
-        horizontalAlignment =
-            Alignment.CenterHorizontally,
-
-        verticalArrangement =
-            Arrangement.Center,
-    ) {
-        Text(text)
-    }
-}
+// MARK: Error
 
 @Composable
 private fun BountyDetailError(
@@ -395,28 +287,17 @@ private fun BountyDetailError(
         modifier = Modifier
             .fillMaxSize()
             .padding(24.dp),
-
-        horizontalAlignment =
-            Alignment.CenterHorizontally,
-
-        verticalArrangement =
-            Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
         Text(
             text = message,
-            color = MaterialTheme
-                .colorScheme
-                .error,
+            color = MaterialTheme.colorScheme.error,
         )
 
         Button(
-            modifier =
-                Modifier.padding(
-                    top = 16.dp,
-                ),
-
-            onClick =
-                onRetry,
+            modifier = Modifier.padding(top = 16.dp),
+            onClick = onRetry,
         ) {
             Text("重试")
         }

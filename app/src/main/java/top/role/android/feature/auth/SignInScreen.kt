@@ -29,6 +29,12 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.text.input.VisualTransformation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -77,23 +83,16 @@ fun SignInScreen(
     onPasswordSignIn: () -> Unit,
 
     onBackToPhone: () -> Unit,
+    onContinueToDay: () -> Unit,
 ) {
 
-    var mode by
-    rememberSaveable {
-        mutableStateOf(
-            SignInMode.Password
-        )
+    var mode by rememberSaveable {
+        mutableStateOf(SignInMode.Password)
     }
 
-
-    var pendingAuthAction by
-    remember {
-        mutableStateOf<PendingAuthAction?>(
-            null
-        )
+    var pendingAuthAction by remember {
+        mutableStateOf<PendingAuthAction?>(null)
     }
-
 
     fun performPendingAction(
         action: PendingAuthAction,
@@ -101,258 +100,121 @@ fun SignInScreen(
         when (
             action
         ) {
-
-            PendingAuthAction.SendOtp ->
-                onSendOtp()
-
-            PendingAuthAction.PasswordSignIn ->
-                onPasswordSignIn()
+            PendingAuthAction.SendOtp -> onSendOtp()
+            PendingAuthAction.PasswordSignIn -> onPasswordSignIn()
         }
     }
-
 
     fun requestAuthAction(
         action: PendingAuthAction,
     ) {
-
-        if (
-            hasAcceptedAgreement
-        ) {
-
-            performPendingAction(
-                action
-            )
-
+        if ( hasAcceptedAgreement ) {
+            performPendingAction(action)
         } else {
-
-            pendingAuthAction =
-                action
+            pendingAuthAction = action
         }
     }
 
-
     Box(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .imePadding(),
+        modifier = Modifier.fillMaxSize().imePadding(),
     ) {
 
         Column(
-            modifier =
-                Modifier
+            modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(
-                        rememberScrollState()
-                    )
-                    .padding(
-                        horizontal = 24.dp,
-                    )
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp)
                     .padding(
                         top = 56.dp,
                         bottom = 48.dp,
                     ),
-
-            horizontalAlignment =
-                Alignment.CenterHorizontally,
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
 
-            /*
-             * ------------------------------------------------
-             * Brand
-             * ------------------------------------------------
-             */
-
-            Spacer(
-                modifier =
-                    Modifier.height(
-                        28.dp
-                    )
-            )
-
+            Spacer(modifier = Modifier.height(28.dp))
 
             Text(
-                text =
-                    "TopRole",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .headlineLarge,
-
-                fontWeight =
-                    FontWeight.Bold,
-
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .onBackground,
+                text = "TopRole",
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
             )
 
-
-            Spacer(
-                modifier =
-                    Modifier.height(
-                        8.dp
-                    )
-            )
-
+            Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text =
-                    "登录你的账户",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodyLarge,
-
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .onSurfaceVariant,
+                text = "登录你的账户",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-
-            Spacer(
-                modifier =
-                    Modifier.height(
-                        36.dp
-                    )
-            )
-
-
-            /*
-             * ------------------------------------------------
-             * Login container
-             * ------------------------------------------------
-             */
+            Spacer(modifier = Modifier.height(36.dp))
 
             Column(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .widthIn(
-                            max = 420.dp
-                        ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 420.dp),
             ) {
 
                 SignInModePicker(
-                    mode =
-                        mode,
-
+                    mode = mode,
                     onModeChange = { targetMode ->
-
-                        if (
-                            targetMode !=
-                            mode
-                        ) {
-
-                            mode =
-                                targetMode
-
-                            if (
-                                state.otpSent
-                            ) {
-
+                        if (targetMode != mode) {
+                            mode = targetMode
+                            if (state.otpSent) {
                                 onBackToPhone()
                             }
                         }
                     },
                 )
 
-
-                Spacer(
-                    modifier =
-                        Modifier.height(
-                            16.dp
-                        )
-                )
-
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Card(
-                    modifier =
-                        Modifier.fillMaxWidth(),
-
-                    colors =
-                        CardDefaults.cardColors(
-                            containerColor =
-                                MaterialTheme
-                                    .colorScheme
-                                    .surfaceContainerLow,
-                        ),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    ),
                 ) {
 
                     Column(
-                        modifier =
-                            Modifier.padding(
-                                horizontal = 20.dp,
-                                vertical = 24.dp,
-                            ),
+                        modifier = Modifier.padding(
+                            horizontal = 20.dp,
+                            vertical = 24.dp,
+                        ),
                     ) {
 
-                        when (
-                            mode
-                        ) {
+                        when (mode) {
 
                             SignInMode.Code -> {
-
-                                if (
-                                    !state.otpSent
-                                ) {
+                                if (!state.otpSent) {
 
                                     PhoneOtpStep(
-                                        state =
-                                            state,
-
-                                        onPhoneChange =
-                                            onPhoneChange,
-
+                                        state = state,
+                                        onPhoneChange = onPhoneChange,
                                         onSendOtp = {
-
                                             requestAuthAction(
                                                 PendingAuthAction.SendOtp
                                             )
                                         },
                                     )
-
                                 } else {
-
                                     OtpStep(
-                                        state =
-                                            state,
-
-                                        onCodeChange =
-                                            onCodeChange,
-
-                                        /*
-                                         * 发送验证码之前已经完成协议确认，
-                                         * 因此这里不重复要求确认。
-                                         */
-                                        onSignIn =
-                                            onSignIn,
-
-                                        onBackToPhone =
-                                            onBackToPhone,
+                                        state = state,
+                                        onCodeChange = onCodeChange,
+                                        onSignIn = onSignIn,
+                                        onBackToPhone = onBackToPhone,
                                     )
                                 }
                             }
 
-
                             SignInMode.Password -> {
 
                                 PasswordStep(
-                                    state =
-                                        state,
-
-                                    onPhoneChange =
-                                        onPhoneChange,
-
-                                    onPasswordChange =
-                                        onPasswordChange,
-
+                                    state = state,
+                                    onPhoneChange = onPhoneChange,
+                                    onPasswordChange = onPasswordChange,
                                     onSignIn = {
-
                                         requestAuthAction(
                                             PendingAuthAction.PasswordSignIn
                                         )
@@ -361,118 +223,65 @@ fun SignInScreen(
                             }
                         }
 
-
                         state.errorMessage
-                            ?.takeIf {
-                                it.isNotBlank()
-                            }
+                            ?.takeIf { it.isNotBlank() }
                             ?.let { message ->
 
-                                Spacer(
-                                    modifier =
-                                        Modifier.height(
-                                            16.dp
-                                        )
-                                )
-
+                                Spacer(modifier = Modifier.height(16.dp))
 
                                 Text(
-                                    text =
-                                        message,
-
-                                    style =
-                                        MaterialTheme
-                                            .typography
-                                            .bodySmall,
-
-                                    color =
-                                        MaterialTheme
-                                            .colorScheme
-                                            .error,
+                                    text = message,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
                                 )
                             }
 
-
-                        Spacer(
-                            modifier =
-                                Modifier.height(
-                                    20.dp
-                                )
-                        )
-
+                        Spacer(modifier = Modifier.height(20.dp))
 
                         SignInAgreementText(
-                            hasAcceptedAgreement =
-                                hasAcceptedAgreement,
-
-                            onOpenTerms =
-                                onOpenTerms,
-
-                            onOpenPrivacy =
-                                onOpenPrivacy,
+                            hasAcceptedAgreement = hasAcceptedAgreement,
+                            onOpenTerms = onOpenTerms,
+                            onOpenPrivacy = onOpenPrivacy,
                         )
                     }
                 }
             }
         }
+
+        Text(
+            text = "跳过登录",
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .clickable(onClick = onContinueToDay)
+                .padding(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 20.dp,
+                    bottom = 48.dp,
+                ),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
     }
 
-
-    /*
-     * ------------------------------------------------
-     * Agreement confirmation
-     * ------------------------------------------------
-     */
-
-    if (
-        pendingAuthAction != null
-    ) {
+    if (pendingAuthAction != null) {
 
         AuthAgreementDialog(
-            onDismiss = {
-
-                pendingAuthAction =
-                    null
-            },
-
-            onOpenTerms =
-                onOpenTerms,
-
-            onOpenPrivacy =
-                onOpenPrivacy,
-
+            onDismiss = { pendingAuthAction = null },
+            onOpenTerms = onOpenTerms,
+            onOpenPrivacy = onOpenPrivacy,
             onAgree = {
-
-                val action =
-                    pendingAuthAction
-
-                pendingAuthAction =
-                    null
-
-
-                /*
-                 * DataStore 写入可以异步进行。
-                 *
-                 * 用户点击「同意并继续」本身就已经完成
-                 * 本次明确授权，因此无需等待 Flow 更新后
-                 * 才执行登录动作。
-                 */
+                val action = pendingAuthAction
+                pendingAuthAction = null
                 onAcceptAgreement()
-
-
-                if (
-                    action != null
-                ) {
-
-                    performPendingAction(
-                        action
-                    )
+                if (action != null) {
+                    performPendingAction(action)
                 }
             },
         )
     }
 }
-
 
 @Composable
 private fun SignInModePicker(
@@ -480,60 +289,38 @@ private fun SignInModePicker(
     onModeChange: (SignInMode) -> Unit,
 ) {
 
-    val modes =
-        listOf(
-            SignInMode.Code,
-            SignInMode.Password,
-        )
-
+    val modes = listOf(
+        SignInMode.Code,
+        SignInMode.Password,
+    )
 
     SingleChoiceSegmentedButtonRow(
-        modifier =
-            Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth(),
     ) {
 
-        modes.forEachIndexed {
-                index,
-                item ->
+        modes.forEachIndexed {index, item ->
 
             SegmentedButton(
-                selected =
-                    mode == item,
-
+                selected = mode == item,
                 onClick = {
-                    onModeChange(
-                        item
-                    )
+                    onModeChange(item)
                 },
-
-                shape =
-                    SegmentedButtonDefaults.itemShape(
-                        index =
-                            index,
-
-                        count =
-                            modes.size,
-                    ),
+                shape = SegmentedButtonDefaults.itemShape(
+                    index = index,
+                    count = modes.size,
+                ),
             ) {
 
                 Text(
-                    text =
-                        when (
-                            item
-                        ) {
-
-                            SignInMode.Code ->
-                                "验证码登录"
-
-                            SignInMode.Password ->
-                                "密码登录"
-                        },
+                    text = when (item) {
+                        SignInMode.Code -> "验证码登录"
+                        SignInMode.Password -> "密码登录"
+                    },
                 )
             }
         }
     }
 }
-
 
 @Composable
 private fun PhoneOtpStep(
@@ -543,70 +330,38 @@ private fun PhoneOtpStep(
 ) {
 
     SignInSectionTitle(
-        title =
-            "验证码登录",
-
-        description =
-            "使用手机号接收验证码",
+        title = "验证码登录",
+        description = "使用手机号接收验证码",
     )
 
-
-    Spacer(
-        modifier =
-            Modifier.height(
-                20.dp
-            )
-    )
-
+    Spacer(modifier = Modifier.height(20.dp))
 
     PhoneField(
-        phone =
-            state.phone,
-
-        enabled =
-            !state.isSendingOtp,
-
-        onPhoneChange =
-            onPhoneChange,
+        phone = state.phone,
+        enabled = !state.isSendingOtp,
+        onPhoneChange = onPhoneChange,
     )
 
-
-    Spacer(
-        modifier =
-            Modifier.height(
-                20.dp
-            )
-    )
-
+    Spacer(modifier = Modifier.height(20.dp))
 
     Button(
-        modifier =
-            Modifier.fillMaxWidth(),
-
-        enabled =
-            !state.isSendingOtp &&
-                    state.phone.isNotBlank(),
-
-        onClick =
-            onSendOtp,
+        modifier = Modifier.fillMaxWidth(),
+        enabled = !state.isSendingOtp && state.phone.isNotBlank(),
+        onClick = onSendOtp,
     ) {
 
-        if (
-            state.isSendingOtp
-        ) {
+        if (state.isSendingOtp) {
 
             SmallProgressIndicator()
 
         } else {
 
             Text(
-                text =
-                    "获取验证码",
+                text = "获取验证码",
             )
         }
     }
 }
-
 
 @Composable
 private fun OtpStep(
@@ -617,120 +372,55 @@ private fun OtpStep(
 ) {
 
     SignInSectionTitle(
-        title =
-            "输入验证码",
-
-        description =
-            state.maskedPhone
-                ?.let {
-                    "验证码已发送至 $it"
-                }
-                ?: "请输入收到的短信验证码",
+        title = "输入验证码",
+        description = state.maskedPhone
+            ?.let { "验证码已发送至 $it" }
+            ?: "请输入收到的短信验证码",
     )
 
-
-    Spacer(
-        modifier =
-            Modifier.height(
-                20.dp
-            )
-    )
-
+    Spacer(modifier = Modifier.height(20.dp))
 
     OutlinedTextField(
-        modifier =
-            Modifier.fillMaxWidth(),
-
-        value =
-            state.code,
-
-        onValueChange =
-            onCodeChange,
-
-        enabled =
-            !state.isSigningIn,
-
-        singleLine =
-            true,
-
+        modifier = Modifier.fillMaxWidth(),
+        value = state.code,
+        onValueChange = onCodeChange,
+        enabled = !state.isSigningIn,
+        singleLine = true,
         label = {
-
-            Text(
-                text =
-                    "验证码",
-            )
+            Text( text = "验证码" )
         },
-
-        keyboardOptions =
-            KeyboardOptions(
-                keyboardType =
-                    KeyboardType.Number,
-            ),
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Number,
+        ),
     )
 
-
-    Spacer(
-        modifier =
-            Modifier.height(
-                20.dp
-            )
-    )
-
+    Spacer(modifier = Modifier.height(20.dp))
 
     Button(
-        modifier =
-            Modifier.fillMaxWidth(),
-
-        enabled =
-            !state.isSigningIn &&
-                    state.code.isNotBlank(),
-
-        onClick =
-            onSignIn,
+        modifier = Modifier.fillMaxWidth(),
+        enabled = !state.isSigningIn && state.code.isNotBlank(),
+        onClick = onSignIn,
     ) {
 
-        if (
-            state.isSigningIn
-        ) {
-
+        if (state.isSigningIn) {
             SmallProgressIndicator()
-
         } else {
-
-            Text(
-                text =
-                    "登录",
-            )
+            Text( text = "登录" )
         }
     }
 
-
-    Spacer(
-        modifier =
-            Modifier.height(
-                10.dp
-            )
-    )
-
+    Spacer(modifier = Modifier.height(10.dp))
 
     OutlinedButton(
-        modifier =
-            Modifier.fillMaxWidth(),
-
-        enabled =
-            !state.isSigningIn,
-
-        onClick =
-            onBackToPhone,
+        modifier = Modifier.fillMaxWidth(),
+        enabled = !state.isSigningIn,
+        onClick = onBackToPhone,
     ) {
-
         Text(
-            text =
-                "更换手机号",
+            text = "更换手机号",
         )
     }
 }
-
 
 @Composable
 private fun PasswordStep(
@@ -739,116 +429,85 @@ private fun PasswordStep(
     onPasswordChange: (String) -> Unit,
     onSignIn: () -> Unit,
 ) {
+    var passwordVisible by rememberSaveable {
+        mutableStateOf(false)
+    }
 
     SignInSectionTitle(
-        title =
-            "密码登录",
-
-        description =
-            "使用手机号和密码登录",
+        title = "密码登录",
+        description = "使用手机号和密码登录",
     )
 
-
-    Spacer(
-        modifier =
-            Modifier.height(
-                20.dp
-            )
-    )
-
+    Spacer(modifier = Modifier.height(20.dp))
 
     PhoneField(
-        phone =
-            state.phone,
-
-        enabled =
-            !state.isSigningIn,
-
-        onPhoneChange =
-            onPhoneChange,
+        phone = state.phone,
+        enabled = !state.isSigningIn,
+        onPhoneChange = onPhoneChange,
     )
 
-
-    Spacer(
-        modifier =
-            Modifier.height(
-                14.dp
-            )
-    )
-
+    Spacer(modifier = Modifier.height(14.dp))
 
     OutlinedTextField(
-        modifier =
-            Modifier.fillMaxWidth(),
-
-        value =
-            state.password,
-
-        onValueChange =
-            onPasswordChange,
-
-        enabled =
-            !state.isSigningIn,
-
-        singleLine =
-            true,
-
+        modifier = Modifier.fillMaxWidth(),
+        value = state.password,
+        onValueChange = onPasswordChange,
+        enabled = !state.isSigningIn,
+        singleLine = true,
         label = {
-
-            Text(
-                text =
-                    "密码",
-            )
+            Text(text = "密码")
         },
-
-        visualTransformation =
-            PasswordVisualTransformation(),
-
-        keyboardOptions =
-            KeyboardOptions(
-                keyboardType =
-                    KeyboardType.Password,
-            ),
+        visualTransformation = if (passwordVisible) {
+            VisualTransformation.None
+        } else {
+            PasswordVisualTransformation()
+        },
+        trailingIcon = {
+            IconButton(
+                onClick = {
+                    passwordVisible = !passwordVisible
+                },
+            ) {
+                Icon(
+                    imageVector = if (passwordVisible) {
+                        Icons.Outlined.VisibilityOff
+                    } else {
+                        Icons.Outlined.Visibility
+                    },
+                    contentDescription = if (passwordVisible) {
+                        "隐藏密码"
+                    } else {
+                        "显示密码"
+                    },
+                )
+            }
+        },
+        keyboardOptions = KeyboardOptions(
+            keyboardType = if (passwordVisible) {
+                KeyboardType.Text
+            } else {
+                KeyboardType.Password
+            },
+        ),
     )
 
-
-    Spacer(
-        modifier =
-            Modifier.height(
-                24.dp
-            )
-    )
-
+    Spacer(modifier = Modifier.height(24.dp))
 
     Button(
-        modifier =
-            Modifier.fillMaxWidth(),
-
-        enabled =
-            !state.isSigningIn &&
-                    state.phone.isNotBlank() &&
-                    state.password.isNotBlank(),
-
-        onClick =
-            onSignIn,
+        modifier = Modifier.fillMaxWidth(),
+        enabled = !state.isSigningIn &&
+            state.phone.isNotBlank() &&
+            state.password.isNotBlank(),
+        onClick = onSignIn,
     ) {
 
-        if (
-            state.isSigningIn
-        ) {
-
+        if (state.isSigningIn) {
             SmallProgressIndicator()
-
         } else {
-
-            Text(
-                text =
-                    "登录",
-            )
+            Text( text = "登录" )
         }
     }
 }
-
 
 @Composable
 private fun SignInAgreementText(
@@ -858,142 +517,68 @@ private fun SignInAgreementText(
 ) {
 
     Column(
-        modifier =
-            Modifier.fillMaxWidth(),
-
-        horizontalAlignment =
-            Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
 
         Text(
-            text =
-                if (
-                    hasAcceptedAgreement
-                ) {
-                    "已确认用户协议和隐私政策"
-                } else {
-                    "首次登录需要确认用户协议和隐私政策"
-                },
-
-            style =
-                MaterialTheme
-                    .typography
-                    .bodySmall,
-
-            color =
-                MaterialTheme
-                    .colorScheme
-                    .onSurfaceVariant,
+            text = if (hasAcceptedAgreement) {
+                "已确认用户协议和隐私政策"
+            } else {
+                "首次登录需要确认用户协议和隐私政策"
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-
-        Spacer(
-            modifier =
-                Modifier.height(
-                    4.dp
-                )
-        )
-
+        Spacer(modifier = Modifier.height(4.dp))
 
         Row(
-            verticalAlignment =
-                Alignment.CenterVertically,
+            verticalAlignment =  Alignment.CenterVertically,
         ) {
 
             Text(
-                text =
-                    "查看",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodySmall,
-
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .onSurfaceVariant,
+                text = "查看",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-
             Text(
-                modifier =
-                    Modifier
-                        .clickable(
-                            onClick =
-                                onOpenTerms,
-                        )
-                        .padding(
-                            horizontal = 3.dp,
-                            vertical = 4.dp,
-                        ),
-
-                text =
-                    "《用户协议》",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodySmall,
-
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .primary,
-
-                textDecoration =
-                    TextDecoration.Underline,
+                modifier = Modifier
+                    .clickable(onClick = onOpenTerms)
+                    .padding(
+                        horizontal = 3.dp,
+                        vertical = 4.dp,
+                    ),
+                text = "《用户协议》",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+                textDecoration = TextDecoration.Underline,
             )
 
-
             Text(
-                text =
-                    "和",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodySmall,
-
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .onSurfaceVariant,
+                text = "和",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-
             Text(
-                modifier =
-                    Modifier
-                        .clickable(
-                            onClick =
-                                onOpenPrivacy,
-                        )
-                        .padding(
-                            horizontal = 3.dp,
-                            vertical = 4.dp,
-                        ),
-
-                text =
-                    "《隐私政策》",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodySmall,
-
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .primary,
-
-                textDecoration =
-                    TextDecoration.Underline,
+                modifier = Modifier
+                    .clickable(
+                        onClick = onOpenPrivacy,
+                    )
+                    .padding(
+                        horizontal = 3.dp,
+                        vertical = 4.dp,
+                    ),
+                text = "《隐私政策》",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+                textDecoration = TextDecoration.Underline,
             )
         }
     }
 }
-
 
 @Composable
 private fun AuthAgreementDialog(
@@ -1004,60 +589,39 @@ private fun AuthAgreementDialog(
 ) {
 
     AlertDialog(
-        onDismissRequest =
-            onDismiss,
-
+        onDismissRequest = onDismiss,
         title = {
-
             Text(
-                text =
-                    "用户协议与隐私政策",
+                text = "用户协议与隐私政策",
             )
         },
-
         text = {
 
             Column {
 
                 Text(
-                    text =
-                        "登录 TopRole 前，请阅读并同意用户协议和隐私政策。",
+                    text = "登录 TopRole 前，请阅读并同意用户协议和隐私政策。",
                 )
 
-
-                Spacer(
-                    modifier =
-                        Modifier.height(
-                            12.dp
-                        )
-                )
-
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Row(
-                    verticalAlignment =
-                        Alignment.CenterVertically,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
 
                     TextButton(
-                        onClick =
-                            onOpenTerms,
+                        onClick = onOpenTerms,
                     ) {
-
                         Text(
-                            text =
-                                "用户协议",
+                            text = "用户协议",
                         )
                     }
 
-
                     TextButton(
-                        onClick =
-                            onOpenPrivacy,
+                        onClick = onOpenPrivacy,
                     ) {
-
                         Text(
-                            text =
-                                "隐私政策",
+                            text = "隐私政策",
                         )
                     }
                 }
@@ -1065,35 +629,26 @@ private fun AuthAgreementDialog(
         },
 
         dismissButton = {
-
             TextButton(
-                onClick =
-                    onDismiss,
+                onClick = onDismiss,
             ) {
-
                 Text(
-                    text =
-                        "取消",
+                    text = "取消",
                 )
             }
         },
 
         confirmButton = {
-
             Button(
-                onClick =
-                    onAgree,
+                onClick = onAgree,
             ) {
-
                 Text(
-                    text =
-                        "同意并继续",
+                    text = "同意并继续",
                 )
             }
         },
     )
 }
-
 
 @Composable
 private fun SignInSectionTitle(
@@ -1102,43 +657,19 @@ private fun SignInSectionTitle(
 ) {
 
     Text(
-        text =
-            title,
-
-        style =
-            MaterialTheme
-                .typography
-                .titleLarge,
-
-        fontWeight =
-            FontWeight.SemiBold,
+        text = title,
+        style = MaterialTheme.typography.titleLarge,
+        fontWeight = FontWeight.SemiBold,
     )
 
-
-    Spacer(
-        modifier =
-            Modifier.height(
-                6.dp
-            )
-    )
-
+    Spacer(modifier = Modifier.height(6.dp))
 
     Text(
-        text =
-            description,
-
-        style =
-            MaterialTheme
-                .typography
-                .bodyMedium,
-
-        color =
-            MaterialTheme
-                .colorScheme
-                .onSurfaceVariant,
+        text = description,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
-
 
 @Composable
 private fun PhoneField(
@@ -1148,60 +679,31 @@ private fun PhoneField(
 ) {
 
     OutlinedTextField(
-        modifier =
-            Modifier.fillMaxWidth(),
-
-        value =
-            phone,
-
-        onValueChange =
-            onPhoneChange,
-
-        enabled =
-            enabled,
-
-        singleLine =
-            true,
-
+        modifier = Modifier.fillMaxWidth(),
+        value = phone,
+        onValueChange = onPhoneChange,
+        enabled = enabled,
+        singleLine = true,
         label = {
-
             Text(
-                text =
-                    "手机号",
+                text = "手机号",
             )
         },
-
         prefix = {
-
             Text(
-                text =
-                    "+86 ",
+                text = "+86 ",
             )
         },
-
-        keyboardOptions =
-            KeyboardOptions(
-                keyboardType =
-                    KeyboardType.Phone,
-            ),
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Phone,
+        ),
     )
 }
 
-
 @Composable
 private fun SmallProgressIndicator() {
-
     CircularProgressIndicator(
-        modifier =
-            Modifier
-                .width(
-                    18.dp
-                )
-                .height(
-                    18.dp
-                ),
-
-        strokeWidth =
-            2.dp,
+        modifier = Modifier.width(18.dp).height(18.dp),
+        strokeWidth = 2.dp,
     )
 }

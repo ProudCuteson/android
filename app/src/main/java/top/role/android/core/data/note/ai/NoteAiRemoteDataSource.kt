@@ -10,25 +10,16 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import top.role.android.core.network.ApiConfig
 
 class NoteAiRemoteDataSource(
-    private val httpClient:
-    OkHttpClient,
-
-    private val baseUrl:
-    String =
-        ApiConfig.BASE_URL,
+    private val httpClient: OkHttpClient,
+    private val baseUrl: String = ApiConfig.BASE_URL,
 ) {
-
-    private val json =
-        Json {
-            ignoreUnknownKeys = true
-        }
+    private val json = Json { ignoreUnknownKeys = true }
 
     suspend fun generate(
         input: String,
         mode: NoteAiMode,
     ): NoteAiGenerateResponse {
-        val normalizedInput =
-            input.trim()
+        val normalizedInput = input.trim()
 
         require(
             normalizedInput.isNotEmpty(),
@@ -36,80 +27,46 @@ class NoteAiRemoteDataSource(
             "NOTE_AI_INPUT_REQUIRED"
         }
 
-        val payload =
-            NoteAiGenerateRequest(
-                input =
-                    normalizedInput,
+        val payload = NoteAiGenerateRequest(
+            input = normalizedInput,
+            mode = mode.rawValue,
+        )
 
-                mode =
-                    mode.rawValue,
+        val requestBody = json
+                .encodeToString(payload)
+                .toRequestBody(JSON_MEDIA_TYPE)
+
+        val request = Request.Builder()
+            .url(buildGenerateUrl())
+            .post(requestBody)
+            .header(
+                "Content-Type",
+                "application/json",
             )
-
-        val requestBody =
-            json
-                .encodeToString(
-                    payload,
-                )
-                .toRequestBody(
-                    JSON_MEDIA_TYPE,
-                )
-
-        val request =
-            Request.Builder()
-                .url(
-                    buildGenerateUrl(),
-                )
-                .post(
-                    requestBody,
-                )
-                .header(
-                    "Content-Type",
-                    "application/json",
-                )
-                .build()
+            .build()
 
         return withContext(
             Dispatchers.IO,
         ) {
-            httpClient
-                .newCall(
-                    request,
-                )
+            httpClient.newCall(request)
                 .execute()
                 .use { response ->
-                    val rawBody =
-                        response.body
-                            ?.string()
-                            .orEmpty()
-
-                    val decoded =
-                        runCatching {
-                            json.decodeFromString<
-                                    NoteAiGenerateResponse
-                                    >(
-                                rawBody,
+                    val rawBody = response.body.string()
+                    val decoded = runCatching {
+                            json.decodeFromString<NoteAiGenerateResponse>(rawBody)
+                        }
+                        .getOrElse {
+                            throw IllegalStateException(
+                                "NOTE_AI_INVALID_RESPONSE: " + rawBody.take(300),
+                                it,
                             )
                         }
-                            .getOrElse {
-                                throw IllegalStateException(
-                                    "NOTE_AI_INVALID_RESPONSE: " +
-                                            rawBody.take(
-                                                300,
-                                            ),
-                                    it,
-                                )
-                            }
 
-                    if (
-                        !response.isSuccessful ||
-                        !decoded.ok
-                    ) {
+                    if ( !response.isSuccessful || !decoded.ok ) {
                         throw IllegalStateException(
                             decoded.error
-                                ?.takeIf {
-                                    it.isNotBlank()
-                                }
-                                ?: "NOTE_AI_REQUEST_FAILED"
+                            ?.takeIf { it.isNotBlank() }
+                            ?: "NOTE_AI_REQUEST_FAILED"
                         )
                     }
 
@@ -118,18 +75,13 @@ class NoteAiRemoteDataSource(
         }
     }
 
-    private fun buildGenerateUrl():
-            String {
+    private fun buildGenerateUrl(): String {
         return baseUrl
-            .trimEnd(
-                '/',
-            ) +
-                "/api/ai/note/mobile/generate"
+            .trimEnd('/') + "/api/ai/note/mobile/generate"
     }
 
     private companion object {
-        val JSON_MEDIA_TYPE =
-            "application/json; charset=utf-8"
-                .toMediaType()
+        val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
     }
+
 }

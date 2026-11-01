@@ -16,8 +16,8 @@ enum class MainDestination(
         route = "chat",
         label = "聊天",
     ),
-    Engage(
-        route = "engage",
-        label = "参与",
+    QuickStart(
+        route = "quickstart",
+        label = "探索",
     ),
 }

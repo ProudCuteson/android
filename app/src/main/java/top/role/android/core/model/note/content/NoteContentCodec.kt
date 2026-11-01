@@ -108,6 +108,43 @@ object NoteContentCodec {
         )
     }
 
+    // MARK: - AI text append
+
+    fun appendPlainText(
+        content: BlockContent,
+        text: String,
+    ): BlockContent {
+        val normalized = text
+            .replace("\r\n", "\n")
+            .replace("\r", "\n")
+            .trim()
+
+        if (normalized.isEmpty()) return content
+
+        val newLines = normalized
+            .split("\n")
+            .map { lineText ->
+                BlockLine(
+                    id = UUID.randomUUID().toString(),
+                    variant = "paragraph",
+                    runs = listOf(
+                        BlockRun(
+                            id = UUID.randomUUID().toString(),
+                            text = lineText,
+                        )
+                    ),
+                )
+            }
+
+        return content.copy(
+            lines = content.lines + newLines,
+        )
+    }
+
+    fun stringifyModel(content: BlockContent): String {
+        return json.encodeToString(content)
+    }
+
     // MARK: - Equality
 
     fun sameContent(

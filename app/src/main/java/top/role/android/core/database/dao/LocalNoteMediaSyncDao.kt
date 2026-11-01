@@ -12,13 +12,13 @@ interface LocalNoteMediaSyncDao {
         """
         SELECT *
         FROM local_note_media_sync
-        WHERE ownerUserId = :ownerUserId
+        WHERE localOwnerUserId = :localOwnerUserId
           AND noteLocalKey = :noteLocalKey
         LIMIT 1
         """
     )
     suspend fun findForNote(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteLocalKey: String,
     ): LocalNoteMediaSyncEntity?
 
@@ -26,13 +26,13 @@ interface LocalNoteMediaSyncDao {
         """
         SELECT *
         FROM local_note_media_sync
-        WHERE ownerUserId = :ownerUserId
+        WHERE localOwnerUserId = :localOwnerUserId
           AND noteId = :noteId
         LIMIT 1
         """
     )
     suspend fun findByNoteId(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteId: String,
     ): LocalNoteMediaSyncEntity?
 
@@ -40,14 +40,14 @@ interface LocalNoteMediaSyncDao {
         """
         SELECT *
         FROM local_note_media_sync
-        WHERE ownerUserId = :ownerUserId
+        WHERE localOwnerUserId = :localOwnerUserId
           AND syncStateRaw IN ('pending', 'waiting')
         ORDER BY localUpdatedAt ASC
         LIMIT :limit
         """
     )
     suspend fun findNeedingSync(
-        ownerUserId: String,
+        localOwnerUserId: String,
         limit: Int,
     ): List<LocalNoteMediaSyncEntity>
 
@@ -59,12 +59,12 @@ interface LocalNoteMediaSyncDao {
     @Query(
         """
         DELETE FROM local_note_media_sync
-        WHERE ownerUserId = :ownerUserId
+        WHERE localOwnerUserId = :localOwnerUserId
           AND noteLocalKey = :noteLocalKey
         """
     )
     suspend fun deleteForNote(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteLocalKey: String,
     )
 
@@ -76,12 +76,12 @@ interface LocalNoteMediaSyncDao {
             noteLocalKey = :newNoteLocalKey,
             noteId = :noteId,
             localUpdatedAt = :updatedAt
-        WHERE ownerUserId = :ownerUserId
+        WHERE localOwnerUserId = :localOwnerUserId
           AND noteLocalKey = :oldNoteLocalKey
         """
     )
     suspend fun rebindNote(
-        ownerUserId: String,
+        localOwnerUserId: String,
         oldNoteLocalKey: String,
         newNoteLocalKey: String,
         newSyncKey: String,
@@ -99,12 +99,37 @@ interface LocalNoteMediaSyncDao {
         SET
             syncStateRaw = 'waiting',
             localUpdatedAt = :updatedAt
-        WHERE ownerUserId = :ownerUserId
+        WHERE localOwnerUserId = :localOwnerUserId
           AND syncStateRaw = 'syncing'
         """
     )
     suspend fun resetInterruptedSync(
-        ownerUserId: String,
+        localOwnerUserId: String,
         updatedAt: Long,
     )
+
+    // 认领 -- Start
+
+    @Query(
+        """
+    UPDATE local_note_media_sync
+    SET syncKey = :newSyncKey,
+        localOwnerUserId = :accountUserId,
+        noteLocalKey = :newNoteLocalKey,
+        localUpdatedAt = :updatedAt
+    WHERE localOwnerUserId = :guestLocalOwnerId
+      AND noteLocalKey = :oldNoteLocalKey
+    """
+    )
+    suspend fun transferNoteMediaSync(
+        guestLocalOwnerId: String,
+        accountUserId: String,
+        oldNoteLocalKey: String,
+        newNoteLocalKey: String,
+        newSyncKey: String,
+        updatedAt: Long,
+    ): Int
+
+    // 认领 -- End
+
 }

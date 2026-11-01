@@ -31,6 +31,7 @@ import top.role.android.app.navigation.MarketDetailRoute
 import top.role.android.app.navigation.MarketListRoute
 import top.role.android.app.navigation.MarketOrderListRoute
 import top.role.android.app.navigation.MarketOrderDetailRoute
+import top.role.android.app.navigation.SettingsRoute
 
 data class MainShellState(
     val title: String,
@@ -43,14 +44,13 @@ data class MainShellState(
     val showCreateGroup: Boolean = false,
     val showMarketOrders: Boolean = false,
     val showBottomBar: Boolean = false,
+    val showSettings: Boolean = false,
+    val showAdoption: Boolean = false,
 )
 
 fun resolveMainShellState(
-    route:
-    String?,
-
-    spaceListMode:
-    SpaceListMode?,
+    route: String?,
+    spaceListMode: SpaceListMode?,
 ): MainShellState {
 
     if (route == null) {
@@ -71,7 +71,7 @@ fun resolveMainShellState(
                 title = "记录",
                 showTopBar = true,
                 showLibrary = true,
-                showAccount = true,
+                showAdoption = true,
                 showBottomBar = true,
             )
 
@@ -91,11 +91,13 @@ fun resolveMainShellState(
                 showBottomBar = true,
             )
 
-        MainDestination.Engage.route ->
+        MainDestination.QuickStart.route ->
             MainShellState(
-                title = "参与",
+                title = "探索",
                 showTopBar = true,
                 showBottomBar = true,
+                showAccount = true,
+                showSettings = true,
             )
 
         /*
@@ -156,6 +158,9 @@ fun resolveMainShellState(
 
         AccountPasswordRoute.route ->
             detailShell( title = "账户安全")
+
+        SettingsRoute.route ->
+            detailShell(title = "设置")
 
         /*
          * ------------------------------------------------

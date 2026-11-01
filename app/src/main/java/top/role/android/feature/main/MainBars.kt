@@ -15,6 +15,8 @@ import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material.icons.outlined.Today
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -26,6 +28,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import top.role.android.app.navigation.MainDestination
@@ -49,8 +53,8 @@ private val mainNavigationItems = listOf(
             icon = Icons.Outlined.ChatBubbleOutline,
         ),
         MainNavigationItem(
-            destination = MainDestination.Engage,
-            icon = Icons.Outlined.TaskAlt,
+            destination = MainDestination.QuickStart,
+            icon = Icons.Outlined.GridView,
         ),
     )
 
@@ -65,6 +69,9 @@ fun MainTopBar(
     onAddFriend: () -> Unit,
     onCreateGroup: () -> Unit,
     onMarketOrders: () -> Unit,
+    onSettings: () -> Unit,
+    onAdoption: () -> Unit,
+    adoptionCount: Int,
 ) {
     TopAppBar(
         title = {
@@ -89,6 +96,23 @@ fun MainTopBar(
                         imageVector = Icons.AutoMirrored.Outlined.LibraryBooks,
                         contentDescription = "记录库",
                     )
+                }
+            }
+
+            if (state.showAdoption) {
+                IconButton(onClick = onAdoption) {
+                    BadgedBox(
+                        badge = {
+                            Badge {
+                                Text(text = adoptionCount.toString())
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.TaskAlt,
+                            contentDescription = "认领笔记",
+                        )
+                    }
                 }
             }
 
@@ -144,6 +168,15 @@ fun MainTopBar(
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                 )
+            }
+
+            if (state.showSettings) {
+                IconButton(onClick = onSettings) {
+                    Icon(
+                        imageVector = Icons.Outlined.Settings,
+                        contentDescription = "设置",
+                    )
+                }
             }
 
         },

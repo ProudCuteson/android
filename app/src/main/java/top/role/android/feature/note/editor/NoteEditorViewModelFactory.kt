@@ -8,7 +8,7 @@ import top.role.android.core.data.note.NoteLocalRepository
 import top.role.android.core.data.note.ai.NoteAiRemoteDataSource
 
 class NoteEditorViewModelFactory(
-    private val ownerUserId: String,
+    private val localOwnerUserId: String,
 
     private val noteLocalRepository:
     NoteLocalRepository,
@@ -39,35 +39,16 @@ class NoteEditorViewModelFactory(
             )
         ) {
             return NoteEditorViewModel(
-                ownerUserId =
-                    ownerUserId,
-
-                noteLocalRepository =
-                    noteLocalRepository,
-
-                noteAiRemoteDataSource =
-                    noteAiRemoteDataSource,
-
-                noteImageService =
-                    noteImageService,
-
-                imageRepository =
-                    imageRepository,
-
-                initialLocalKey =
-                    initialLocalKey,
-
-                initialDayKey =
-                    initialDayKey,
-
-                openAsDayOnly =
-                    openAsDayOnly,
-
-                createAsNormal =
-                    createAsNormal,
-
-                createAsDated =
-                    createAsDated,
+                localOwnerUserId = localOwnerUserId,
+                noteLocalRepository = noteLocalRepository,
+                noteAiRemoteDataSource = noteAiRemoteDataSource,
+                noteImageService = noteImageService,
+                imageRepository = imageRepository,
+                initialLocalKey = initialLocalKey,
+                initialDayKey = initialDayKey,
+                openAsDayOnly = openAsDayOnly,
+                createAsNormal = createAsNormal,
+                createAsDated = createAsDated,
             ) as T
         }
 

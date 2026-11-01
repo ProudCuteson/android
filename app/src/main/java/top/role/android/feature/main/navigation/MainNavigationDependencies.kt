@@ -1,5 +1,6 @@
 package top.role.android.feature.main.navigation
 
+import top.role.android.core.auth.AuthState
 import top.role.android.core.data.image.ImageRepository
 import top.role.android.feature.discover.DiscoverRepository
 import top.role.android.feature.discover.content.ContentListRepository
@@ -11,10 +12,12 @@ import top.role.android.feature.slide.SlideDetailRepository
 import top.role.android.feature.topic.TopicDetailRepository
 import top.role.android.core.data.note.NoteLocalRepository
 import top.role.android.core.data.image.NoteImageService
+import top.role.android.core.data.note.NoteAdoptionLocalRepository
 import top.role.android.core.data.note.ai.NoteAiRemoteDataSource
 import top.role.android.core.payment.WechatPayLauncher
 import top.role.android.feature.account.AccountRepository
 import top.role.android.feature.account.password.AccountPasswordRepository
+import top.role.android.feature.banner.BannerRepository
 import top.role.android.feature.chat.conversationlist.ChatConversationListRepository
 import top.role.android.feature.chat.conversation.ChatConversationRepository
 import top.role.android.feature.chat.friends.ChatFriendsRepository
@@ -34,7 +37,7 @@ import top.role.android.feature.credit.CreditsRepository
 
 data class MainNavigationDependencies(
     val localOwnerUserId: String,
-    val remoteAuthenticated: Boolean,
+    val authState: AuthState,
     val remoteOnline: Boolean,
     val noteLocalRepository: NoteLocalRepository,
     val noteAiRemoteDataSource:NoteAiRemoteDataSource,
@@ -67,4 +70,6 @@ data class MainNavigationDependencies(
     val accountRepository: AccountRepository,
     val accountPasswordRepository: AccountPasswordRepository,
     val creditsRepository: CreditsRepository,
-    )
+    val noteAdoptionLocalRepository: NoteAdoptionLocalRepository,
+    val bannerRepository: BannerRepository,
+)

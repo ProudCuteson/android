@@ -15,46 +15,31 @@ import top.role.android.core.model.note.content.NoteContentCodec
             unique = true,
         ),
         Index(
-            value = ["ownerUserId"],
+            value = ["localOwnerUserId"],
         ),
         Index(
-            value = [
-                "ownerUserId",
-                "noteId",
-            ],
+            value = ["localOwnerUserId", "noteId"],
         ),
         Index(
-            value = [
-                "ownerUserId",
-                "clientKey",
-            ],
+            value = ["localOwnerUserId", "clientKey"],
         ),
         Index(
-            value = [
-                "ownerUserId",
-                "dayKey",
-            ],
+            value = ["localOwnerUserId", "dayKey"],
         ),
         Index(
-            value = [
-                "ownerUserId",
-                "onlyDay",
-                "dayKey",
-            ],
+            value = ["localOwnerUserId", "onlyDay", "dayKey"],
         ),
         Index(
-            value = [
-                "ownerUserId",
-                "syncState",
-            ],
+            value = ["localOwnerUserId", "syncState"],
         ),
     ],
 )
+
 data class LocalNoteEntity(
     @PrimaryKey(autoGenerate = true)
     val rowId: Long = 0,
     val localKey: String,
-    val ownerUserId: String?,
+    val localOwnerUserId: String,
     val noteId: String?,
     val clientKey: String,
     val dayKey: String?,
@@ -91,9 +76,6 @@ data class LocalNoteEntity(
 
     val lastSyncError: String?,
 )
-
-val LocalNoteEntity.hasOwner: Boolean
-    get() = !ownerUserId.isNullOrBlank()
 
 val LocalNoteEntity.hasUnsyncedContentChanges: Boolean
     get() {

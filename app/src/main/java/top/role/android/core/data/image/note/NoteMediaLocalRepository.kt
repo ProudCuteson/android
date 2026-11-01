@@ -14,107 +14,69 @@ class NoteMediaLocalRepository(
     LocalNoteMediaSyncDao,
 ) {
 
-    private val json =
-        Json {
-            ignoreUnknownKeys = true
-        }
+    private val json = Json { ignoreUnknownKeys = true }
 
     // MARK: - Read
 
     suspend fun findForNote(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteLocalKey: String,
     ): LocalNoteMediaSyncEntity? {
-        requireOwnerUserId(
-            ownerUserId,
-        )
-
-        requireNoteLocalKey(
-            noteLocalKey,
-        )
+        requireOwnerUserId(localOwnerUserId)
+        requireNoteLocalKey(noteLocalKey)
 
         return dao.findForNote(
-            ownerUserId =
-                ownerUserId,
-
-            noteLocalKey =
-                noteLocalKey,
+            localOwnerUserId = localOwnerUserId,
+            noteLocalKey = noteLocalKey,
         )
     }
 
     suspend fun findByNoteId(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteId: String,
     ): LocalNoteMediaSyncEntity? {
-        requireOwnerUserId(
-            ownerUserId,
-        )
-
-        require(
-            noteId.isNotBlank(),
-        ) {
+        requireOwnerUserId(localOwnerUserId)
+        require(noteId.isNotBlank()) {
             "NOTE_ID_REQUIRED"
         }
 
         return dao.findByNoteId(
-            ownerUserId =
-                ownerUserId,
-
-            noteId =
-                noteId,
+            localOwnerUserId = localOwnerUserId,
+            noteId = noteId,
         )
     }
 
     suspend fun findNeedingSync(
-        ownerUserId: String,
+        localOwnerUserId: String,
         limit: Int = 50,
     ): List<LocalNoteMediaSyncEntity> {
-        requireOwnerUserId(
-            ownerUserId,
-        )
-
-        require(
-            limit > 0,
-        ) {
+        requireOwnerUserId(localOwnerUserId)
+        require(limit > 0) {
             "MEDIA_SYNC_LIMIT_INVALID"
         }
 
         return dao.findNeedingSync(
-            ownerUserId =
-                ownerUserId,
-
-            limit =
-                limit,
+            localOwnerUserId = localOwnerUserId,
+            limit = limit,
         )
     }
 
     // MARK: - Ensure
 
     suspend fun ensureState(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteLocalKey: String,
         noteId: String? = null,
     ): LocalNoteMediaSyncEntity {
-        requireOwnerUserId(
-            ownerUserId,
+        requireOwnerUserId(localOwnerUserId)
+        requireNoteLocalKey(noteLocalKey)
+
+        val existing = dao.findForNote(
+            localOwnerUserId = localOwnerUserId,
+            noteLocalKey = noteLocalKey,
         )
 
-        requireNoteLocalKey(
-            noteLocalKey,
-        )
-
-        val existing =
-            dao.findForNote(
-                ownerUserId =
-                    ownerUserId,
-
-                noteLocalKey =
-                    noteLocalKey,
-            )
-
-        if (
-            existing != null
-        ) {
+        if (existing != null) {
             /*
              * Note 后来获得正式 noteId，
              * 但 localKey 尚未变化的场景。
@@ -123,19 +85,12 @@ class NoteMediaLocalRepository(
                 existing.noteId.isNullOrBlank() &&
                 !noteId.isNullOrBlank()
             ) {
-                val updated =
-                    existing.copy(
-                        noteId =
-                            noteId,
-
-                        localUpdatedAt =
-                            System.currentTimeMillis(),
-                    )
-
-                dao.upsert(
-                    entity =
-                        updated,
+                val updated = existing.copy(
+                    noteId = noteId,
+                    localUpdatedAt = System.currentTimeMillis(),
                 )
+
+                dao.upsert(entity = updated)
 
                 return updated
             }
@@ -143,60 +98,28 @@ class NoteMediaLocalRepository(
             return existing
         }
 
-        val now =
-            System.currentTimeMillis()
+        val now = System.currentTimeMillis()
 
-        val created =
-            LocalNoteMediaSyncEntity(
-                syncKey =
-                    makeSyncKey(
-                        ownerUserId =
-                            ownerUserId,
+        val created = LocalNoteMediaSyncEntity(
+            syncKey = makeSyncKey(
+                localOwnerUserId = localOwnerUserId,
+                noteLocalKey =  noteLocalKey,
+            ),
 
-                        noteLocalKey =
-                            noteLocalKey,
-                    ),
+            localOwnerUserId = localOwnerUserId,
+            noteLocalKey = noteLocalKey,
 
-                ownerUserId =
-                    ownerUserId,
-
-                noteLocalKey =
-                    noteLocalKey,
-
-                noteId =
-                    noteId
-                        ?.takeIf {
-                            it.isNotBlank()
-                        },
-
-                remoteVersion =
-                    null,
-
-                remoteUpdatedAt =
-                    null,
-
-                syncStateRaw =
-                    NoteMediaSyncState
-                        .Synced
-                        .rawValue,
-
-                pendingSnapshotJson =
-                    null,
-
-                conflictSnapshotJson =
-                    null,
-
-                lastSyncError =
-                    null,
-
-                localUpdatedAt =
-                    now,
-            )
-
-        dao.upsert(
-            entity =
-                created,
+            noteId = noteId ?.takeIf { it.isNotBlank() },
+            remoteVersion = null,
+            remoteUpdatedAt = null,
+            syncStateRaw = NoteMediaSyncState.Synced.rawValue,
+            pendingSnapshotJson = null,
+            conflictSnapshotJson = null,
+            lastSyncError = null,
+            localUpdatedAt = now,
         )
+
+        dao.upsert(entity = created)
 
         return created
     }
@@ -204,59 +127,35 @@ class NoteMediaLocalRepository(
     // MARK: - Pending
 
     suspend fun markPending(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteLocalKey: String,
         noteId: String? = null,
     ): LocalNoteMediaSyncEntity {
-        val state =
-            ensureState(
-                ownerUserId =
-                    ownerUserId,
-
-                noteLocalKey =
-                    noteLocalKey,
-
-                noteId =
-                    noteId,
-            )
+        val state = ensureState(
+            localOwnerUserId = localOwnerUserId,
+            noteLocalKey = noteLocalKey,
+            noteId = noteId,
+        )
 
         val nextState =
             when (
                 state.syncState
             ) {
-                NoteMediaSyncState.Syncing ->
-                    NoteMediaSyncState.Syncing
-
-                NoteMediaSyncState.Conflict ->
-                    NoteMediaSyncState.Conflict
-
-                else ->
-                    NoteMediaSyncState.Pending
+                NoteMediaSyncState.Syncing -> NoteMediaSyncState.Syncing
+                NoteMediaSyncState.Conflict -> NoteMediaSyncState.Conflict
+                else -> NoteMediaSyncState.Pending
             }
 
-        val updated =
-            state.copy(
-                noteId =
-                    noteId
-                        ?.takeIf {
-                            it.isNotBlank()
-                        }
-                        ?: state.noteId,
-
-                syncStateRaw =
-                    nextState.rawValue,
-
-                lastSyncError =
-                    null,
-
-                localUpdatedAt =
-                    System.currentTimeMillis(),
-            )
-
-        dao.upsert(
-            entity =
-                updated,
+        val updated = state.copy(
+            noteId = noteId
+                ?.takeIf { it.isNotBlank() }
+                ?: state.noteId,
+            syncStateRaw = nextState.rawValue,
+            lastSyncError = null,
+            localUpdatedAt = System.currentTimeMillis(),
         )
+
+        dao.upsert(entity = updated)
 
         return updated
     }
@@ -264,36 +163,22 @@ class NoteMediaLocalRepository(
     // MARK: - Prepare push
 
     suspend fun preparePendingSnapshot(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteLocalKey: String,
         noteId: String,
         currentMedia: List<PersistedNoteMediaItem>,
     ): PreparedNoteMediaPush? {
-        requireOwnerUserId(
-            ownerUserId,
-        )
-
-        requireNoteLocalKey(
-            noteLocalKey,
-        )
-
-        require(
-            noteId.isNotBlank(),
-        ) {
+        requireOwnerUserId(localOwnerUserId)
+        requireNoteLocalKey(noteLocalKey)
+        require(noteId.isNotBlank()) {
             "NOTE_ID_REQUIRED"
         }
 
-        val state =
-            ensureState(
-                ownerUserId =
-                    ownerUserId,
-
-                noteLocalKey =
-                    noteLocalKey,
-
-                noteId =
-                    noteId,
-            )
+        val state = ensureState(
+            localOwnerUserId = localOwnerUserId,
+            noteLocalKey = noteLocalKey,
+            noteId = noteId,
+        )
 
         if (
             state.syncState ==
@@ -309,104 +194,55 @@ class NoteMediaLocalRepository(
             return null
         }
 
-        val existingSnapshot =
-            decodePendingSnapshot(
-                state.pendingSnapshotJson,
+        val existingSnapshot = decodePendingSnapshot(
+            state.pendingSnapshotJson,
+        )
+
+        if (existingSnapshot != null) {
+            val syncing = state.copy(
+                noteId = noteId,
+                syncStateRaw = NoteMediaSyncState.Syncing.rawValue,
+                lastSyncError = null,
             )
 
-        if (
-            existingSnapshot != null
-        ) {
-            val syncing =
-                state.copy(
-                    noteId =
-                        noteId,
-
-                    syncStateRaw =
-                        NoteMediaSyncState
-                            .Syncing
-                            .rawValue,
-
-                    lastSyncError =
-                        null,
-                )
-
-            dao.upsert(
-                entity =
-                    syncing,
-            )
+            dao.upsert(entity = syncing)
 
             return PreparedNoteMediaPush(
-                state =
-                    syncing,
-
-                snapshot =
-                    existingSnapshot,
+                state = syncing,
+                snapshot = existingSnapshot,
             )
         }
 
-        val normalizedMedia =
-            normalizeMedia(
-                currentMedia,
-            )
+        val normalizedMedia = normalizeMedia(currentMedia)
 
-        val snapshot =
-            PersistedNoteMediaSyncSnapshot(
-                requestId =
-                    UUID
-                        .randomUUID()
-                        .toString(),
-
-                noteId =
-                    noteId,
-
-                baseVersion =
-                    state.remoteVersion,
-
-                media =
-                    normalizedMedia,
-            )
-
-        val encoded =
-            json.encodeToString(
-                snapshot,
-            )
-
-        val syncing =
-            state.copy(
-                noteId =
-                    noteId,
-
-                syncStateRaw =
-                    NoteMediaSyncState
-                        .Syncing
-                        .rawValue,
-
-                pendingSnapshotJson =
-                    encoded,
-
-                lastSyncError =
-                    null,
-            )
-
-        dao.upsert(
-            entity =
-                syncing,
+        val snapshot = PersistedNoteMediaSyncSnapshot(
+            requestId = UUID.randomUUID().toString(),
+            noteId = noteId,
+            baseVersion = state.remoteVersion,
+            media = normalizedMedia,
         )
 
-        return PreparedNoteMediaPush(
-            state =
-                syncing,
+        val encoded = json.encodeToString(snapshot)
 
-            snapshot =
-                snapshot,
+        val syncing = state.copy(
+            noteId = noteId,
+            syncStateRaw = NoteMediaSyncState.Syncing.rawValue,
+            pendingSnapshotJson = encoded,
+            lastSyncError = null,
+        )
+
+        dao.upsert(entity = syncing)
+
+        return PreparedNoteMediaPush(
+            state = syncing,
+            snapshot = snapshot,
         )
     }
 
     // MARK: - Push success
 
     suspend fun applyPushSuccess(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteLocalKey: String,
         sentSnapshot: PersistedNoteMediaSyncSnapshot,
         remoteVersion: Long,
@@ -415,11 +251,8 @@ class NoteMediaLocalRepository(
     ) {
         val current =
             dao.findForNote(
-                ownerUserId =
-                    ownerUserId,
-
-                noteLocalKey =
-                    noteLocalKey,
+                localOwnerUserId = localOwnerUserId,
+                noteLocalKey = noteLocalKey,
             )
                 ?: return
 
@@ -457,74 +290,40 @@ class NoteMediaLocalRepository(
                 unchangedSinceSend
             ) {
                 current.copy(
-                    remoteVersion =
-                        remoteVersion,
-
-                    remoteUpdatedAt =
-                        remoteUpdatedAt,
-
-                    syncStateRaw =
-                        NoteMediaSyncState
-                            .Synced
-                            .rawValue,
-
-                    pendingSnapshotJson =
-                        null,
-
-                    conflictSnapshotJson =
-                        null,
-
-                    lastSyncError =
-                        null,
+                    remoteVersion = remoteVersion,
+                    remoteUpdatedAt = remoteUpdatedAt,
+                    syncStateRaw = NoteMediaSyncState.Synced.rawValue,
+                    pendingSnapshotJson = null,
+                    conflictSnapshotJson = null,
+                    lastSyncError = null,
                 )
             } else {
                 current.copy(
-                    remoteVersion =
-                        remoteVersion,
-
-                    remoteUpdatedAt =
-                        remoteUpdatedAt,
-
-                    syncStateRaw =
-                        NoteMediaSyncState
-                            .Pending
-                            .rawValue,
-
-                    pendingSnapshotJson =
-                        null,
-
-                    conflictSnapshotJson =
-                        null,
-
-                    lastSyncError =
-                        null,
-
-                    localUpdatedAt =
-                        System.currentTimeMillis(),
+                    remoteVersion = remoteVersion,
+                    remoteUpdatedAt = remoteUpdatedAt,
+                    syncStateRaw = NoteMediaSyncState.Pending.rawValue,
+                    pendingSnapshotJson = null,
+                    conflictSnapshotJson = null,
+                    lastSyncError = null,
+                    localUpdatedAt = System.currentTimeMillis(),
                 )
             }
 
-        dao.upsert(
-            entity =
-                updated,
-        )
+        dao.upsert(entity = updated)
     }
 
     // MARK: - Push failure
 
     suspend fun applyRetryableFailure(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteLocalKey: String,
         sentSnapshot: PersistedNoteMediaSyncSnapshot,
         message: String?,
     ) {
         val current =
             dao.findForNote(
-                ownerUserId =
-                    ownerUserId,
-
-                noteLocalKey =
-                    noteLocalKey,
+                localOwnerUserId = localOwnerUserId,
+                noteLocalKey = noteLocalKey,
             )
                 ?: return
 
@@ -559,18 +358,15 @@ class NoteMediaLocalRepository(
     // MARK: - Conflict
 
     suspend fun markConflict(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteLocalKey: String,
         remote: PersistedNoteMediaConflictSnapshot,
         message: String?,
     ) {
         val current =
             dao.findForNote(
-                ownerUserId =
-                    ownerUserId,
-
-                noteLocalKey =
-                    noteLocalKey,
+                localOwnerUserId = localOwnerUserId,
+                noteLocalKey = noteLocalKey,
             )
                 ?: return
 
@@ -610,17 +406,14 @@ class NoteMediaLocalRepository(
     }
 
     suspend fun markConflictWithoutSnapshot(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteLocalKey: String,
         message: String?,
     ) {
         val current =
             dao.findForNote(
-                ownerUserId =
-                    ownerUserId,
-
-                noteLocalKey =
-                    noteLocalKey,
+                localOwnerUserId = localOwnerUserId,
+                noteLocalKey = noteLocalKey,
             )
                 ?: return
 
@@ -647,15 +440,13 @@ class NoteMediaLocalRepository(
     }
 
     suspend fun applyAuthoritativeRemote(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteLocalKey: String,
         noteId: String,
         remoteVersion: Long,
         remoteUpdatedAt: Long,
     ) {
-        requireOwnerUserId(
-            ownerUserId,
-        )
+        requireOwnerUserId(localOwnerUserId)
 
         requireNoteLocalKey(
             noteLocalKey,
@@ -669,8 +460,8 @@ class NoteMediaLocalRepository(
 
         val current =
             ensureState(
-                ownerUserId =
-                    ownerUserId,
+                localOwnerUserId =
+                    localOwnerUserId,
 
                 noteLocalKey =
                     noteLocalKey,
@@ -712,14 +503,14 @@ class NoteMediaLocalRepository(
     }
 
     suspend fun adoptRemoteBaselinePreservingLocal(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteLocalKey: String,
         noteId: String,
         remoteVersion: Long,
         remoteUpdatedAt: Long,
     ) {
         requireOwnerUserId(
-            ownerUserId,
+            localOwnerUserId,
         )
 
         requireNoteLocalKey(
@@ -734,11 +525,8 @@ class NoteMediaLocalRepository(
 
         val current =
             findForNote(
-                ownerUserId =
-                    ownerUserId,
-
-                noteLocalKey =
-                    noteLocalKey,
+                localOwnerUserId = localOwnerUserId,
+                noteLocalKey = noteLocalKey,
             )
                 ?: return
 
@@ -791,37 +579,22 @@ class NoteMediaLocalRepository(
      * Media state 同样必须收敛 localKey。
      */
     suspend fun rebindNote(
-        ownerUserId: String,
+        localOwnerUserId: String,
         oldNoteLocalKey: String,
         newNoteLocalKey: String,
         noteId: String?,
     ) {
-        requireOwnerUserId(
-            ownerUserId,
-        )
+        requireOwnerUserId(localOwnerUserId)
+        requireNoteLocalKey(oldNoteLocalKey)
+        requireNoteLocalKey(newNoteLocalKey)
 
-        requireNoteLocalKey(
-            oldNoteLocalKey,
-        )
-
-        requireNoteLocalKey(
-            newNoteLocalKey,
-        )
-
-        if (
-            oldNoteLocalKey ==
-            newNoteLocalKey
-        ) {
+        if (oldNoteLocalKey == newNoteLocalKey) {
             /*
              * key 没变但 noteId 可能刚刚建立。
              */
-            val existing =
-                dao.findForNote(
-                    ownerUserId =
-                        ownerUserId,
-
-                    noteLocalKey =
-                        newNoteLocalKey,
+            val existing = dao.findForNote(
+                localOwnerUserId = localOwnerUserId,
+                noteLocalKey = newNoteLocalKey,
                 )
                     ?: return
 
@@ -846,11 +619,8 @@ class NoteMediaLocalRepository(
 
         val existing =
             dao.findForNote(
-                ownerUserId =
-                    ownerUserId,
-
-                noteLocalKey =
-                    oldNoteLocalKey,
+                localOwnerUserId = localOwnerUserId,
+                noteLocalKey = oldNoteLocalKey,
             )
                 ?: return
 
@@ -858,15 +628,11 @@ class NoteMediaLocalRepository(
             existing.copy(
                 syncKey =
                     makeSyncKey(
-                        ownerUserId =
-                            ownerUserId,
-
-                        noteLocalKey =
-                            newNoteLocalKey,
+                        localOwnerUserId =  localOwnerUserId,
+                        noteLocalKey = newNoteLocalKey,
                     ),
 
-                noteLocalKey =
-                    newNoteLocalKey,
+                noteLocalKey = newNoteLocalKey,
 
                 noteId =
                     noteId
@@ -886,8 +652,8 @@ class NoteMediaLocalRepository(
          * 所以 DAO 的 rebindNote() 更合适。
          */
         dao.rebindNote(
-            ownerUserId =
-                ownerUserId,
+            localOwnerUserId =
+                localOwnerUserId,
 
             oldNoteLocalKey =
                 oldNoteLocalKey,
@@ -909,15 +675,15 @@ class NoteMediaLocalRepository(
     // MARK: - Recovery
 
     suspend fun resetInterruptedSync(
-        ownerUserId: String,
+        localOwnerUserId: String,
     ) {
         requireOwnerUserId(
-            ownerUserId,
+            localOwnerUserId,
         )
 
         dao.resetInterruptedSync(
-            ownerUserId =
-                ownerUserId,
+            localOwnerUserId =
+                localOwnerUserId,
 
             updatedAt =
                 System.currentTimeMillis(),
@@ -927,12 +693,12 @@ class NoteMediaLocalRepository(
     // MARK: - Cleanup
 
     suspend fun deleteForNote(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteLocalKey: String,
     ) {
         dao.deleteForNote(
-            ownerUserId =
-                ownerUserId,
+            localOwnerUserId =
+                localOwnerUserId,
 
             noteLocalKey =
                 noteLocalKey,
@@ -952,22 +718,6 @@ class NoteMediaLocalRepository(
 
         return json.decodeFromString<
                 PersistedNoteMediaSyncSnapshot
-                >(
-            value,
-        )
-    }
-
-    fun decodeConflictSnapshot(
-        value: String?,
-    ): PersistedNoteMediaConflictSnapshot? {
-        if (
-            value.isNullOrBlank()
-        ) {
-            return null
-        }
-
-        return json.decodeFromString<
-                PersistedNoteMediaConflictSnapshot
                 >(
             value,
         )
@@ -995,17 +745,17 @@ class NoteMediaLocalRepository(
     }
 
     private fun makeSyncKey(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteLocalKey: String,
     ): String {
-        return "user:$ownerUserId:note-media:$noteLocalKey"
+        return "user:$localOwnerUserId:note-media:$noteLocalKey"
     }
 
     private fun requireOwnerUserId(
-        ownerUserId: String,
+        localOwnerUserId: String,
     ) {
         require(
-            ownerUserId.isNotBlank(),
+            localOwnerUserId.isNotBlank(),
         ) {
             "OWNER_USER_ID_REQUIRED"
         }
@@ -1035,9 +785,6 @@ class NoteMediaLocalRepository(
 }
 
 data class PreparedNoteMediaPush(
-    val state:
-    LocalNoteMediaSyncEntity,
-
-    val snapshot:
-    PersistedNoteMediaSyncSnapshot,
+    val state: LocalNoteMediaSyncEntity,
+    val snapshot: PersistedNoteMediaSyncSnapshot,
 )

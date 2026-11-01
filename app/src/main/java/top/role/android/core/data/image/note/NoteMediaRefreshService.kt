@@ -86,13 +86,13 @@ class NoteMediaRefreshService(
      * - Media push
      */
     suspend fun refreshOne(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteLocalKey: String,
         noteId: String,
     ): Result<NoteMediaRefreshResult> {
         return runCatching {
             require(
-                ownerUserId.isNotBlank(),
+                localOwnerUserId.isNotBlank(),
             ) {
                 "OWNER_USER_ID_REQUIRED"
             }
@@ -122,15 +122,11 @@ class NoteMediaRefreshService(
              * 下一轮应该继续用原 requestId retry，
              * 由服务端幂等返回真正的成功结果。
              */
-            val state =
-                mediaLocalRepository
-                    .findForNote(
-                        ownerUserId =
-                            ownerUserId,
-
-                        noteLocalKey =
-                            noteLocalKey,
-                    )
+            val state = mediaLocalRepository
+                .findForNote(
+                    localOwnerUserId = localOwnerUserId,
+                    noteLocalKey = noteLocalKey,
+                )
 
             if (
                 state?.syncState ==
@@ -144,12 +140,8 @@ class NoteMediaRefreshService(
             /*
              * 获取 canonical remote media。
              */
-            val remote =
-                mediaRemoteDataSource
-                    .getNoteMedia(
-                        noteId =
-                            noteId,
-                    )
+            val remote = mediaRemoteDataSource
+                .getNoteMedia(noteId =noteId)
 
             require(
                 remote.noteId ==
@@ -158,43 +150,30 @@ class NoteMediaRefreshService(
                 "NOTE_MEDIA_REMOTE_ID_MISMATCH"
             }
 
-            val remoteVersion =
-                remote.version
-                    .toLong()
+            val remoteVersion = remote.version.toLong()
 
-            val remoteUpdatedAt =
-                remote.updatedAt
-                    .toLong()
+            val remoteUpdatedAt = remote.updatedAt.toLong()
 
-            val remoteMedia =
-                normalizeRemoteMedia(
-                    remote.media
-                        .map { item ->
-                            PersistedNoteMediaItem(
-                                imageId =
-                                    item.imageId,
-
-                                order =
-                                    item.order
-                                        .toInt(),
-                            )
-                        },
-                )
+            val remoteMedia = normalizeRemoteMedia(
+                remote.media
+                    .map { item ->
+                        PersistedNoteMediaItem(
+                            imageId = item.imageId,
+                            order = item.order.toInt(),
+                        )
+                    },
+            )
 
             /*
              * State 可能在网络请求期间变化。
              *
              * 所以 response 回来以后必须再次读取。
              */
-            val latestState =
-                mediaLocalRepository
-                    .findForNote(
-                        ownerUserId =
-                            ownerUserId,
-
-                        noteLocalKey =
-                            noteLocalKey,
-                    )
+            val latestState = mediaLocalRepository
+                .findForNote(
+                    localOwnerUserId = localOwnerUserId,
+                    noteLocalKey = noteLocalKey,
+                )
 
             /*
              * 如果 Pull 飞行期间进入
@@ -226,34 +205,18 @@ class NoteMediaRefreshService(
                  */
                 null -> {
                     applyAuthoritativeRemote(
-                        ownerUserId =
-                            ownerUserId,
-
-                        noteLocalKey =
-                            noteLocalKey,
-
-                        noteId =
-                            noteId,
-
-                        remoteVersion =
-                            remoteVersion,
-
-                        remoteUpdatedAt =
-                            remoteUpdatedAt,
-
-                        remoteMedia =
-                            remoteMedia,
+                        localOwnerUserId = localOwnerUserId,
+                        noteLocalKey = noteLocalKey,
+                        noteId = noteId,
+                        remoteVersion = remoteVersion,
+                        remoteUpdatedAt = remoteUpdatedAt,
+                        remoteMedia = remoteMedia,
                     )
 
                     NoteMediaRefreshResult.Refreshed(
-                        noteId =
-                            noteId,
-
-                        version =
-                            remoteVersion,
-
-                        mediaCount =
-                            remoteMedia.size,
+                        noteId = noteId,
+                        version = remoteVersion,
+                        mediaCount = remoteMedia.size,
                     )
                 }
 
@@ -268,34 +231,18 @@ class NoteMediaRefreshService(
                  */
                 NoteMediaSyncState.Synced -> {
                     applyAuthoritativeRemote(
-                        ownerUserId =
-                            ownerUserId,
-
-                        noteLocalKey =
-                            noteLocalKey,
-
-                        noteId =
-                            noteId,
-
-                        remoteVersion =
-                            remoteVersion,
-
-                        remoteUpdatedAt =
-                            remoteUpdatedAt,
-
-                        remoteMedia =
-                            remoteMedia,
+                        localOwnerUserId = localOwnerUserId,
+                        noteLocalKey = noteLocalKey,
+                        noteId = noteId,
+                        remoteVersion = remoteVersion,
+                        remoteUpdatedAt = remoteUpdatedAt,
+                        remoteMedia = remoteMedia,
                     )
 
                     NoteMediaRefreshResult.Refreshed(
-                        noteId =
-                            noteId,
-
-                        version =
-                            remoteVersion,
-
-                        mediaCount =
-                            remoteMedia.size,
+                        noteId = noteId,
+                        version = remoteVersion,
+                        mediaCount = remoteMedia.size,
                     )
                 }
 
@@ -310,26 +257,13 @@ class NoteMediaRefreshService(
                  */
                 NoteMediaSyncState.Pending -> {
                     handlePendingRemote(
-                        ownerUserId =
-                            ownerUserId,
-
-                        noteLocalKey =
-                            noteLocalKey,
-
-                        noteId =
-                            noteId,
-
-                        localRemoteVersion =
-                            latestState.remoteVersion,
-
-                        remoteVersion =
-                            remoteVersion,
-
-                        remoteUpdatedAt =
-                            remoteUpdatedAt,
-
-                        remoteMedia =
-                            remoteMedia,
+                        localOwnerUserId = localOwnerUserId,
+                        noteLocalKey = noteLocalKey,
+                        noteId = noteId,
+                        localRemoteVersion = latestState.remoteVersion,
+                        remoteVersion = remoteVersion,
+                        remoteUpdatedAt = remoteUpdatedAt,
+                        remoteMedia = remoteMedia,
                     )
                 }
 
@@ -345,48 +279,26 @@ class NoteMediaRefreshService(
                 NoteMediaSyncState.Conflict -> {
                     val conflictSnapshot =
                         PersistedNoteMediaConflictSnapshot(
-                            noteId =
-                                noteId,
-
-                            version =
-                                remoteVersion,
-
-                            updatedAt =
-                                remoteUpdatedAt,
-
-                            media =
-                                remoteMedia,
+                            noteId = noteId,
+                            version = remoteVersion,
+                            updatedAt = remoteUpdatedAt,
+                            media = remoteMedia,
                         )
 
                     mediaLocalRepository
                         .markConflict(
-                            ownerUserId =
-                                ownerUserId,
-
-                            noteLocalKey =
-                                noteLocalKey,
-
-                            remote =
-                                conflictSnapshot,
-
-                            message =
-                                latestState.lastSyncError,
+                            localOwnerUserId = localOwnerUserId,
+                            noteLocalKey = noteLocalKey,
+                            remote = conflictSnapshot,
+                            message = latestState.lastSyncError,
                         )
 
                     NoteMediaRefreshResult.Conflict(
-                        noteId =
-                            noteId,
-
-                        remoteVersion =
-                            remoteVersion,
+                        noteId = noteId,
+                        remoteVersion = remoteVersion,
                     )
                 }
 
-                /*
-                 * 前面已经处理。
-                 *
-                 * 这里保留 exhaustive when。
-                 */
                 NoteMediaSyncState.Waiting,
                 NoteMediaSyncState.Syncing -> {
                     NoteMediaRefreshResult.SkippedInFlight
@@ -399,7 +311,7 @@ class NoteMediaRefreshService(
     // MARK: - Pending
 
     private suspend fun handlePendingRemote(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteLocalKey: String,
         noteId: String,
         localRemoteVersion: Long?,
@@ -411,10 +323,7 @@ class NoteMediaRefreshService(
         /*
          * Local 从未建立 Media baseline。
          */
-        if (
-            localRemoteVersion ==
-            null
-        ) {
+        if (localRemoteVersion == null) {
             /*
              * Remote 仍然是初始 version 0。
              *
@@ -422,33 +331,20 @@ class NoteMediaRefreshService(
              * 但绝不能覆盖 Local desired media。
              */
             if (
-                remoteVersion ==
-                0L
+                remoteVersion == 0L
             ) {
                 mediaLocalRepository
                     .adoptRemoteBaselinePreservingLocal(
-                        ownerUserId =
-                            ownerUserId,
-
-                        noteLocalKey =
-                            noteLocalKey,
-
-                        noteId =
-                            noteId,
-
-                        remoteVersion =
-                            remoteVersion,
-
-                        remoteUpdatedAt =
-                            remoteUpdatedAt,
+                        localOwnerUserId = localOwnerUserId,
+                        noteLocalKey = noteLocalKey,
+                        noteId = noteId,
+                        remoteVersion = remoteVersion,
+                        remoteUpdatedAt = remoteUpdatedAt,
                     )
 
                 return NoteMediaRefreshResult.BaselineEstablished(
-                    noteId =
-                        noteId,
-
-                    version =
-                        remoteVersion,
+                    noteId = noteId,
+                    version = remoteVersion,
                 )
             }
 
@@ -459,34 +355,18 @@ class NoteMediaRefreshService(
              * 不能猜应该覆盖哪一边。
              */
             markVersionConflict(
-                ownerUserId =
-                    ownerUserId,
-
-                noteLocalKey =
-                    noteLocalKey,
-
-                noteId =
-                    noteId,
-
-                remoteVersion =
-                    remoteVersion,
-
-                remoteUpdatedAt =
-                    remoteUpdatedAt,
-
-                remoteMedia =
-                    remoteMedia,
-
-                message =
-                    "MEDIA_REMOTE_BASELINE_CONFLICT",
+                localOwnerUserId = localOwnerUserId,
+                noteLocalKey = noteLocalKey,
+                noteId = noteId,
+                remoteVersion = remoteVersion,
+                remoteUpdatedAt = remoteUpdatedAt,
+                remoteMedia = remoteMedia,
+                message = "MEDIA_REMOTE_BASELINE_CONFLICT",
             )
 
             return NoteMediaRefreshResult.Conflict(
-                noteId =
-                    noteId,
-
-                remoteVersion =
-                    remoteVersion,
+                noteId = noteId,
+                remoteVersion = remoteVersion,
             )
         }
 
@@ -498,16 +378,10 @@ class NoteMediaRefreshService(
          *
          * Local Pending 可以安全继续等待 Push。
          */
-        if (
-            remoteVersion ==
-            localRemoteVersion
-        ) {
+        if (remoteVersion == localRemoteVersion) {
             return NoteMediaRefreshResult.PreservedLocal(
-                noteId =
-                    noteId,
-
-                version =
-                    remoteVersion,
+                noteId = noteId,
+                version = remoteVersion,
             )
         }
 
@@ -529,42 +403,25 @@ class NoteMediaRefreshService(
          * → Conflict
          */
         markVersionConflict(
-            ownerUserId =
-                ownerUserId,
-
-            noteLocalKey =
-                noteLocalKey,
-
-            noteId =
-                noteId,
-
-            remoteVersion =
-                remoteVersion,
-
-            remoteUpdatedAt =
-                remoteUpdatedAt,
-
-            remoteMedia =
-                remoteMedia,
-
-            message =
-                "MEDIA_VERSION_CONFLICT",
+            localOwnerUserId = localOwnerUserId,
+            noteLocalKey = noteLocalKey,
+            noteId = noteId,
+            remoteVersion = remoteVersion,
+            remoteUpdatedAt = remoteUpdatedAt,
+            remoteMedia = remoteMedia,
+            message = "MEDIA_VERSION_CONFLICT",
         )
 
         return NoteMediaRefreshResult.Conflict(
-            noteId =
-                noteId,
-
-            remoteVersion =
-                remoteVersion,
+            noteId = noteId,
+            remoteVersion = remoteVersion,
         )
     }
-
 
     // MARK: - Authoritative
 
     private suspend fun applyAuthoritativeRemote(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteLocalKey: String,
         noteId: String,
         remoteVersion: Long,
@@ -577,14 +434,9 @@ class NoteMediaRefreshService(
         val reconcileResult =
             imageLocalRepository
                 .reconcileAuthoritativeRemoteMedia(
-                    ownerUserId =
-                        ownerUserId,
-
-                    noteLocalKey =
-                        noteLocalKey,
-
-                    remoteMedia =
-                        remoteMedia,
+                    localOwnerUserId = localOwnerUserId,
+                    noteLocalKey = noteLocalKey,
+                    remoteMedia = remoteMedia,
                 )
 
         /*
@@ -592,20 +444,11 @@ class NoteMediaRefreshService(
          */
         mediaLocalRepository
             .applyAuthoritativeRemote(
-                ownerUserId =
-                    ownerUserId,
-
-                noteLocalKey =
-                    noteLocalKey,
-
-                noteId =
-                    noteId,
-
-                remoteVersion =
-                    remoteVersion,
-
-                remoteUpdatedAt =
-                    remoteUpdatedAt,
+                localOwnerUserId = localOwnerUserId,
+                noteLocalKey = noteLocalKey,
+                noteId = noteId,
+                remoteVersion = remoteVersion,
+                remoteUpdatedAt = remoteUpdatedAt,
             )
 
         /*
@@ -631,7 +474,7 @@ class NoteMediaRefreshService(
     // MARK: - Conflict
 
     private suspend fun markVersionConflict(
-        ownerUserId: String,
+        localOwnerUserId: String,
         noteLocalKey: String,
         noteId: String,
         remoteVersion: Long,
@@ -641,32 +484,18 @@ class NoteMediaRefreshService(
     ) {
         val snapshot =
             PersistedNoteMediaConflictSnapshot(
-                noteId =
-                    noteId,
-
-                version =
-                    remoteVersion,
-
-                updatedAt =
-                    remoteUpdatedAt,
-
-                media =
-                    remoteMedia,
+                noteId = noteId,
+                version = remoteVersion,
+                updatedAt = remoteUpdatedAt,
+                media = remoteMedia,
             )
 
         mediaLocalRepository
             .markConflict(
-                ownerUserId =
-                    ownerUserId,
-
-                noteLocalKey =
-                    noteLocalKey,
-
-                remote =
-                    snapshot,
-
-                message =
-                    message,
+                localOwnerUserId = localOwnerUserId,
+                noteLocalKey = noteLocalKey,
+                remote = snapshot,
+                message = message,
             )
     }
 
@@ -676,8 +505,7 @@ class NoteMediaRefreshService(
     private fun normalizeRemoteMedia(
         media: List<PersistedNoteMediaItem>,
     ): List<PersistedNoteMediaItem> {
-        val normalized =
-            media
+        val normalized = media
                 .sortedBy {
                     it.order
                 }
@@ -686,25 +514,17 @@ class NoteMediaRefreshService(
                         item ->
 
                     PersistedNoteMediaItem(
-                        imageId =
-                            item.imageId,
-
-                        order =
-                            index,
+                        imageId = item.imageId,
+                        order = index,
                     )
                 }
 
-        val imageIds =
-            normalized
-                .map {
-                    it.imageId
-                }
+        val imageIds = normalized.map { it.imageId }
 
         require(
             imageIds
                 .distinct()
-                .size ==
-                    imageIds.size,
+                .size == imageIds.size,
         ) {
             "DUPLICATE_REMOTE_NOTE_MEDIA"
         }

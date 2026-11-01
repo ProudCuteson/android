@@ -54,7 +54,7 @@ import top.role.android.core.model.note.NoteRemoteStatus
 
 @Composable
 fun NoteLibraryScreen(
-    ownerUserId: String,
+    localOwnerUserId: String,
     noteLocalRepository: NoteLocalRepository,
     onBack: () -> Unit,
     onOpenNote: (String) -> Unit,
@@ -64,7 +64,7 @@ fun NoteLibraryScreen(
         viewModel(
             factory =
                 NoteLibraryViewModelFactory(
-                    ownerUserId = ownerUserId,
+                    localOwnerUserId = localOwnerUserId,
                     noteLocalRepository = noteLocalRepository,
                 )
         )
