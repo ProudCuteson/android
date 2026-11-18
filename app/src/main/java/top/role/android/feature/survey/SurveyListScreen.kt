@@ -347,7 +347,10 @@ private fun SurveyErrorContent(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Text(text = message)
+        Text(
+            text = "暂时无法加载内容",
+            color = MaterialTheme.colorScheme.error,
+        )
 
         Button(
             modifier = Modifier.padding(top = 16.dp),

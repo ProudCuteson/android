@@ -65,7 +65,6 @@ fun ChatScreen(
 
                 ChatMessageState(
                     title = "无法加载聊天",
-                    description = error.message,
                     actionLabel = "重试",
                     onAction = viewModel::retry,
                 )
@@ -77,7 +76,6 @@ fun ChatScreen(
                 if (content.conversations.isEmpty()) {
                     ChatMessageState(
                         title = "暂无会话",
-                        description = "新的聊天会显示在这里。",
                     )
                 } else {
                     LazyColumn(
@@ -107,7 +105,6 @@ fun ChatScreen(
 @Composable
 private fun ChatMessageState(
     title: String,
-    description: String,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
 ) {
@@ -121,10 +118,6 @@ private fun ChatMessageState(
         ) {
             Text(
                 text =  title,
-            )
-
-            Text(
-                text = description,
             )
 
             if (

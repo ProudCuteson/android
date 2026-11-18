@@ -326,9 +326,6 @@ fun NavGraphBuilder.discoverNavGraph(
 
         MembershipScreen(
             uiState = membershipState,
-            onBack = {
-                navController.popBackStack()
-            },
             onRetry = membershipViewModel::retry,
             onSelectPlan = membershipViewModel::selectPlan,
             onPurchase = membershipViewModel::purchase,

@@ -114,6 +114,7 @@ fun MainScreen(
     onAppearanceChange: (AppAppearance) -> Unit,
     onWeekStartChange: (WeekStart) -> Unit,
 
+    onRestoreAuth: suspend () -> Boolean,
     onLogin: () -> Unit,
     onRetryAuth: () -> Unit,
     onReSignIn: () -> Unit,
@@ -334,6 +335,7 @@ fun MainScreen(
             onWeekStartChange = onWeekStartChange,
             onLogin = onLogin,
             onRetryAuth = onRetryAuth,
+            onRestoreAuth = onRestoreAuth,
             onReSignIn = onReSignIn,
             onSignOut = onSignOut,
         )

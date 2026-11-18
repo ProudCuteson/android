@@ -20,6 +20,9 @@ import top.role.android.feature.credit.CreditsViewModel
 fun NavGraphBuilder.accountNavGraph(
     navController: NavHostController,
     dependencies: MainNavigationDependencies,
+    onRestoreAuth: suspend () -> Boolean,
+    onLogin: () -> Unit,
+    onRetryAuth: () -> Unit,
     onReSignIn: () -> Unit,
     onSignOut: () -> Unit,
 ) {
@@ -60,15 +63,12 @@ fun NavGraphBuilder.accountNavGraph(
                 null
             },
             remoteAuthenticated = authenticated,
+            onRestoreAuth = onRestoreAuth,
             onOpenCredits = {
-                navController.navigate(
-                    CreditsRoute.route
-                )
+                navController.navigate(CreditsRoute.route)
             },
             onOpenPassword = {
-                navController.navigate(
-                    AccountPasswordRoute.route
-                )
+                navController.navigate(AccountPasswordRoute.route)
             },
             onReSignIn = onReSignIn,
             onSignOut = onSignOut,

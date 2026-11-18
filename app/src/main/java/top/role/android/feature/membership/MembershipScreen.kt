@@ -32,7 +32,6 @@ import top.role.android.core.payment.temp.WebPurchaseConfig
 @Composable
 fun MembershipScreen(
     uiState: MembershipUiState,
-    onBack: () -> Unit,
     onRetry: () -> Unit,
     onSelectPlan: (String) -> Unit,
     onPurchase: () -> Unit,
@@ -44,23 +43,15 @@ fun MembershipScreen(
 
         uiState.loadError != null -> {
             MembershipLoadErrorState(
-                message =
-                    uiState.loadError,
-                onBack =
-                    onBack,
-                onRetry =
-                    onRetry,
+                onRetry = onRetry,
             )
         }
 
         else -> {
             MembershipContent(
-                uiState =
-                    uiState,
-                onSelectPlan =
-                    onSelectPlan,
-                onPurchase =
-                    onPurchase,
+                uiState = uiState,
+                onSelectPlan = onSelectPlan,
+                onPurchase = onPurchase,
             )
         }
     }
@@ -69,10 +60,8 @@ fun MembershipScreen(
 @Composable
 private fun MembershipLoadingState() {
     Box(
-        modifier =
-            Modifier.fillMaxSize(),
-        contentAlignment =
-            Alignment.Center,
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
     ) {
         CircularProgressIndicator()
     }
@@ -80,58 +69,28 @@ private fun MembershipLoadingState() {
 
 @Composable
 private fun MembershipLoadErrorState(
-    message: String,
-    onBack: () -> Unit,
     onRetry: () -> Unit,
 ) {
     Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(20.dp),
+        modifier =  Modifier
+            .fillMaxSize()
+            .padding(20.dp),
     ) {
 
         Text(
-            text =
-                "暂时无法加载",
-            style =
-                MaterialTheme
-                    .typography
-                    .titleLarge,
+            text = "暂时无法加载",
+            style = MaterialTheme.typography.titleLarge,
         )
 
         Spacer(
-            modifier =
-                Modifier.height(8.dp),
-        )
-
-        Text(
-            text =
-                displayMembershipError(
-                    message
-                ),
-            style =
-                MaterialTheme
-                    .typography
-                    .bodyMedium,
-            color =
-                MaterialTheme
-                    .colorScheme
-                    .onSurfaceVariant,
-        )
-
-        Spacer(
-            modifier =
-                Modifier.height(20.dp),
+            modifier = Modifier.height(8.dp),
         )
 
         Button(
-            onClick =
-                onRetry,
+            onClick = onRetry,
         ) {
             Text(
-                text =
-                    "重新加载",
+                text = "重新加载",
             )
         }
     }
@@ -143,73 +102,42 @@ private fun MembershipContent(
     onSelectPlan: (String) -> Unit,
     onPurchase: () -> Unit,
 ) {
-    val page =
-        uiState.page
-            ?: return
-
-    val space =
-        page.space
-            ?: return
-
-    val membership =
-        page.membership
-            ?: return
-
-    val viewer =
-        page.viewer
-            ?: return
+    val page = uiState.page ?: return
+    val space = page.space ?: return
+    val membership = page.membership ?: return
+    val viewer = page.viewer ?: return
 
     Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .verticalScroll(
-                    rememberScrollState()
-                )
-                .padding(
-                    horizontal = 20.dp,
-                    vertical = 12.dp,
-                ),
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(
+                horizontal = 20.dp,
+                vertical = 12.dp,
+            ),
     ) {
 
         MobilePaymentNotice(
-            webUrl =
-                WebPurchaseConfig.MEMBERSHIP_URL,
+            webUrl = WebPurchaseConfig.MEMBERSHIP_URL,
         )
 
         Spacer(
-            modifier =
-                Modifier.height(20.dp),
+            modifier = Modifier.height(20.dp),
         )
 
-        /*
-         * Space
-         */
         Text(
-            text =
-                "空间会员",
-            style =
-                MaterialTheme
-                    .typography
-                    .labelLarge,
-            color =
-                MaterialTheme
-                    .colorScheme
-                    .primary,
+            text = "空间会员",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
         )
 
         Spacer(
-            modifier =
-                Modifier.height(6.dp),
+            modifier = Modifier.height(6.dp),
         )
 
         Text(
-            text =
-                space.name,
-            style =
-                MaterialTheme
-                    .typography
-                    .headlineSmall,
+            text = space.name,
+            style = MaterialTheme.typography.headlineSmall,
         )
 
         space.description
@@ -219,62 +147,38 @@ private fun MembershipContent(
             }
             ?.let { description ->
                 Spacer(
-                    modifier =
-                        Modifier.height(6.dp),
+                    modifier = Modifier.height(6.dp),
                 )
 
                 Text(
-                    text =
-                        description,
-                    style =
-                        MaterialTheme
-                            .typography
-                            .bodyMedium,
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .onSurfaceVariant,
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
         space.number
             ?.let { number ->
                 Spacer(
-                    modifier =
-                        Modifier.height(6.dp),
+                    modifier = Modifier.height(6.dp),
                 )
 
                 Text(
-                    text =
-                        "空间号 ${formatSpaceNumber(number)}",
-                    style =
-                        MaterialTheme
-                            .typography
-                            .bodySmall,
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .onSurfaceVariant,
+                    text = "空间号 ${formatSpaceNumber(number)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
         Spacer(
-            modifier =
-                Modifier.height(24.dp),
+            modifier = Modifier.height(24.dp),
         )
 
-        /*
-         * Viewer current state
-         */
         MembershipViewerNotice(
-            isManager =
-                viewer.isManager,
-            isPermanentMember =
-                viewer.isPermanentMember,
-            isMember =
-                viewer.isMember,
-            activeUntil =
-                viewer.activeUntil,
+            isManager = viewer.isManager,
+            isPermanentMember = viewer.isPermanentMember,
+            isMember = viewer.isMember,
+            activeUntil = viewer.activeUntil,
         )
 
         if (
@@ -283,16 +187,14 @@ private fun MembershipContent(
             viewer.isMember
         ) {
             Spacer(
-                modifier =
-                    Modifier.height(20.dp),
+                modifier = Modifier.height(20.dp),
             )
         }
 
         HorizontalDivider()
 
         Spacer(
-            modifier =
-                Modifier.height(24.dp),
+            modifier = Modifier.height(24.dp),
         )
 
         /*
@@ -300,35 +202,22 @@ private fun MembershipContent(
          */
         if (!membership.enabled) {
             Text(
-                text =
-                    "暂未开放会员",
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleMedium,
+                text = "暂未开放会员",
+                style = MaterialTheme.typography.titleMedium,
             )
 
             Spacer(
-                modifier =
-                    Modifier.height(6.dp),
+                modifier = Modifier.height(6.dp),
             )
 
             Text(
-                text =
-                    "该空间目前没有开放付费会员。",
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodyMedium,
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .onSurfaceVariant,
+                text = "该空间目前没有开放付费会员。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             Spacer(
-                modifier =
-                    Modifier.height(40.dp),
+                modifier = Modifier.height(40.dp),
             )
 
             return@Column
@@ -338,12 +227,8 @@ private fun MembershipContent(
          * Plans
          */
         Text(
-            text =
-                "选择会员方案",
-            style =
-                MaterialTheme
-                    .typography
-                    .titleLarge,
+            text = "选择会员方案",
+            style = MaterialTheme.typography.titleLarge,
         )
 
         membership.description
@@ -353,51 +238,31 @@ private fun MembershipContent(
             }
             ?.let { description ->
                 Spacer(
-                    modifier =
-                        Modifier.height(6.dp),
+                    modifier = Modifier.height(6.dp),
                 )
 
                 Text(
-                    text =
-                        description,
-                    style =
-                        MaterialTheme
-                            .typography
-                            .bodyMedium,
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .onSurfaceVariant,
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
         Spacer(
-            modifier =
-                Modifier.height(16.dp),
+            modifier = Modifier.height(16.dp),
         )
 
         membership.plans
             .forEach { plan ->
                 MembershipPlanCard(
-                    plan =
-                        plan,
-                    selected =
-                        uiState
-                            .selectedPlanKey ==
-                                plan.key,
-                    enabled =
-                        !uiState.paying &&
-                                !uiState.confirming,
-                    onClick = {
-                        onSelectPlan(
-                            plan.key
-                        )
-                    },
+                    plan = plan,
+                    selected = uiState.selectedPlanKey == plan.key,
+                    enabled = !uiState.paying && !uiState.confirming,
+                    onClick = {onSelectPlan(plan.key)},
                 )
 
                 Spacer(
-                    modifier =
-                        Modifier.height(10.dp),
+                    modifier = Modifier.height(10.dp),
                 )
             }
 
@@ -411,23 +276,15 @@ private fun MembershipContent(
             }
             ?.let { error ->
                 Spacer(
-                    modifier =
-                        Modifier.height(8.dp),
+                    modifier = Modifier.height(8.dp),
                 )
 
                 Text(
-                    text =
-                        displayMembershipError(
+                    text = displayMembershipError(
                             error
                         ),
-                    style =
-                        MaterialTheme
-                            .typography
-                            .bodyMedium,
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .error,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
                 )
             }
 

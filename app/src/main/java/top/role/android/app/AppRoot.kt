@@ -340,6 +340,10 @@ fun AppRoot(
                 }
             },
 
+            onRestoreAuth = {
+                sessionViewModel.checkSessionOnForeground() != null
+            },
+
             onReSignIn = {
                 sessionViewModel.signOut(
                     onComplete = {

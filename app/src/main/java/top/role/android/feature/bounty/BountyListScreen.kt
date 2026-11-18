@@ -66,7 +66,6 @@ fun BountyListScreen(
             state.errorMessage != null &&
                     state.items.isEmpty() -> {
                 ErrorContent(
-                    message = state.errorMessage ?: "加载任务失败",
                     onRetry = onRetry,
                 )
             }
@@ -356,7 +355,6 @@ private fun LoadingContent() {
 
 @Composable
 private fun ErrorContent(
-    message: String,
     onRetry: () -> Unit,
 ) {
     Column(
@@ -367,7 +365,7 @@ private fun ErrorContent(
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
-            text = message,
+            text = "暂时无法加载内容",
             color = MaterialTheme.colorScheme.error,
         )
 

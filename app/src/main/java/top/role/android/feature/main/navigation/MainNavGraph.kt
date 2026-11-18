@@ -21,6 +21,7 @@ fun MainNavGraph(
     onWeekStartChange: (WeekStart) -> Unit,
     onLogin: () -> Unit,
     onRetryAuth: () -> Unit,
+    onRestoreAuth: suspend () -> Boolean,
     onReSignIn: () -> Unit,
     onSignOut: () -> Unit
 ) {
@@ -62,6 +63,9 @@ fun MainNavGraph(
         accountNavGraph(
             navController = navController,
             dependencies = dependencies,
+            onLogin = onLogin,
+            onRetryAuth = onRetryAuth,
+            onRestoreAuth = onRestoreAuth,
             onReSignIn = onReSignIn,
             onSignOut = onSignOut,
         )

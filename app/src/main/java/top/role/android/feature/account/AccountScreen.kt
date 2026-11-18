@@ -20,7 +20,16 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.OutlinedButton
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+
+import kotlinx.coroutines.launch
 
 import top.role.android.core.model.account.MobileAccountHome
 import top.role.android.feature.account.components.AccountBasicInfoSection
@@ -32,6 +41,9 @@ import top.role.android.feature.account.components.AccountSecuritySection
 fun AccountScreen(
     viewModel: AccountViewModel?,
     remoteAuthenticated: Boolean,
+
+    onRestoreAuth: suspend () -> Boolean,
+
     onOpenCredits: () -> Unit,
     onOpenPassword: () -> Unit,
     onReSignIn: () -> Unit,
@@ -42,10 +54,39 @@ fun AccountScreen(
         ?.collectAsStateWithLifecycle()
         ?.value
 
+    val scope = rememberCoroutineScope()
+
+    var retrying by remember {
+        mutableStateOf(false)
+    }
+
     AccountScreenContent(
         uiState = uiState,
         remoteAuthenticated = remoteAuthenticated,
-        onRetry = { viewModel?.retry() },
+
+        onRetry = {
+            if (!retrying) {
+                scope.launch {
+                    retrying = true
+
+                    try {
+                        // 1. 先恢复 App 认证
+                        val restored = onRestoreAuth()
+
+                        // 2. 认证恢复后重新订阅账户
+                        if (restored) {
+                            viewModel?.retry()
+                        }
+
+                    } finally {
+                        retrying = false
+                    }
+                }
+            }
+        },
+
+        retrying = retrying,
+
         onOpenCredits = onOpenCredits,
         onOpenPassword = onOpenPassword,
         onReSignIn = onReSignIn,
@@ -57,6 +98,7 @@ fun AccountScreen(
 private fun AccountScreenContent(
     uiState: AccountUiState?,
     remoteAuthenticated: Boolean,
+    retrying: Boolean,
     onRetry: () -> Unit,
     onOpenCredits: () -> Unit,
     onOpenPassword: () -> Unit,
@@ -89,8 +131,7 @@ private fun AccountScreenContent(
         }
 
         else -> {
-
-            val loading = uiState == null || uiState.loading
+            val loading = retrying || uiState == null || uiState.loading
 
             AccountFallbackContent(
                 title = if (loading) {
@@ -104,8 +145,15 @@ private fun AccountScreenContent(
                     uiState.errorMessage ?: "账户信息暂时不可用。"
                 },
                 loading = loading,
+
                 actionLabel = if (loading) null else "重试",
                 onAction = if (loading) null else onRetry,
+
+                secondaryActionLabel =
+                    if (loading) null else "重新登录",
+
+                onSecondaryAction =
+                    if (loading) null else onReSignIn,
             )
         }
     }
@@ -118,6 +166,9 @@ private fun AccountFallbackContent(
     loading: Boolean = false,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
+
+    secondaryActionLabel: String? = null,
+    onSecondaryAction: (() -> Unit)? = null,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -153,10 +204,25 @@ private fun AccountFallbackContent(
                     actionLabel != null &&
                     onAction != null
                 ) {
-                    Button(
-                        onClick = onAction,
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Text(actionLabel)
+                        Button(
+                            onClick = onAction,
+                        ) {
+                            Text(actionLabel)
+                        }
+
+                        if (
+                            secondaryActionLabel != null &&
+                            onSecondaryAction != null
+                        ) {
+                            OutlinedButton(
+                                onClick = onSecondaryAction,
+                            ) {
+                                Text(secondaryActionLabel)
+                            }
+                        }
                     }
                 }
             }
