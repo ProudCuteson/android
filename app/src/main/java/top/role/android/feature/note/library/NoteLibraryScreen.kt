@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -59,6 +61,7 @@ fun NoteLibraryScreen(
     onBack: () -> Unit,
     onOpenNote: (String) -> Unit,
     onCreateNote: () -> Unit,
+    onOpenScene: () -> Unit,
 ) {
     val viewModel: NoteLibraryViewModel =
         viewModel(
@@ -97,6 +100,7 @@ fun NoteLibraryScreen(
         LibrarySections(
             selectedSection = state.selectedSection,
             onSelect = viewModel::selectSection,
+            onOpenScene = onOpenScene,
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -214,9 +218,13 @@ private fun LibraryHeader(
 private fun LibrarySections(
     selectedSection: NoteLibrarySection,
     onSelect: (NoteLibrarySection) -> Unit,
+    onOpenScene: () -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal =16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         LibrarySectionChip(
@@ -231,7 +239,7 @@ private fun LibrarySections(
             text = "置顶",
             selected = selectedSection == NoteLibrarySection.Pinned,
             onClick = {
-                onSelect( NoteLibrarySection.Pinned  )
+                onSelect(NoteLibrarySection.Pinned)
             },
         )
 
@@ -249,6 +257,12 @@ private fun LibrarySections(
             onClick = {
                 onSelect(NoteLibrarySection.Archived)
             },
+        )
+
+        LibrarySectionChip(
+            text = "场景",
+            selected = false,
+            onClick = onOpenScene,
         )
     }
 }

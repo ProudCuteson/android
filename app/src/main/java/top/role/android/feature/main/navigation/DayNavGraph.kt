@@ -3,6 +3,10 @@ package top.role.android.feature.main.navigation
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+
+import top.role.android.core.preferences.WeekStart
 import top.role.android.app.navigation.MainDestination
 import top.role.android.app.navigation.NoteDayRoute
 import top.role.android.app.navigation.NoteEditorRoute as NoteEditorNavRoute
@@ -12,7 +16,11 @@ import top.role.android.app.navigation.NoteLibraryRoute
 import top.role.android.feature.note.library.NoteLibraryScreen
 import top.role.android.app.navigation.NoteNewRoute
 import top.role.android.app.navigation.NoteNewDatedRoute
-import top.role.android.core.preferences.WeekStart
+import top.role.android.app.navigation.NoteSceneRoute
+import top.role.android.app.navigation.NoteSecretHintRoute
+import top.role.android.feature.note.templates.NoteSceneScreen
+import top.role.android.feature.note.templates.hint.SecretHintScreen
+import top.role.android.feature.note.templates.hint.SecretHintNoteWriter
 
 fun NavGraphBuilder.dayNavGraph(
     navController: NavHostController,
@@ -110,6 +118,54 @@ fun NavGraphBuilder.dayNavGraph(
                 navController.navigate(NoteEditorNavRoute.createRoute(localKey = localKey))
             },
             onCreateNote = { navController.navigate( NoteNewRoute.route ) },
+            onOpenScene = {
+                navController.navigate(
+                    NoteSceneRoute.route
+                )
+            },
+        )
+    }
+
+    composable(
+        route = NoteSceneRoute.route,
+    ) {
+        NoteSceneScreen(
+            onBack = {
+                navController.popBackStack()
+            },
+            onOpenSecretHint = {
+                navController.navigate(
+                    NoteSecretHintRoute.route
+                )
+            },
+        )
+    }
+
+    composable(
+        route = NoteSecretHintRoute.route,
+    ) {
+        val context = LocalContext.current
+
+        val writer = remember(
+            context,
+            dependencies.noteLocalRepository,
+        ) {
+            SecretHintNoteWriter(
+                context = context,
+                notes = dependencies.noteLocalRepository,
+            )
+        }
+
+        SecretHintScreen(
+            onBack = {
+                navController.popBackStack()
+            },
+            onSave = { draft ->
+                writer.append(
+                    localOwnerUserId = dependencies.localOwnerUserId,
+                    draft = draft,
+                )
+            },
         )
     }
 
