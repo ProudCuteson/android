@@ -5,6 +5,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 
+import top.role.android.BuildConfig
 import top.role.android.app.navigation.MainDestination
 import top.role.android.core.preferences.AppAppearance
 import top.role.android.core.preferences.WeekStart
@@ -80,7 +81,7 @@ fun MainNavGraph(
             weekStart = weekStart,
             onAppearanceChange = onAppearanceChange,
             onWeekStartChange = onWeekStartChange,
-            versionName = "1.0",
+            versionName = BuildConfig.VERSION_NAME,
             onOpenTerms = {
                 navController.navigate(
                     InAppBrowserRoute.create(

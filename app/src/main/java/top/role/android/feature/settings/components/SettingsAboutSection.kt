@@ -20,14 +20,9 @@ fun SettingsAboutSection(
         title = "关于",
     ) {
         SectionNavigationRow(
-            icon =
-                Icons.Outlined.Description,
-
-            title =
-                "用户协议",
-
-            onClick =
-                onOpenTerms,
+            icon = Icons.Outlined.Description,
+            title = "用户协议",
+            onClick = onOpenTerms,
         )
 
         SectionDivider()
