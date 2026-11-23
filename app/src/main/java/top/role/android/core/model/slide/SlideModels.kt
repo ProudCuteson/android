@@ -23,21 +23,15 @@ data class MobileSlideViewer(
 @Serializable
 data class MobileSlideSummary(
     val slideId: String,
-
     val title: String,
     val description: String? = null,
     val cover: String? = null,
-
     val status: String? = null,
     val visibility: String? = null,
-
     val publishedAt: Double? = null,
     val updatedAt: Double? = null,
-
     val version: Double? = null,
-
     val canvasPreset: String? = null,
-
     val canvasW: Double,
     val canvasH: Double,
 )

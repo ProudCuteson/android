@@ -21,8 +21,6 @@ interface ImageRepository {
 
     suspend fun getPreviewUrl(
         imageId: String,
-
-        kind: MobileImageVariantKind =
-            MobileImageVariantKind.Original,
+        kind: MobileImageVariantKind = MobileImageVariantKind.Original,
     ): MobileImagePreview
 }

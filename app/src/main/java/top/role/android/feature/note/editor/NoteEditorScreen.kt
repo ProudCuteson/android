@@ -89,19 +89,18 @@ fun NoteEditorRoute(
 ) {
     val viewModel: NoteEditorViewModel =
         viewModel(
-            factory =
-                NoteEditorViewModelFactory(
-                    localOwnerUserId = localOwnerUserId,
-                    noteLocalRepository = noteLocalRepository,
-                    noteAiRemoteDataSource = noteAiRemoteDataSource,
-                    noteImageService = noteImageService,
-                    imageRepository = imageRepository,
-                    initialLocalKey = initialLocalKey,
-                    initialDayKey = initialDayKey,
-                    openAsDayOnly = openAsDayOnly,
-                    createAsNormal = createAsNormal,
-                    createAsDated = createAsDated,
-                ),
+            factory = NoteEditorViewModelFactory(
+                localOwnerUserId = localOwnerUserId,
+                noteLocalRepository = noteLocalRepository,
+                noteAiRemoteDataSource = noteAiRemoteDataSource,
+                noteImageService = noteImageService,
+                imageRepository = imageRepository,
+                initialLocalKey = initialLocalKey,
+                initialDayKey = initialDayKey,
+                openAsDayOnly = openAsDayOnly,
+                createAsNormal = createAsNormal,
+                createAsDated = createAsDated,
+            ),
         )
 
     val state by viewModel.uiState.collectAsStateWithLifecycle()

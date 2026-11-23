@@ -15,8 +15,7 @@ fun PreviewableImage(
     imageUrl: String?,
     contentDescription: String?,
     modifier: Modifier = Modifier,
-    contentScale: ContentScale =
-        ContentScale.Crop,
+    contentScale: ContentScale = ContentScale.Crop,
 ) {
     val url = imageUrl
         ?.takeIf {it.isNotBlank()}

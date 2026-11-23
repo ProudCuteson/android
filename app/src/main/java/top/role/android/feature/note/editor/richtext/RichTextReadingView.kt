@@ -1,4 +1,3 @@
-
 package top.role.android.feature.note.editor.richtext
 
 import android.graphics.Color as AndroidColor

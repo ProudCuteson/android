@@ -202,4 +202,31 @@ class EntityServiceRepository(
         )
     }
 
+
+    /**
+     * 读取 Space Service 关联内容。
+     *
+     * 后端负责验证：
+     * - 当前用户是否有权访问服务请求
+     * - 内容是否关联到当前请求
+     * - 内容所有者及内容状态
+     */
+    fun observeReferenceContent(
+        serviceId: String,
+        targetType: EntityServiceReferenceType,
+        targetId: String,
+        source: EntityServiceReferenceSource,
+    ): Flow<Result<EntityServiceReferenceContentResponse>> {
+
+        return convexClient.subscribe(
+            name = "space/service:getSpaceServiceReferenceContent",
+            args = mapOf(
+                "serviceId" to serviceId,
+                "targetType" to targetType.value,
+                "targetId" to targetId,
+                "source" to source.value,
+            ),
+        )
+    }
+
 }

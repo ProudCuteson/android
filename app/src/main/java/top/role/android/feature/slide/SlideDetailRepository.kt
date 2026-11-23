@@ -15,37 +15,15 @@ class SlideDetailRepository(
         slideId: String,
     ): Result<MobileSlideDetailResponse?> {
         return try {
-            println(
-                "SlideDetailRepository loadDetail start: $slideId"
-            )
-
-            val result =
-                convexClient
-                    .subscribe<MobileSlideDetailResponse?>(
-                        name =
-                            "mobile/native/slide/index:getSlideDetail",
-
-                        args =
-                            mapOf(
-                                "slideId" to
-                                        slideId,
-                            ),
-                    )
-                    .first()
-
-            println(
-                "SlideDetailRepository loadDetail result: $result"
-            )
+            val result = convexClient.subscribe<MobileSlideDetailResponse?>(
+                    name = "mobile/native/slide/index:getSlideDetail",
+                    args = mapOf("slideId" to slideId ),
+                )
+                .first()
 
             result
         } catch (error: Throwable) {
             error.printStackTrace()
-
-            println(
-                "SlideDetailRepository loadDetail exception: " +
-                        "${error::class.java.name}: ${error.message}"
-            )
-
             Result.failure(error)
         }
     }
@@ -58,28 +36,14 @@ class SlideDetailRepository(
         return try {
             convexClient
                 .subscribe<MobileSlideQuestionsResponse>(
-                    name =
-                        "mobile/native/slide/index:listSlideQuestions",
+                    name = "mobile/native/slide/index:listSlideQuestions",
 
-                    args =
-                        mapOf(
-                            "slideId" to
-                                    slideId,
-
-                            "cardIndex" to
-                                    cardIndex.toDouble(),
-
-                            "scope" to
-                                    "card",
-
-                            "limit" to
-                                    limit
-                                        .coerceIn(
-                                            1,
-                                            50,
-                                        )
-                                        .toDouble(),
-                        ),
+                    args = mapOf(
+                        "slideId" to slideId,
+                        "cardIndex" to cardIndex.toDouble(),
+                        "scope" to "card",
+                        "limit" to limit.coerceIn(1, 50).toDouble(),
+                    ),
                 )
                 .first()
         } catch (error: Throwable) {
@@ -95,51 +59,20 @@ class SlideDetailRepository(
         text: String,
     ): Result<MobileSlideQuestionSubmitResponse> {
         return try {
-            val trimmed =
-                text.trim()
-
-            println(
-                "SlideDetailRepository createQuestion " +
-                        "slideId=$slideId cardIndex=$cardIndex"
-            )
-
-            val result =
-                convexClient
-                    .mutation<MobileSlideQuestionSubmitResponse>(
-                        name =
-                            "mobile/native/slide/index:createSlideQuestion",
-
-                        args =
-                            mapOf(
-                                "slideId" to
-                                        slideId,
-
-                                "cardIndex" to
-                                        cardIndex.toDouble(),
-
-                                "text" to
-                                        trimmed,
-                            ),
-                    )
-
-            println(
-                "SlideDetailRepository createQuestion result: $result"
-            )
-
-            Result.success(
-                result
-            )
+            val trimmed = text.trim()
+            val result = convexClient
+                .mutation<MobileSlideQuestionSubmitResponse>(
+                    name = "mobile/native/slide/index:createSlideQuestion",
+                    args = mapOf(
+                        "slideId" to slideId,
+                        "cardIndex" to cardIndex.toDouble(),
+                        "text" to trimmed,
+                    ),
+                )
+            Result.success(result)
         } catch (error: Throwable) {
             error.printStackTrace()
-
-            println(
-                "SlideDetailRepository createQuestion exception: " +
-                        "${error::class.java.name}: ${error.message}"
-            )
-
-            Result.failure(
-                error
-            )
+            Result.failure(error)
         }
     }
 
@@ -148,45 +81,19 @@ class SlideDetailRepository(
         questionId: String,
     ): Result<MobileSlideQuestionActionResponse> {
         return try {
-            println(
-                "SlideDetailRepository markQuestionAnswered " +
-                        "slideId=$slideId questionId=$questionId"
-            )
+            val result = convexClient
+                .mutation<MobileSlideQuestionActionResponse>(
+                    name = "mobile/native/slide/index:markSlideQuestionAnswered",
+                    args = mapOf(
+                        "slideId" to slideId,
+                        "questionId" to questionId,
+                    ),
+                )
 
-            val result =
-                convexClient
-                    .mutation<MobileSlideQuestionActionResponse>(
-                        name =
-                            "mobile/native/slide/index:markSlideQuestionAnswered",
-
-                        args =
-                            mapOf(
-                                "slideId" to
-                                        slideId,
-
-                                "questionId" to
-                                        questionId,
-                            ),
-                    )
-
-            println(
-                "SlideDetailRepository markQuestionAnswered result: $result"
-            )
-
-            Result.success(
-                result
-            )
+            Result.success(result)
         } catch (error: Throwable) {
             error.printStackTrace()
-
-            println(
-                "SlideDetailRepository markQuestionAnswered exception: " +
-                        "${error::class.java.name}: ${error.message}"
-            )
-
-            Result.failure(
-                error
-            )
+            Result.failure(error)
         }
     }
 
@@ -195,45 +102,19 @@ class SlideDetailRepository(
         questionId: String,
     ): Result<MobileSlideQuestionActionResponse> {
         return try {
-            println(
-                "SlideDetailRepository hideQuestion " +
-                        "slideId=$slideId questionId=$questionId"
-            )
 
-            val result =
-                convexClient
-                    .mutation<MobileSlideQuestionActionResponse>(
-                        name =
-                            "mobile/native/slide/index:hideSlideQuestion",
-
-                        args =
-                            mapOf(
-                                "slideId" to
-                                        slideId,
-
-                                "questionId" to
-                                        questionId,
-                            ),
-                    )
-
-            println(
-                "SlideDetailRepository hideQuestion result: $result"
-            )
-
-            Result.success(
-                result
-            )
+            val result = convexClient
+                .mutation<MobileSlideQuestionActionResponse>(
+                    name = "mobile/native/slide/index:hideSlideQuestion",
+                    args = mapOf(
+                        "slideId" to slideId,
+                        "questionId" to questionId,
+                    ),
+                )
+            Result.success(result)
         } catch (error: Throwable) {
             error.printStackTrace()
-
-            println(
-                "SlideDetailRepository hideQuestion exception: " +
-                        "${error::class.java.name}: ${error.message}"
-            )
-
-            Result.failure(
-                error
-            )
+            Result.failure(error)
         }
     }
 

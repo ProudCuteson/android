@@ -61,48 +61,25 @@ fun SlidePageCanvas(
     page: MobileSlidePage,
     modifier: Modifier = Modifier,
 ) {
-    val canvasWidth =
-        slide.canvasW
-            .takeIf {
-                it > 0.0
-            }
-            ?: 1920.0
+    val canvasWidth = slide.canvasW
+        .takeIf { it > 0.0 }
+        ?: 1920.0
 
-    val canvasHeight =
-        slide.canvasH
-            .takeIf {
-                it > 0.0
-            }
-            ?: 1080.0
+    val canvasHeight = slide.canvasH
+        .takeIf { it > 0.0 }
+        ?: 1080.0
 
+    val isDark = LocalTopRoleDarkTheme.current
+    val shape = RoundedCornerShape(12.dp)
 
-    val isDark =
-        LocalTopRoleDarkTheme.current
-
-
-    val shape =
-        RoundedCornerShape(
-            12.dp
-        )
-
-
-    val borderColor =
-        if (
-            isDark
-        ) {
-            Color(
-                0xFF454545
-            )
-        } else {
-            MaterialTheme
-                .colorScheme
-                .outlineVariant
-        }
-
+    val borderColor = if (isDark) {
+        Color(0xFF454545)
+    } else {
+        MaterialTheme.colorScheme.outlineVariant
+    }
 
     BoxWithConstraints(
-        modifier =
-            modifier
+        modifier = modifier
                 .fillMaxWidth()
                 .clip(
                     shape
@@ -113,8 +90,7 @@ fun SlidePageCanvas(
                     shape = shape,
                 ),
     ) {
-        val canvasWidthPx =
-            constraints.maxWidth
+        val canvasWidthPx = constraints.maxWidth
 
         if (
             canvasWidthPx <= 0
@@ -122,79 +98,40 @@ fun SlidePageCanvas(
             return@BoxWithConstraints
         }
 
+        val scale = canvasWidthPx.toDouble() / canvasWidth
 
-        val scale =
-            canvasWidthPx.toDouble() /
-                    canvasWidth
-
-
-        val canvasHeightPx =
-            (
-                    canvasHeight *
-                            scale
-                    )
-                .roundToInt()
-                .coerceAtLeast(
-                    1
-                )
-
+        val canvasHeightPx = ( canvasHeight * scale )
+            .roundToInt()
+            .coerceAtLeast(1)
 
         SlideCanvasLayout(
-            widthPx =
-                canvasWidthPx,
-
-            heightPx =
-                canvasHeightPx,
-
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .requiredSize(
-                        width =
-                            maxWidth,
-
-                        height =
-                            with(
-                                androidx.compose.ui.platform
-                                    .LocalDensity
-                                    .current
-                            ) {
-                                canvasHeightPx
-                                    .toDp()
-                            },
-                    ),
+            widthPx = canvasWidthPx,
+            heightPx = canvasHeightPx,
+            modifier = Modifier
+                .fillMaxWidth()
+                .requiredSize(
+                    width = maxWidth,
+                    height = with(androidx.compose.ui.platform.LocalDensity.current) {
+                            canvasHeightPx.toDp()
+                    },
+                ),
         ) {
 
             SlidePageBackground(
-                page =
-                    page,
-
-                modifier =
-                    Modifier.fillMaxSize(),
+                page = page,
+                modifier = Modifier.fillMaxSize(),
             )
-
 
             page.elements
                 .forEach { element ->
-
                     SlidePositionedElement(
-                        element =
-                            element,
-
-                        scale =
-                            scale,
-
-                        allowVerticalOverflow =
-                            element.type ==
-                                    MobileSlideElementKind.Text,
+                        element = element,
+                        scale = scale,
+                        allowVerticalOverflow = element.type == MobileSlideElementKind.Text,
                     ) {
-
                         SlideElementRenderer(
-                            element =
-                                element,
-
-                            scale =
-                                scale,
+                            element = element,
+                            scale = scale,
                         )
                     }
                 }
@@ -216,24 +153,17 @@ private fun SlideCanvasLayout(
 
         val childConstraints =
             Constraints.fixed(
-                width =
-                    widthPx.coerceAtLeast(1),
-                height =
-                    heightPx.coerceAtLeast(1),
+                width = widthPx.coerceAtLeast(1),
+                height = heightPx.coerceAtLeast(1),
             )
 
-        val placeables =
-            measurables.map {
-                it.measure(
-                    childConstraints
-                )
-            }
+        val placeables = measurables.map {
+            it.measure(childConstraints)
+        }
 
         layout(
-            width =
-                widthPx.coerceAtLeast(1),
-            height =
-                heightPx.coerceAtLeast(1),
+            width = widthPx.coerceAtLeast(1),
+            height = heightPx.coerceAtLeast(1),
         ) {
             placeables.forEach {
                 it.place(
@@ -252,31 +182,18 @@ internal fun SlidePositionedElement(
     allowVerticalOverflow: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    val resolved =
-        element.rect.resolve()
+    val resolved = element.rect.resolve()
+    val leftPx = (resolved.left * scale).roundToInt()
+    val topPx = (resolved.top * scale).roundToInt()
+    val widthPx = (resolved.width * scale)
+        .roundToInt()
+        .coerceAtLeast(1)
 
-    val leftPx =
-        (resolved.left * scale)
-            .roundToInt()
+    val heightPx = (resolved.height * scale)
+        .roundToInt()
+        .coerceAtLeast(1)
 
-    val topPx =
-        (resolved.top * scale)
-            .roundToInt()
-
-    val widthPx =
-        (resolved.width * scale)
-            .roundToInt()
-            .coerceAtLeast(1)
-
-    val heightPx =
-        (resolved.height * scale)
-            .roundToInt()
-            .coerceAtLeast(1)
-
-    if (
-        widthPx <= 1 ||
-        heightPx <= 1
-    ) {
+    if ( widthPx <= 1 || heightPx <= 1 ) {
         return
     }
 
@@ -294,17 +211,8 @@ internal fun SlidePositionedElement(
                 Constraints(
                     minWidth = widthPx,
                     maxWidth = widthPx,
-
                     minHeight = heightPx,
-
-                    /*
-                     * Text 允许突破原始 rect 高度。
-                     *
-                     * width 仍然严格保持，
-                     * 所以不会改变文本换行宽度。
-                     */
-                    maxHeight =
-                        Constraints.Infinity,
+                    maxHeight = Constraints.Infinity,
                 )
             } else {
                 Constraints.fixed(
@@ -313,19 +221,11 @@ internal fun SlidePositionedElement(
                 )
             }
 
-        val child =
-            measurables
-                .firstOrNull()
-                ?.measure(
-                    childConstraints
-                )
+        val child = measurables.firstOrNull()?.measure(childConstraints)
 
         layout(
-            width =
-                constraints.maxWidth,
-
-            height =
-                constraints.maxHeight,
+            width = constraints.maxWidth,
+            height = constraints.maxHeight,
         ) {
             child?.place(
                 x = leftPx,
@@ -340,65 +240,42 @@ private fun SlidePageBackground(
     page: MobileSlidePage,
     modifier: Modifier = Modifier,
 ) {
-    val background =
-        page.background
+    val background = page.background
+    val isDark = LocalTopRoleDarkTheme.current
+    val defaultColor = if (isDark) {
+        Color(0xFF121212)
+    } else {
+        Color.White
+    }
 
-    val isDark =
-        LocalTopRoleDarkTheme.current
-
-
-    val defaultColor =
-        if (
-            isDark
-        ) {
-            Color(
-                0xFF121212
-            )
-        } else {
-            Color.White
+    val color = when (background.kind) {
+        "color" -> {
+            parseSlideColor(
+                background.color
+            ) ?: defaultColor
         }
 
-
-    val color =
-        when (
-            background.kind
-        ) {
-            "color" -> {
-                parseSlideColor(
-                    background.color
-                ) ?: defaultColor
-            }
-
-            else -> {
-                defaultColor
-            }
+        else -> {
+            defaultColor
         }
-
+    }
 
     Box(
-        modifier =
-            modifier.background(
-                color
-            ),
+        modifier = modifier.background(
+            color
+        ),
     )
 }
 
 fun parseSlideColor(
     value: String?,
 ): Color? {
-    val raw =
-        value
-            ?.trim()
-            ?.takeIf {
-                it.isNotEmpty()
-            }
-            ?: return null
+    val raw = value
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+        ?: return null
 
-    if (
-        raw.equals(
-            "transparent",
-            ignoreCase = true,
-        )
+    if (raw.equals("transparent", ignoreCase = true)
     ) {
         return Color.Transparent
     }

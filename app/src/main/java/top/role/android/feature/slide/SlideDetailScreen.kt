@@ -45,76 +45,52 @@ import top.role.android.feature.slide.render.SlidePageCanvas
 @Composable
 fun SlideDetailScreen(
     state: SlideDetailUiState,
-
     onPreviousPage: () -> Unit,
     onNextPage: () -> Unit,
-
     onLoadQuestions: () -> Unit,
     onSubmitQuestion: (
         text: String,
         onSuccess: () -> Unit,
     ) -> Unit,
-
     onMarkQuestionAnswered: (
         questionId: String,
     ) -> Unit,
-
     onHideQuestion: (
         questionId: String,
     ) -> Unit,
-
     onClearQuestionSubmitError: () -> Unit,
     onClearQuestionActionError: () -> Unit,
-
     onRetry: () -> Unit,
 ) {
-    var showAskSheet by
-    remember {
-        mutableStateOf(
-            false
-        )
+    var showAskSheet by remember {
+        mutableStateOf(false)
     }
-
 
     when {
         state.isLoading -> {
             SlideDetailLoading()
         }
 
-
         state.isUnavailable -> {
             SlideDetailUnavailable()
         }
 
-
         state.errorMessage != null -> {
             SlideDetailError(
-                message =
-                    state.errorMessage,
-
-                onRetry =
-                    onRetry,
+                message = state.errorMessage,
+                onRetry = onRetry,
             )
         }
 
-
         state.detail != null -> {
             SlideDetailContent(
-                state =
-                    state,
-
-                onPreviousPage =
-                    onPreviousPage,
-
-                onNextPage =
-                    onNextPage,
-
+                state = state,
+                onPreviousPage = onPreviousPage,
+                onNextPage = onNextPage,
                 onOpenQuestions = {
                     onClearQuestionSubmitError()
                     onClearQuestionActionError()
-
-                    showAskSheet =
-                        true
+                    showAskSheet = true
                 },
             )
         }
@@ -126,81 +102,33 @@ fun SlideDetailScreen(
         state.detail != null
     ) {
         SlideAskSheet(
-            slideTitle =
-                state.detail.slide.title,
-
-            pageIndex =
-                state.currentPageIndex,
-
-            pageCount =
-                state.pageCount,
-
-            isOwner =
-                state.isOwner,
-
-            questions =
-                if (
-                    state.isOwner
-                ) {
-                    state.presenterQuestions
-                } else {
-                    state.questions
-                },
-
-            questionsLoading =
-                state.questionsLoading,
-
-            questionsError =
-                state.questionsError,
-
-            submitting =
-                state.submittingQuestion,
-
-            submitError =
-                state.questionSubmitError,
-
-            questionActionId =
-                state.questionActionId,
-
-            questionActionError =
-                state.questionActionError,
-
+            slideTitle = state.detail.slide.title,
+            pageIndex = state.currentPageIndex,
+            pageCount = state.pageCount,
+            isOwner = state.isOwner,
+            questions = if (state.isOwner) {
+                state.presenterQuestions
+            } else {
+                state.questions
+            },
+            questionsLoading = state.questionsLoading,
+            questionsError = state.questionsError,
+            submitting = state.submittingQuestion,
+            submitError = state.questionSubmitError,
+            questionActionId = state.questionActionId,
+            questionActionError = state.questionActionError,
             onDismiss = {
-                if (
-                    !state.submittingQuestion
-                ) {
-                    showAskSheet =
-                        false
-                }
+                if (!state.submittingQuestion) { showAskSheet = false }
             },
-
-            onRefresh = {
-                onLoadQuestions()
-            },
-
+            onRefresh = { onLoadQuestions() },
             onSubmit = { text ->
-                onSubmitQuestion(
-                    text,
-                ) {
-                    showAskSheet =
-                        false
-                }
+                onSubmitQuestion(text) { showAskSheet = false }
             },
-
-            onMarkAnswered = {
-                    questionId ->
-
-                onMarkQuestionAnswered(
-                    questionId
-                )
+            onMarkAnswered = { questionId ->
+                onMarkQuestionAnswered( questionId)
             },
-
-            onHide = {
-                    questionId ->
-
-                onHideQuestion(
-                    questionId
-                )
+            onHide = { questionId ->
+                onHideQuestion(questionId)
             },
         )
     }
@@ -209,205 +137,98 @@ fun SlideDetailScreen(
 @Composable
 private fun SlideDetailContent(
     state: SlideDetailUiState,
-
     onPreviousPage: () -> Unit,
     onNextPage: () -> Unit,
-
     onOpenQuestions: () -> Unit,
 ) {
-    val detail =
-        state.detail
-            ?: return
+    val detail = state.detail ?: return
+    val isDark = LocalTopRoleDarkTheme.current
 
+    val pageBackground = if (isDark) {
+        Color(0xFF121212)
+    } else {
+        MaterialTheme.colorScheme.background
+    }
 
-    val isDark =
-        LocalTopRoleDarkTheme.current
+    val primaryTextColor = if (isDark) {
+        Color(0xFFF2F2F2)
+    } else {
+        MaterialTheme.colorScheme.onBackground
+    }
 
-
-    val pageBackground =
-        if (
-            isDark
-        ) {
-            Color(
-                0xFF121212
-            )
-        } else {
-            MaterialTheme
-                .colorScheme
-                .background
-        }
-
-
-    val primaryTextColor =
-        if (
-            isDark
-        ) {
-            Color(
-                0xFFF2F2F2
-            )
-        } else {
-            MaterialTheme
-                .colorScheme
-                .onBackground
-        }
-
-
-    val secondaryTextColor =
-        if (
-            isDark
-        ) {
-            Color(
-                0xFFCACACA
-            )
-        } else {
-            MaterialTheme
-                .colorScheme
-                .onSurfaceVariant
-        }
-
+    val secondaryTextColor = if (isDark) {
+        Color(0xFFCACACA)
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
 
     Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(
-                    pageBackground
-                )
-                .padding(
-                    horizontal =
-                        16.dp,
-                ),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(pageBackground)
+            .padding(horizontal =16.dp),
     ) {
 
         Text(
-            text =
-                detail.slide.title,
-
-            modifier =
-                Modifier.padding(
-                    top =
-                        12.dp,
-                ),
-
-            style =
-                MaterialTheme
-                    .typography
-                    .titleLarge,
-
-            fontWeight =
-                FontWeight.SemiBold,
-
-            color =
-                primaryTextColor,
-
-            maxLines =
-                2,
-
-            overflow =
-                TextOverflow.Ellipsis,
+            text = detail.slide.title,
+            modifier = Modifier.padding(top =12.dp),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = primaryTextColor,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
         )
 
-
         detail.slide.description
-            ?.takeIf {
-                it.isNotBlank()
-            }
+            ?.takeIf { it.isNotBlank() }
             ?.let { description ->
 
                 Text(
-                    text =
-                        description,
-
-                    modifier =
-                        Modifier.padding(
-                            top =
-                                6.dp,
-                        ),
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .bodyMedium,
-
-                    color =
-                        secondaryTextColor,
-
-                    maxLines =
-                        2,
-
-                    overflow =
-                        TextOverflow.Ellipsis,
+                    text = description,
+                    modifier = Modifier.padding(
+                        top = 6.dp,
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = secondaryTextColor,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
 
 
-        Spacer(
-            modifier =
-                Modifier.height(
-                    16.dp
-                )
-        )
+        Spacer(modifier =Modifier.height(16.dp))
 
-
-        if (
-            state.currentPage != null
-        ) {
+        if (state.currentPage != null) {
             SlidePageCanvas(
-                slide =
-                    detail.slide,
-
-                page =
-                    state.currentPage!!,
-
-                modifier =
-                    Modifier.fillMaxWidth(),
+                slide = detail.slide,
+                page = state.currentPage!!,
+                modifier = Modifier.fillMaxWidth(),
             )
         } else {
 
             Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(
-                            220.dp
-                        ),
-
-                contentAlignment =
-                    Alignment.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp),
+                contentAlignment = Alignment.Center,
             ) {
-
                 Text(
-                    text =
-                        "暂无演示页面",
-
-                    color =
-                        secondaryTextColor,
+                    text = "暂无演示页面",
+                    color = secondaryTextColor,
                 )
             }
         }
 
-
         SlidePageControls(
-            state =
-                state,
-
-            onPreviousPage =
-                onPreviousPage,
-
-            onNextPage =
-                onNextPage,
+            state = state,
+            onPreviousPage = onPreviousPage,
+            onNextPage = onNextPage,
         )
 
-
         SlideInteractionBar(
-            canAsk =
-                state.canAsk,
-
-            isOwner =
-                state.isOwner,
-
-            onOpenQuestions =
-                onOpenQuestions,
+            canAsk = state.canAsk,
+            isOwner = state.isOwner,
+            onOpenQuestions = onOpenQuestions,
         )
     }
 }
@@ -415,80 +236,43 @@ private fun SlideDetailContent(
 @Composable
 private fun SlidePageControls(
     state: SlideDetailUiState,
-
     onPreviousPage: () -> Unit,
     onNextPage: () -> Unit,
 ) {
     Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(
-                    vertical = 12.dp,
-                ),
-
-        verticalAlignment =
-            Alignment.CenterVertically,
-
-        horizontalArrangement =
-            Arrangement.SpaceBetween,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         IconButton(
-            enabled =
-                state.hasPreviousPage,
-
-            onClick =
-                onPreviousPage,
+            enabled = state.hasPreviousPage,
+            onClick = onPreviousPage,
         ) {
             Icon(
-                imageVector =
-                    Icons
-                        .AutoMirrored
-                        .Filled
-                        .ArrowBack,
-
-                contentDescription =
-                    "上一页",
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "上一页",
             )
         }
 
         Text(
-            text =
-                if (
-                    state.pageCount > 0
-                ) {
-                    "${state.currentPageIndex + 1} / ${state.pageCount}"
-                } else {
-                    "0 / 0"
-                },
-
-            style =
-                MaterialTheme
-                    .typography
-                    .labelLarge,
-
-            color =
-                MaterialTheme
-                    .colorScheme
-                    .onSurfaceVariant,
+            text = if (state.pageCount > 0) {
+                "${state.currentPageIndex + 1} / ${state.pageCount}"
+            } else {
+                "0 / 0"
+            },
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
         IconButton(
-            enabled =
-                state.hasNextPage,
-
-            onClick =
-                onNextPage,
+            enabled = state.hasNextPage,
+            onClick = onNextPage,
         ) {
             Icon(
-                imageVector =
-                    Icons
-                        .AutoMirrored
-                        .Filled
-                        .ArrowForward,
-
-                contentDescription =
-                    "下一页",
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = "下一页",
             )
         }
     }
@@ -498,7 +282,6 @@ private fun SlidePageControls(
 private fun SlideInteractionBar(
     canAsk: Boolean,
     isOwner: Boolean,
-
     onOpenQuestions: () -> Unit,
 ) {
     /*
@@ -508,55 +291,34 @@ private fun SlideInteractionBar(
      * Owner / Presenter：
      * 即使 canAsk=false，也必须能进入现场问题面板。
      */
-    if (
-        !canAsk &&
-        !isOwner
-    ) {
+    if (!canAsk && !isOwner) {
         return
     }
 
     Row(
-        modifier =
-            Modifier.fillMaxWidth(),
-
-        horizontalArrangement =
-            Arrangement.spacedBy(
-                12.dp
-            ),
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         SlideInteractionAction(
-            text =
-                if (isOwner) {
-                    "现场提问"
-                } else {
-                    "提问"
-                },
+            text = if (isOwner) {
+                "现场提问"
+            } else {
+                "提问"
+            },
 
             icon = {
                 Icon(
-                    imageVector =
-                        if (isOwner) {
-                            Icons
-                                .Outlined
-                                .QuestionAnswer
-                        } else {
-                            Icons
-                                .Outlined
-                                .ChatBubbleOutline
-                        },
-
-                    contentDescription =
-                        null,
+                    imageVector = if (isOwner) {
+                        Icons.Outlined.QuestionAnswer
+                    } else {
+                        Icons.Outlined.ChatBubbleOutline
+                    },
+                    contentDescription = null,
                 )
             },
 
-            modifier =
-                Modifier.weight(
-                    1f
-                ),
-
-            onClick =
-                onOpenQuestions,
+            modifier = Modifier.weight(1f),
+            onClick = onOpenQuestions,
         )
     }
 }
@@ -564,110 +326,54 @@ private fun SlideInteractionBar(
 @Composable
 private fun SlideInteractionAction(
     text: String,
-
-    icon:
-    @Composable
-        () -> Unit,
-
+    icon: @Composable () -> Unit,
     modifier: Modifier = Modifier,
-
     onClick: () -> Unit,
 ) {
+    val isDark = LocalTopRoleDarkTheme.current
+    val containerColor = if (isDark) {
+        Color(0xFF242424)
+    } else {
+        MaterialTheme
+            .colorScheme
+            .surfaceContainerLow
+    }
 
-    val isDark =
-        LocalTopRoleDarkTheme.current
-
-
-    val containerColor =
-        if (
-            isDark
-        ) {
-            Color(
-                0xFF242424
-            )
-        } else {
-            MaterialTheme
-                .colorScheme
-                .surfaceContainerLow
-        }
-
-
-    val contentColor =
-        if (
-            isDark
-        ) {
-            Color(
-                0xFFF2F2F2
-            )
-        } else {
-            MaterialTheme
-                .colorScheme
-                .onSurface
-        }
-
+    val contentColor = if (isDark) {
+        Color(0xFFF2F2F2)
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
 
     Card(
-        modifier =
-            modifier
-                .clickable(
-                    onClick =
-                        onClick,
-                ),
-
-        shape =
-            RoundedCornerShape(
-                14.dp
-            ),
-
-        colors =
-            CardDefaults.cardColors(
-                containerColor =
-                    containerColor,
-
-                contentColor =
-                    contentColor,
-            ),
+        modifier = modifier.clickable(onClick = onClick),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = containerColor,
+            contentColor = contentColor,
+        ),
     ) {
         Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        horizontal = 14.dp,
-                        vertical = 12.dp,
-                    ),
-
-            verticalAlignment =
-                Alignment.CenterVertically,
-
-            horizontalArrangement =
-                Arrangement.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(
+                    horizontal = 14.dp,
+                    vertical = 12.dp,
+                ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
         ) {
 
             CompositionLocalProvider(
-                LocalContentColor provides
-                        contentColor,
+                LocalContentColor provides contentColor,
             ) {
-
                 icon()
 
-
                 Text(
-                    text =
-                        text,
-
-                    modifier =
-                        Modifier.padding(
-                            start = 8.dp,
-                        ),
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .labelLarge,
-
-                    color =
-                        contentColor,
+                    text = text,
+                    modifier = Modifier.padding(start = 8.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = contentColor,
                 )
             }
         }
@@ -677,11 +383,8 @@ private fun SlideInteractionAction(
 @Composable
 private fun SlideDetailLoading() {
     Box(
-        modifier =
-            Modifier.fillMaxSize(),
-
-        contentAlignment =
-            Alignment.Center,
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
     ) {
         CircularProgressIndicator()
     }
@@ -690,27 +393,15 @@ private fun SlideDetailLoading() {
 @Composable
 private fun SlideDetailUnavailable() {
     Box(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(
-                    24.dp
-                ),
-
-        contentAlignment =
-            Alignment.Center,
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        contentAlignment = Alignment.Center,
     ) {
         Text(
-            text =
-                "演示暂不可查看",
-
-            textAlign =
-                TextAlign.Center,
-
-            color =
-                MaterialTheme
-                    .colorScheme
-                    .onSurfaceVariant,
+            text = "演示暂不可查看",
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -721,75 +412,34 @@ private fun SlideDetailError(
     onRetry: () -> Unit,
 ) {
     Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(
-                    24.dp
-                ),
-
-        horizontalAlignment =
-            Alignment.CenterHorizontally,
-
-        verticalArrangement =
-            Arrangement.Center,
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
         Text(
-            text =
-                "演示加载失败",
-
-            style =
-                MaterialTheme
-                    .typography
-                    .titleMedium,
+            text = "演示加载失败",
+            style = MaterialTheme.typography.titleMedium,
         )
 
         Text(
-            text =
-                message,
-
-            modifier =
-                Modifier.padding(
-                    top = 8.dp,
-                ),
-
-            style =
-                MaterialTheme
-                    .typography
-                    .bodyMedium,
-
-            color =
-                MaterialTheme
-                    .colorScheme
-                    .onSurfaceVariant,
-
-            textAlign =
-                TextAlign.Center,
+            text = message,
+            modifier = Modifier.padding(
+                top = 8.dp,
+            ),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
         )
 
         Text(
-            text =
-                "点击重试",
-
-            modifier =
-                Modifier
-                    .padding(
-                        top = 16.dp,
-                    )
-                    .clickable(
-                        onClick =
-                            onRetry,
-                    ),
-
-            style =
-                MaterialTheme
-                    .typography
-                    .labelLarge,
-
-            color =
-                MaterialTheme
-                    .colorScheme
-                    .primary,
+            text = "点击重试",
+            modifier = Modifier
+                .padding(top = 16.dp )
+                .clickable(onClick = onRetry ),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
         )
     }
 }

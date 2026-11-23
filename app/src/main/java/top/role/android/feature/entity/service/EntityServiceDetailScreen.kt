@@ -1,9 +1,9 @@
-
 package top.role.android.feature.entity.service
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -32,6 +32,10 @@ import top.role.android.feature.content.picker.ContentSelection
 fun EntityServiceDetailScreen(
     state: EntityServiceUiState,
     pickerRepository: ContentPickerRepository,
+    onOpenReference: (
+        reference: EntityServiceReference,
+        source: EntityServiceReferenceSource,
+    ) -> Unit,
     onWithdraw: () -> Unit,
     onMarkInReview: () -> Unit,
     onAccept: () -> Unit,
@@ -208,10 +212,10 @@ fun EntityServiceDetailScreen(
                 }
             }
 
-
             else -> {
                 EntityServiceDetailContent(
                     service = service,
+                    onOpenReference = onOpenReference,
                     isManager = canManage,
                     modifier = Modifier
                         .fillMaxSize()
@@ -296,6 +300,10 @@ private fun EntityServiceDetailContent(
     service: EntityServiceItem,
     isManager: Boolean,
     modifier: Modifier = Modifier,
+    onOpenReference: (
+        reference: EntityServiceReference,
+        source: EntityServiceReferenceSource,
+    ) -> Unit,
     footer: @Composable ColumnScope.() -> Unit = {},
 ) {
     Column(
@@ -375,7 +383,10 @@ private fun EntityServiceDetailContent(
         }
 
         service.resultRef?.let { ref ->
+
             HorizontalDivider()
+
+            val canOpen = ref.canOpenContent()
 
             Column(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -386,7 +397,20 @@ private fun EntityServiceDetailContent(
                 )
 
                 OutlinedCard(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(
+                            if (canOpen) {
+                                Modifier.clickable {
+                                    onOpenReference(
+                                        ref,
+                                        EntityServiceReferenceSource.RESULT,
+                                    )
+                                }
+                            } else {
+                                Modifier
+                            }
+                        ),
                 ) {
                     Column(
                         modifier = Modifier.padding(14.dp),
@@ -452,36 +476,45 @@ private fun EntityServiceDetailContent(
                 )
 
                 references.forEach { reference ->
+
+                    val canOpen = reference.canOpenContent()
+
                     OutlinedCard(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(
+                                if (canOpen) {
+                                    Modifier.clickable {
+                                        onOpenReference(
+                                            reference,
+                                            EntityServiceReferenceSource.REFERENCE,
+                                        )
+                                    }
+                                } else {
+                                    Modifier
+                                }
+                            ),
                     ) {
                         Column(
                             modifier = Modifier.padding(14.dp),
-                            verticalArrangement =
-                                Arrangement.spacedBy(4.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             Text(
                                 text = reference.label
                                     ?.takeIf { it.isNotBlank() }
-                                    ?: referenceTypeLabel(
-                                        reference.targetType
-                                    ),
-                                style =
-                                    MaterialTheme.typography.bodyMedium,
+                                    ?: referenceTypeLabel(reference.targetType),
+                                style = MaterialTheme.typography.bodyMedium,
                             )
 
                             Text(
-                                text = referenceTypeLabel(
-                                    reference.targetType
-                                ),
-                                style =
-                                    MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme
-                                    .colorScheme.onSurfaceVariant,
+                                text = referenceTypeLabel(reference.targetType),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
                 }
+
             }
         }
 
@@ -576,6 +609,15 @@ private fun ServiceRequesterInfo(
             )
         }
     }
+}
+
+private fun EntityServiceReference.canOpenContent(): Boolean {
+    return targetType in setOf(
+        "note",
+        "doc",
+        "slide",
+        "fileAsset",
+    ) && !targetId.isNullOrBlank()
 }
 
 @Composable

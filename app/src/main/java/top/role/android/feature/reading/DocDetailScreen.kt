@@ -26,10 +26,8 @@ fun DocDetailScreen(
     when {
         state.isLoading -> {
             Box(
-                modifier =
-                    Modifier.fillMaxSize(),
-                contentAlignment =
-                    Alignment.Center,
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
             ) {
                 CircularProgressIndicator()
             }
@@ -44,49 +42,40 @@ fun DocDetailScreen(
                     Alignment.Center,
             ) {
                 Text(
-                    text =
-                        state.errorMessage,
+                    text = state.errorMessage,
                 )
             }
         }
 
         state.detail?.doc == null -> {
             Box(
-                modifier =
-                    Modifier.fillMaxSize(),
-                contentAlignment =
-                    Alignment.Center,
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text =
-                        "文档不存在或不可访问",
+                    text = "文档不存在或不可访问",
                 )
             }
         }
 
         else -> {
-            val detail =
-                state.detail
+            val detail =  state.detail
 
-            val doc =
-                detail.doc!!
+            val doc =  detail.doc
 
-            val blocks =
-                detail.renderDoc
-                    ?.blocks
-                    .orEmpty()
+            val blocks = detail.renderDoc
+                ?.blocks
+                .orEmpty()
 
             LazyColumn(
-                modifier =
-                    Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize(),
 
-                contentPadding =
-                    PaddingValues(
-                        start = 18.dp,
-                        end = 18.dp,
-                        top = 18.dp,
-                        bottom = 56.dp,
-                    ),
+                contentPadding = PaddingValues(
+                    start = 18.dp,
+                    end = 18.dp,
+                    top = 18.dp,
+                    bottom = 56.dp,
+                ),
 
                 verticalArrangement =
                     Arrangement.spacedBy(
@@ -99,16 +88,12 @@ fun DocDetailScreen(
                 ) {
                     ReadingHeader(
                         doc = doc,
-                        author =
-                            detail.author,
-                        space =
-                            detail.space,
-                        modifier =
-                            Modifier.padding(
-                                bottom = 10.dp,
-                            ),
-                        onSpaceClick =
-                            onSpaceClick,
+                        author = detail.author,
+                        space = detail.space,
+                        modifier = Modifier.padding(
+                            bottom = 10.dp,
+                        ),
+                        onSpaceClick = onSpaceClick,
                     )
                 }
 

@@ -26,3 +26,26 @@ object EntityServiceRoute {
         return "entity-service/${Uri.encode(spaceId)}/$mode"
     }
 }
+
+object EntityServiceReferencePreviewRoute {
+
+    const val serviceIdArg = "serviceId"
+    const val targetTypeArg = "targetType"
+    const val targetIdArg = "targetId"
+    const val sourceArg = "source"
+
+    private const val base =
+        "entity-service/reference-preview"
+
+    const val route =
+        "$base/{$serviceIdArg}/{$targetTypeArg}/{$targetIdArg}/{$sourceArg}"
+
+    fun create(
+        serviceId: String,
+        targetType: String,
+        targetId: String,
+        source: String,
+    ): String {
+        return "$base/$serviceId/$targetType/$targetId/$source"
+    }
+}

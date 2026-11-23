@@ -26,9 +26,7 @@ fun SlideElementRenderer(
         modifier = modifier
             .fillMaxSize()
             .graphicsLayer {
-                rotationZ =
-                    element.rotation
-                        .toFloat()
+                rotationZ = element.rotation.toFloat()
             },
     ) {
         when (element.type) {
@@ -77,25 +75,17 @@ fun SlideElementRenderer(
 
             MobileSlideElementKind.Connector -> {
                 SlideConnectorElement(
-                    element =
-                        element,
-
-                    scale =
-                        scale,
-
-                    modifier =
-                        Modifier.fillMaxSize(),
+                    element = element,
+                    scale = scale,
+                    modifier = Modifier.fillMaxSize(),
                 )
             }
 
             MobileSlideElementKind.Unsupported -> {
                 SlideElementPlaceholder(
-                    label =
-                        element.originalType
-                            ?.let {
-                                "UNSUPPORTED: $it"
-                            }
-                            ?: "UNSUPPORTED",
+                    label = element.originalType
+                        ?.let { "UNSUPPORTED: $it" }
+                        ?: "UNSUPPORTED",
                 )
             }
         }
@@ -124,14 +114,9 @@ private fun SlideElementPlaceholder(
     ) {
         Text(
             text = label,
-            style =
-                MaterialTheme.typography
-                    .labelSmall,
-            color =
-                MaterialTheme.colorScheme
-                    .onSurfaceVariant,
-            textAlign =
-                TextAlign.Center,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
             maxLines = 1,
         )
     }

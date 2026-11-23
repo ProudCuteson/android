@@ -25,17 +25,10 @@ fun EntityServiceManageActions(
 
     val status = service.status
 
-    val canReview =
-        status == EntityServiceStatuses.OPEN
-
-    val canAccept =
-        EntityServiceStatuses.canAccept(status)
-
-    val canDecline =
-        EntityServiceStatuses.canDecline(status)
-
-    val hasIncentive =
-        (service.incentiveC ?: 0.0) > 0.0
+    val canReview = status == EntityServiceStatuses.OPEN
+    val canAccept = EntityServiceStatuses.canAccept(status)
+    val canDecline = EntityServiceStatuses.canDecline(status)
+    val hasIncentive = (service.incentiveC ?: 0.0) > 0.0
 
     if (canReview || canAccept || canDecline) {
         Column(

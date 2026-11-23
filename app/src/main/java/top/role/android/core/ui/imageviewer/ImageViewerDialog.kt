@@ -43,32 +43,20 @@ fun ImageViewerDialog(
     imageUrl: String?,
     onDismiss: () -> Unit,
 ) {
-    val url =
-        imageUrl
-            ?.takeIf {
-                it.isNotBlank()
-            }
-            ?: return
+    val url = imageUrl
+        ?.takeIf { it.isNotBlank() }
+        ?: return
 
-    var scale by
-    remember(url) {
-        mutableFloatStateOf(
-            1f
-        )
+    var scale by remember(url) {
+        mutableFloatStateOf(1f)
     }
 
-    var offset by
-    remember(url) {
-        mutableStateOf(
-            Offset.Zero
-        )
+    var offset by remember(url) {
+        mutableStateOf(Offset.Zero)
     }
 
-    var containerSize by
-    remember {
-        mutableStateOf(
-            IntSize.Zero
-        )
+    var containerSize by remember {
+        mutableStateOf(IntSize.Zero)
     }
 
     fun applyResistance(
@@ -78,25 +66,16 @@ fun ImageViewerDialog(
     ): Float {
         return when {
             value < min -> {
-                val overflow =
-                    value - min
-
-                min +
-                        overflow *
-                        0.35f
+                val overflow = value - min
+                min + overflow * 0.35f
             }
 
             value > max -> {
-                val overflow =
-                    value - max
-
-                max +
-                        overflow *
-                        0.35f
+                val overflow = value - max
+                max + overflow * 0.35f
             }
 
-            else ->
-                value
+            else -> value
         }
     }
 
@@ -112,197 +91,107 @@ fun ImageViewerDialog(
             return Offset.Zero
         }
 
-        val maxX =
-            containerSize.width *
-                    (targetScale - 1f) /
-                    2f
+        val maxX = containerSize.width * (targetScale - 1f) / 2f
 
-        val maxY =
-            containerSize.height *
-                    (targetScale - 1f) /
-                    2f
+        val maxY = containerSize.height * (targetScale - 1f) / 2f
 
         return Offset(
-            x =
-                applyResistance(
-                    value =
-                        targetOffset.x,
+            x = applyResistance(
+                value = targetOffset.x,
+                min = -maxX,
+                max = maxX,
+            ),
 
-                    min =
-                        -maxX,
-
-                    max =
-                        maxX,
-                ),
-
-            y =
-                applyResistance(
-                    value =
-                        targetOffset.y,
-
-                    min =
-                        -maxY,
-
-                    max =
-                        maxY,
-                ),
+            y = applyResistance(
+                value = targetOffset.y,
+                min = -maxY,
+                max = maxY,
+            ),
         )
     }
 
+    val transformableState = rememberTransformableState {
+        zoomChange,
+        panChange,
+        _ ->
 
-    val transformableState =
-        rememberTransformableState {
-                zoomChange,
-                panChange,
-                _ ->
+        val oldScale = scale
+        val newScale =(oldScale * zoomChange).coerceIn(1f, 5f)
 
-            val oldScale =
-                scale
-
-            val newScale =
-                (
-                        oldScale *
-                                zoomChange
-                        ).coerceIn(
-                        1f,
-                        5f,
-                    )
-
-            if (
-                newScale <= 1f
-            ) {
-                scale =
-                    1f
-
-                offset =
-                    Offset.Zero
-
-                return@rememberTransformableState
-            }
-
-            scale =
-                newScale
-
-            offset =
-                clampOffset(
-                    targetOffset =
-                        offset +
-                                panChange,
-
-                    targetScale =
-                        newScale,
-                )
+        if (newScale <= 1f) {
+            scale = 1f
+            offset = Offset.Zero
+            return@rememberTransformableState
         }
+
+        scale = newScale
+
+        offset = clampOffset(
+            targetOffset = offset + panChange,
+            targetScale = newScale,
+        )
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
-        properties =
-            DialogProperties(
-                usePlatformDefaultWidth = false,
-                decorFitsSystemWindows = false,
-                dismissOnBackPress = true,
-                dismissOnClickOutside = false,
-            ),
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false,
+        ),
     ) {
         BackHandler {
             onDismiss()
         }
 
         Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .background(
-                        Color.Black
-                    )
-                    .onSizeChanged {
-                        containerSize =
-                            it
-                    }
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .onSizeChanged { containerSize = it }
         ) {
             AsyncImage(
                 model = url,
                 contentDescription = null,
 
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            scaleX =
-                                scale
-
-                            scaleY =
-                                scale
-
-                            translationX =
-                                offset.x
-
-                            translationY =
-                                offset.y
-                        }
-                        .transformable(
-                            state =
-                                transformableState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                        translationX = offset.x
+                        translationY = offset.y
+                    }
+                    .transformable(state = transformableState)
+                    .pointerInput(
+                        url,
+                        containerSize,
+                    ) {
+                        detectTapGestures(
+                            onDoubleTap = { tapOffset ->
+                                if (scale > 1f) {
+                                    scale = 1f
+                                    offset = Offset.Zero
+                                } else {
+                                    val targetScale = 2.5f
+                                    val center = Offset(
+                                        x = containerSize.width / 2f,
+                                        y = containerSize.height / 2f,
+                                    )
+                                    scale = targetScale
+                                    offset = clampOffset(
+                                        targetOffset = (center - tapOffset) *
+                                                    (targetScale - 1f),
+                                        targetScale = targetScale,
+                                    )
+                                }
+                            },
                         )
-                        .pointerInput(
-                            url,
-                            containerSize,
-                        ) {
-                            detectTapGestures(
+                    },
 
-                                onDoubleTap = {
-                                        tapOffset ->
-
-                                    if (
-                                        scale > 1f
-                                    ) {
-                                        scale =
-                                            1f
-
-                                        offset =
-                                            Offset.Zero
-                                    } else {
-                                        val targetScale =
-                                            2.5f
-
-                                        val center =
-                                            Offset(
-                                                x =
-                                                    containerSize.width /
-                                                            2f,
-
-                                                y =
-                                                    containerSize.height /
-                                                            2f,
-                                            )
-
-                                        scale =
-                                            targetScale
-
-                                        offset =
-                                            clampOffset(
-                                                targetOffset =
-                                                    (
-                                                            center -
-                                                                    tapOffset
-                                                            ) *
-                                                            (
-                                                                    targetScale -
-                                                                            1f
-                                                                    ),
-
-                                                targetScale =
-                                                    targetScale,
-                                            )
-                                    }
-                                },
-                            )
-                        },
-
-                contentScale =
-                    ContentScale.Fit,
+                contentScale = ContentScale.Fit,
             )
-
 
             IconButton(
                 onClick = onDismiss,
@@ -317,12 +206,9 @@ fun ImageViewerDialog(
                     ),
             ) {
                 Icon(
-                    imageVector =
-                        Icons.Default.Close,
-                    contentDescription =
-                        "关闭图片",
-                    tint =
-                        Color.White,
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "关闭图片",
+                    tint = Color.White,
                 )
             }
         }

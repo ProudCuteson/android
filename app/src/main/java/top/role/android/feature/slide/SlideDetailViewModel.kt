@@ -14,41 +14,16 @@ import top.role.android.core.model.slide.MobileSlideQuestionItem
 
 data class SlideDetailUiState(
     val isLoading: Boolean = true,
-
     val detail: MobileSlideDetailResponse? = null,
-
     val currentPageIndex: Int = 0,
-
     val isUnavailable: Boolean = false,
-
     val errorMessage: String? = null,
-
-    /*
-     * ------------------------------------------------------------
-     * Q&A
-     * ------------------------------------------------------------
-     */
-
     val questionsLoading: Boolean = false,
-
-    val questions: List<MobileSlideQuestionItem> =
-        emptyList(),
-
+    val questions: List<MobileSlideQuestionItem> = emptyList(),
     val questionsError: String? = null,
-
     val submittingQuestion: Boolean = false,
-
     val questionSubmitError: String? = null,
-
-    /**
-     * 当前正在执行 presenter action 的 questionId。
-     *
-     * 用于：
-     * - 标记已回答
-     * - 隐藏
-     */
     val questionActionId: String? = null,
-
     val questionActionError: String? = null,
 ) {
 

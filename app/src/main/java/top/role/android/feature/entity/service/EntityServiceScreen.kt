@@ -26,6 +26,10 @@ import top.role.android.feature.content.picker.ContentPickerRepository
 fun EntityServiceScreen(
     state: EntityServiceUiState,
     pickerRepository: ContentPickerRepository,
+    onOpenReference: (
+        EntityServiceReference,
+        EntityServiceReferenceSource,
+    ) -> Unit,
     onRetry: () -> Unit,
     onOpenDetail: (String) -> Unit,
     onCloseDetail: () -> Unit,
@@ -96,6 +100,7 @@ fun EntityServiceScreen(
         EntityServiceDetailScreen(
             state = state,
             pickerRepository = pickerRepository,
+            onOpenReference = onOpenReference,
             onRetry = onRetryDetail,
             onWithdraw = onWithdraw,
             onMarkInReview = onMarkInReview,
@@ -286,33 +291,23 @@ private fun EntityServiceListItem(
             Text(
                 text = service.coreQuestion,
                 style = MaterialTheme.typography.bodyMedium,
-                color =
-                    MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 3,
             )
 
             Row(
-                horizontalArrangement =
-                    Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    text = EntityServiceTypes.label(
-                        service.requestType
-                    ),
-                    style =
-                        MaterialTheme.typography.labelMedium,
-                    color =
-                        MaterialTheme.colorScheme.primary,
+                    text = EntityServiceTypes.label(service.requestType),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
                 )
 
                 Text(
-                    text = EntityServiceStatuses.label(
-                        service.status
-                    ),
-                    style =
-                        MaterialTheme.typography.labelMedium,
-                    color =
-                        MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = EntityServiceStatuses.label(service.status),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -324,10 +319,8 @@ private fun EntityServiceListItem(
 
                     Text(
                         text = note,
-                        style =
-                            MaterialTheme.typography.bodySmall,
-                        color =
-                            MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
         }
