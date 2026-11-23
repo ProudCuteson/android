@@ -27,6 +27,7 @@ fun EntityDetailScreen(
     state: EntityDetailUiState,
     onContentClick: (EntityPublishedItem) -> Unit = {},
     onMembershipClick: (String) -> Unit = {},
+    onServiceClick: (String) -> Unit = {},
 ) {
     when {
         state.isLoading -> {
@@ -76,6 +77,9 @@ fun EntityDetailScreen(
                             onMembershipClick(
                                 entity.id
                             )
+                        },
+                        onServiceClick = {
+                            onServiceClick(entity.id)
                         },
                     )
                 }

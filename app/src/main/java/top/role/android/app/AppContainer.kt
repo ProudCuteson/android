@@ -61,6 +61,8 @@ import top.role.android.core.preferences.AppPreferencesRepository
 import top.role.android.feature.chat.conversation.ChatImagePreviewRepository
 import top.role.android.core.data.note.NoteAdoptionLocalRepository
 import top.role.android.feature.banner.BannerRepository
+import top.role.android.feature.entity.service.EntityServiceRepository
+import top.role.android.feature.content.picker.ContentPickerRepository
 
 class AppContainer(
     context: Context,
@@ -335,6 +337,14 @@ class AppContainer(
     )
 
     val bannerRepository = BannerRepository (
+        convexClient = convexClient
+    )
+
+    val entityServiceRepository = EntityServiceRepository(
+        convexClient = convexClient
+    )
+
+    val contentPickerRepository = ContentPickerRepository (
         convexClient = convexClient
     )
 

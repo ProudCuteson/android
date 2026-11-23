@@ -13,8 +13,7 @@ class EntityDetailRepository(
     ): Flow<Result<EntityDetailResponse>> {
 
         return convexClient.subscribe(
-            name =
-                "mobile/native/space/get:getMobileEntityDetail",
+            name = "mobile/native/space/get:getMobileEntityDetail",
 
             args = mapOf(
                 "type" to "space",

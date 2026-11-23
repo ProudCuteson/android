@@ -49,6 +49,10 @@ import top.role.android.feature.topic.TopicDetailViewModelFactory
 import top.role.android.feature.membership.MembershipScreen
 import top.role.android.feature.membership.MembershipViewModel
 import top.role.android.feature.membership.MembershipViewModelFactory
+import top.role.android.app.navigation.EntityServiceRoute
+import top.role.android.feature.entity.service.EntityServiceScreen
+import top.role.android.feature.entity.service.EntityServiceViewModel
+import top.role.android.feature.entity.service.EntityServiceViewModelFactory
 
 fun NavGraphBuilder.discoverNavGraph(
     navController: NavHostController,
@@ -333,6 +337,99 @@ fun NavGraphBuilder.discoverNavGraph(
     }
 
     /*
+     * Space Service
+     */
+    composable(
+        route = EntityServiceRoute.route,
+        arguments = listOf(
+            navArgument(EntityServiceRoute.spaceIdArg) {
+                type = NavType.StringType
+            },
+            navArgument(EntityServiceRoute.modeArg) {
+                type = NavType.StringType
+            },
+        ),
+    ) { backStackEntry ->
+
+        val spaceId = backStackEntry.arguments
+            ?.getString(EntityServiceRoute.spaceIdArg)
+            .orEmpty()
+
+        val mode = backStackEntry.arguments
+            ?.getString(EntityServiceRoute.modeArg)
+            .orEmpty()
+
+        val factory = remember(
+            spaceId,
+            mode,
+            dependencies.entityServiceRepository,
+        ) {
+            EntityServiceViewModelFactory(
+                spaceId = spaceId,
+                initialMode = mode,
+                repository = dependencies.entityServiceRepository,
+            )
+        }
+
+        val serviceViewModel: EntityServiceViewModel = viewModel(
+            key = "entity-service:$spaceId:$mode",
+            factory = factory,
+        )
+
+        val serviceState by serviceViewModel.uiState
+            .collectAsStateWithLifecycle()
+
+        LaunchedEffect(
+            serviceViewModel,
+            dependencies.authState,
+            dependencies.remoteOnline,
+        ) {
+            when {
+                dependencies.authState !is AuthState.SignedIn -> {
+                    serviceViewModel.setUnavailable(
+                        "请先登录后查看服务请求"
+                    )
+                }
+
+                !dependencies.remoteOnline -> {
+                    serviceViewModel.setUnavailable(
+                        "当前无法连接服务"
+                    )
+                }
+
+                else -> {
+                    serviceViewModel.start()
+                }
+            }
+        }
+
+        EntityServiceScreen(
+            state = serviceState,
+            pickerRepository = dependencies.contentPickerRepository,
+
+            onRetry = serviceViewModel::retry,
+
+            onOpenDetail = serviceViewModel::openDetail,
+            onCloseDetail = serviceViewModel::closeDetail,
+            onRetryDetail = serviceViewModel::retryDetail,
+            onWithdraw = serviceViewModel::withdrawService,
+
+            onSubmit = serviceViewModel::submitService,
+            onConsumeCreated = serviceViewModel::consumeCreatedService,
+            onClearSubmitError = serviceViewModel::clearSubmitError,
+
+            onMarkInReview = serviceViewModel::markInReview,
+            onAccept = serviceViewModel::acceptService,
+            onDecline = serviceViewModel::declineService,
+            onClose = serviceViewModel::closeService,
+
+            onBack = {
+                navController.popBackStack()
+            },
+        )
+    }
+
+    /*
      * Space Detail
      *
      * 当前有两个会员入口：
@@ -374,9 +471,8 @@ fun NavGraphBuilder.discoverNavGraph(
 
         EntityDetailScreen(
             state = entityDetailState,
-            onMembershipClick = { spaceId ->
-                openMembership(spaceId)
-            },
+            onMembershipClick = { spaceId -> openMembership(spaceId) },
+
             onContentClick = { item ->
                 /*
                  * 后端已经计算访问权限，
@@ -418,6 +514,22 @@ fun NavGraphBuilder.discoverNavGraph(
                     }
                 }
             },
+
+            onServiceClick = { spaceId ->
+                val role =
+                    entityDetailState.detail?.entity?.role
+
+                val isManager =
+                    role == "owner" || role == "admin"
+
+                navController.navigate(
+                    EntityServiceRoute.create(
+                        spaceId = spaceId,
+                        isManager = isManager,
+                    )
+                )
+            },
+
         )
     }
 

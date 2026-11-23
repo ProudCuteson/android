@@ -32,6 +32,7 @@ import top.role.android.app.navigation.MarketListRoute
 import top.role.android.app.navigation.MarketOrderListRoute
 import top.role.android.app.navigation.MarketOrderDetailRoute
 import top.role.android.app.navigation.SettingsRoute
+import top.role.android.app.navigation.EntityServiceRoute
 
 data class MainShellState(
     val title: String,
@@ -185,6 +186,8 @@ fun resolveMainShellState(
         ContentListRoute.route -> detailShell(title = "内容")
 
         EntityDetailRoute.route -> detailShell(title = "空间")
+
+        EntityServiceRoute.route -> pageOwnedShell()
 
         TopicDetailRoute.route -> detailShell(title = "话题")
 

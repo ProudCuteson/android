@@ -63,6 +63,8 @@ import top.role.android.feature.credit.CreditsRepository
 import top.role.android.feature.market.order.MarketOrderListRepository
 import top.role.android.feature.market.order.detail.MarketOrderDetailRepository
 import top.role.android.feature.banner.BannerRepository
+import top.role.android.feature.content.picker.ContentPickerRepository
+import top.role.android.feature.entity.service.EntityServiceRepository
 
 @Composable
 fun MainScreen(
@@ -108,6 +110,8 @@ fun MainScreen(
     creditsRepository: CreditsRepository,
     noteAdoptionLocalRepository: NoteAdoptionLocalRepository,
     bannerRepository: BannerRepository,
+    entityServiceRepository: EntityServiceRepository,
+    contentPickerRepository: ContentPickerRepository,
 
     appearance: AppAppearance,
     weekStart: WeekStart,
@@ -206,6 +210,9 @@ fun MainScreen(
             noteAdoptionLocalRepository,
             bannerRepository,
 
+            entityServiceRepository,
+            contentPickerRepository,
+
         ) {
             MainNavigationDependencies(
                 localOwnerUserId = localOwnerUserId,
@@ -251,6 +258,8 @@ fun MainScreen(
 
                 noteAdoptionLocalRepository = noteAdoptionLocalRepository,
                 bannerRepository = bannerRepository,
+                entityServiceRepository = entityServiceRepository,
+                contentPickerRepository = contentPickerRepository,
             )
         }
 

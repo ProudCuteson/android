@@ -28,8 +28,9 @@ import top.role.android.core.ui.imageviewer.PreviewableImage
 @Composable
 fun EntityHeader(
     entity: EntityDetail,
-    onMembershipClick: () -> Unit = {},
     modifier: Modifier = Modifier,
+    onMembershipClick: () -> Unit = {},
+    onServiceClick: () -> Unit = {},
 ) {
     Column(
         modifier = modifier
@@ -103,25 +104,44 @@ fun EntityHeader(
             )
         }
 
-        if (
-            entity.membershipEnabled && !isManager
-        ) {
-            OutlinedButton(
-                onClick = onMembershipClick,
-                modifier = Modifier.padding(
-                    top = 12.dp,
-                ),
+        val showMembershipButton = entity.membershipEnabled && !isManager
+
+        val showServiceButton = entity.membershipEnabled &&
+            (isManager || entity.isMember == true)
+
+        if (showMembershipButton || showServiceButton) {
+            Row(
+                modifier = Modifier.padding(top = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text =
-                        if (entity.isMember == true) {
-                            "会员中心"
-                        } else {
-                            "开通会员"
-                        },
-                )
+                if (showMembershipButton) {
+                    OutlinedButton(
+                        onClick = onMembershipClick,
+                    ) {
+                        Text(
+                            text = if (entity.isMember == true) {
+                                "会员中心"
+                            } else {
+                                "开通会员"
+                            },
+                        )
+                    }
+                }
+
+                if (showServiceButton) {
+                    OutlinedButton(
+                        onClick = onServiceClick,
+                    ) {
+                        Text(
+                            if (isManager) "管理请求"
+                            else "发起请求"
+                        )
+                    }
+                }
             }
         }
+
     }
 }
 

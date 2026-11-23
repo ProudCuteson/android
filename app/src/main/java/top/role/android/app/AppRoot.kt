@@ -328,6 +328,8 @@ fun AppRoot(
 
             noteAdoptionLocalRepository = appContainer.noteAdoptionLocalRepository,
             bannerRepository = appContainer.bannerRepository,
+            entityServiceRepository = appContainer.entityServiceRepository,
+            contentPickerRepository = appContainer.contentPickerRepository,
 
             // Authentication Actions
             onLogin = {

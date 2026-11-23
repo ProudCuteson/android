@@ -28,12 +28,14 @@ import top.role.android.feature.survey.detail.SurveyDetailRepository
 import top.role.android.feature.bounty.BountyListRepository
 import top.role.android.feature.bounty.detail.BountyDetailRepository
 import top.role.android.feature.chat.conversation.ChatImagePreviewRepository
+import top.role.android.feature.content.picker.ContentPickerRepository
 import top.role.android.feature.market.MarketListRepository
 import top.role.android.feature.market.detail.MarketDetailRepository
 import top.role.android.feature.market.order.MarketOrderListRepository
 import top.role.android.feature.market.order.detail.MarketOrderDetailRepository
 import top.role.android.feature.membership.MembershipRepository
 import top.role.android.feature.credit.CreditsRepository
+import top.role.android.feature.entity.service.EntityServiceRepository
 
 data class MainNavigationDependencies(
     val localOwnerUserId: String,
@@ -72,4 +74,6 @@ data class MainNavigationDependencies(
     val creditsRepository: CreditsRepository,
     val noteAdoptionLocalRepository: NoteAdoptionLocalRepository,
     val bannerRepository: BannerRepository,
+    val entityServiceRepository: EntityServiceRepository,
+    val contentPickerRepository: ContentPickerRepository,
 )
