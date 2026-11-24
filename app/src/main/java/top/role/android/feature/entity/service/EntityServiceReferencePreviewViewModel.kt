@@ -1,4 +1,3 @@
-
 package top.role.android.feature.entity.service
 
 import androidx.lifecycle.ViewModel
@@ -34,6 +33,11 @@ data class EntityServiceReferencePreviewUiState(
     val content: JsonObject? = null,
     val media: List<EntityServiceReferenceMediaUi> = emptyList(),
     val errorMessage: String? = null,
+
+    // PDF Delivery
+    val isPdfLoading: Boolean = false,
+    val pdfDelivery: AssetDeliveryResult? = null,
+    val pdfErrorMessage: String? = null,
 )
 
 class EntityServiceReferencePreviewViewModel(
@@ -62,7 +66,25 @@ class EntityServiceReferencePreviewViewModel(
 
     private val resolvingMediaPreviewIds = mutableSetOf<String>()
 
-    private var currentMedia = emptyList<EntityServiceReferenceMediaUi>()
+    private var currentMedia =
+        emptyList<EntityServiceReferenceMediaUi>()
+
+    // MARK: - PDF Delivery
+
+    /**
+     * 使用原始 assetId 作为稳定缓存键。
+     *
+     * 缓存仅存在于当前 ViewModel 生命周期内。
+     * 不将临时签名 URL 作为资源身份。
+     */
+    private val pdfDeliveries =
+        mutableMapOf<String, AssetDeliveryResult>()
+
+    private val pdfDeliveryErrors =
+        mutableMapOf<String, String>()
+
+    private val resolvingPdfAssetIds =
+        mutableSetOf<String>()
 
     fun start() {
         if (observeJob?.isActive == true) return
@@ -77,7 +99,15 @@ class EntityServiceReferencePreviewViewModel(
 
     fun retry() {
         stop()
+
         mediaPreviewErrors.clear()
+
+        val assetId = currentPdfAssetId()
+        if (assetId != null) {
+            pdfDeliveries.remove(assetId)
+            pdfDeliveryErrors.remove(assetId)
+        }
+
         observeContent()
     }
 
@@ -90,6 +120,9 @@ class EntityServiceReferencePreviewViewModel(
                 content = null,
                 media = emptyList(),
                 errorMessage = null,
+                isPdfLoading = false,
+                pdfDelivery = null,
+                pdfErrorMessage = null,
             )
         }
 
@@ -124,6 +157,9 @@ class EntityServiceReferencePreviewViewModel(
                                             referencePreviewErrorMessage(
                                                 response.code
                                             ),
+                                        isPdfLoading = false,
+                                        pdfDelivery = null,
+                                        pdfErrorMessage = null,
                                     )
                                 }
                             }
@@ -143,6 +179,9 @@ class EntityServiceReferencePreviewViewModel(
                                     content = null,
                                     media = emptyList(),
                                     errorMessage = error.message ?: "关联内容加载失败",
+                                    isPdfLoading = false,
+                                    pdfDelivery = null,
+                                    pdfErrorMessage = null,
                                 )
                             }
                         },
@@ -160,7 +199,11 @@ class EntityServiceReferencePreviewViewModel(
                         isLoading = false,
                         content = null,
                         media = emptyList(),
-                        errorMessage = error.message ?: "关联内容加载失败",
+                        errorMessage =
+                            error.message ?: "关联内容加载失败",
+                        isPdfLoading = false,
+                        pdfDelivery = null,
+                        pdfErrorMessage = null,
                     )
                 }
             }
@@ -182,17 +225,44 @@ class EntityServiceReferencePreviewViewModel(
                 emptyList()
             }
 
+        val assetId =
+            if (
+                targetType ==
+                EntityServiceReferenceType.FILE_ASSET
+            ) {
+                content.stringValue("id")
+                    ?.takeIf { it.isNotBlank() }
+            } else {
+                null
+            }
+
+        val cachedDelivery =
+            assetId?.let { pdfDeliveries[it] }
+
         _uiState.update {
             it.copy(
                 isLoading = false,
                 content = content,
                 media = emptyList(),
                 errorMessage = null,
+
+                isPdfLoading =
+                    assetId != null &&
+                            cachedDelivery == null &&
+                            assetId !in pdfDeliveryErrors,
+
+                pdfDelivery = cachedDelivery,
+                pdfErrorMessage =
+                    assetId?.let { pdfDeliveryErrors[it] },
             )
         }
 
         refreshMediaUiState()
         resolveMissingMediaPreviews()
+
+        if (assetId != null && cachedDelivery == null) {
+            resolvePdfDelivery(assetId)
+        }
     }
 
     // MARK: - Parse Note Media
@@ -226,8 +296,7 @@ class EntityServiceReferencePreviewViewModel(
                         ?: return@mapIndexedNotNull null
 
                 val order =
-                    item.intValue("order")
-                        ?: index
+                    item.intValue("order") ?: index
 
                 EntityServiceReferenceMediaUi(
                     imageId = imageId,
@@ -304,6 +373,7 @@ class EntityServiceReferencePreviewViewModel(
             currentMedia.map { item ->
                 val url = mediaPreviewUrls[item.imageId]
                 val error = mediaPreviewErrors[item.imageId]
+
                 item.copy(
                     displayUrl = url,
                     isLoading = url == null && error == null,
@@ -312,9 +382,7 @@ class EntityServiceReferencePreviewViewModel(
             }
 
         _uiState.update {
-            it.copy(
-                media = mediaUiItems,
-            )
+            it.copy(media = mediaUiItems)
         }
     }
 
@@ -332,6 +400,110 @@ class EntityServiceReferencePreviewViewModel(
         mediaPreviewErrors.remove(imageId)
 
         resolveMediaPreview(imageId)
+    }
+
+    // MARK: - PDF Delivery
+
+    private fun resolvePdfDelivery(
+        assetId: String,
+    ) {
+        if (
+            assetId.isBlank() ||
+            assetId in pdfDeliveries ||
+            assetId in pdfDeliveryErrors ||
+            assetId in resolvingPdfAssetIds
+        ) {
+            return
+        }
+
+        resolvingPdfAssetIds += assetId
+
+        _uiState.update {
+            it.copy(
+                isPdfLoading = true,
+                pdfDelivery = null,
+                pdfErrorMessage = null,
+            )
+        }
+
+        viewModelScope.launch {
+            try {
+                val delivery =
+                    repository.getReferenceAssetDelivery(
+                        serviceId = serviceId,
+                        assetId = assetId,
+                        source = source,
+                    )
+
+                // 防止后端返回其他资源的 Delivery。
+                require(delivery.assetId == assetId) {
+                    "PDF 资源 ID 不匹配"
+                }
+
+                require(delivery.url.isNotBlank()) {
+                    "PDF 下载地址不可用"
+                }
+
+                pdfDeliveries[assetId] = delivery
+                pdfDeliveryErrors.remove(assetId)
+
+                // 防止旧请求覆盖当前页面。
+                if (currentPdfAssetId() == assetId) {
+                    _uiState.update {
+                        it.copy(
+                            isPdfLoading = false,
+                            pdfDelivery = delivery,
+                            pdfErrorMessage = null,
+                        )
+                    }
+                }
+
+            } catch (error: CancellationException) {
+                throw error
+
+            } catch (error: Exception) {
+                val message =
+                    error.message ?: "PDF 访问地址获取失败"
+
+                pdfDeliveryErrors[assetId] = message
+
+                if (currentPdfAssetId() == assetId) {
+                    _uiState.update {
+                        it.copy(
+                            isPdfLoading = false,
+                            pdfDelivery = null,
+                            pdfErrorMessage = message,
+                        )
+                    }
+                }
+
+            } finally {
+                resolvingPdfAssetIds -= assetId
+            }
+        }
+    }
+
+    fun retryPdfDelivery(
+        assetId: String,
+    ) {
+        if (currentPdfAssetId() != assetId) {
+            return
+        }
+
+        pdfDeliveries.remove(assetId)
+        pdfDeliveryErrors.remove(assetId)
+
+        resolvePdfDelivery(assetId)
+    }
+
+    private fun currentPdfAssetId(): String? {
+        return _uiState.value.content
+            ?.stringValue("id")
+            ?.takeIf {
+                targetType ==
+                        EntityServiceReferenceType.FILE_ASSET &&
+                        it.isNotBlank()
+            }
     }
 
     override fun onCleared() {

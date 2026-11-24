@@ -63,6 +63,7 @@ import top.role.android.core.data.note.NoteAdoptionLocalRepository
 import top.role.android.feature.banner.BannerRepository
 import top.role.android.feature.entity.service.EntityServiceRepository
 import top.role.android.feature.content.picker.ContentPickerRepository
+import top.role.android.feature.browse.pdf.PdfDocumentLoader
 
 class AppContainer(
     context: Context,
@@ -92,6 +93,11 @@ class AppContainer(
     )
 
     private val httpClient = OkHttpClient()
+
+    val pdfDocumentLoader = PdfDocumentLoader(
+        context = appContext,
+        client = httpClient,
+    )
 
     val appHttpClient = AppHttpClient(
         httpClient = httpClient,

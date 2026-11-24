@@ -25,3 +25,11 @@ enum class EntityServiceReferenceType(
     SLIDE("slide"),
     FILE_ASSET("fileAsset"),
 }
+
+@Serializable
+data class AssetDeliveryResult(
+    val assetId: String,
+    val accessMode: String,
+    val url: String,
+    val expiresSec: Double? = null,
+)

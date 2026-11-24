@@ -7,21 +7,28 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.double
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 
+import top.role.android.feature.slide.render.SlidePageCanvas
+
+import top.role.android.core.model.chart.MobileChartRuntime
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.serialization.builtins.ListSerializer
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
@@ -34,8 +41,12 @@ import top.role.android.core.model.slide.MobileSlideSummary
 import top.role.android.core.ui.imageviewer.PreviewableImage
 
 import top.role.android.feature.note.editor.richtext.RichTextReadingView
-import top.role.android.feature.reading.components.MobileRenderBlockView
 import top.role.android.feature.slide.render.SlidePageCanvas
+import top.role.android.core.model.content.MobileRenderDoc
+import top.role.android.feature.reading.components.MobileDocRenderer
+
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 
 private val referencePreviewJson = Json {
     ignoreUnknownKeys = true
@@ -50,6 +61,12 @@ fun EntityServiceReferencePreviewScreen(
     state: EntityServiceReferencePreviewUiState,
     onRetry: () -> Unit,
     onRetryMediaPreview: (String) -> Unit,
+    onRetryPdfDelivery: (String) -> Unit,
+    onOpenPdf: (
+        title: String,
+        url: String,
+        assetId: String,
+    ) -> Unit,
     onBack: () -> Unit,
 ) {
     val payload = state.content
@@ -58,7 +75,10 @@ fun EntityServiceReferencePreviewScreen(
         ?: "关联内容"
 
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding(),
     ) {
 
         // 顶部导航
@@ -130,6 +150,11 @@ fun EntityServiceReferencePreviewScreen(
                         payload = payload,
                         media = state.media,
                         onRetryMediaPreview = onRetryMediaPreview,
+                        isPdfLoading = state.isPdfLoading,
+                        pdfDelivery = state.pdfDelivery,
+                        pdfErrorMessage = state.pdfErrorMessage,
+                        onRetryPdfDelivery = onRetryPdfDelivery,
+                        onOpenPdf = onOpenPdf,
                     )
                 }
             }
@@ -154,6 +179,11 @@ private fun ReferenceContentBody(
     payload: JsonObject,
     media: List<EntityServiceReferenceMediaUi>,
     onRetryMediaPreview: (String) -> Unit,
+    isPdfLoading: Boolean,
+    pdfDelivery: AssetDeliveryResult?,
+    pdfErrorMessage: String?,
+    onRetryPdfDelivery: (String) -> Unit,
+    onOpenPdf: (String, String, String) -> Unit,
 ) {
     val description = payload.stringValue("description")
 
@@ -171,8 +201,11 @@ private fun ReferenceContentBody(
         "note" -> {
             NoteReferenceContent(
                 payload = payload,
+            )
+
+            EntityServiceReferenceImages(
                 media = media,
-                onRetryMediaPreview = onRetryMediaPreview,
+                onRetry = onRetryMediaPreview,
             )
         }
 
@@ -191,6 +224,11 @@ private fun ReferenceContentBody(
         "fileAsset" -> {
             PdfReferenceContent(
                 payload = payload,
+                isLoading = isPdfLoading,
+                delivery = pdfDelivery,
+                errorMessage = pdfErrorMessage,
+                onRetry = onRetryPdfDelivery,
+                onOpenPdf = onOpenPdf,
             )
         }
 
@@ -204,49 +242,45 @@ private fun ReferenceContentBody(
  * Note
  *
  * 正文和图片是两条独立的内容链路。
+ *
+ * - 正文：BlockContent → RichTextReadingView
+ * - 图片：media → 后续接入 NoteImageReading
  */
+
 @Composable
 private fun NoteReferenceContent(
     payload: JsonObject,
-    media: List<EntityServiceReferenceMediaUi>,
-    onRetryMediaPreview: (String) -> Unit,
 ) {
-    val content = remember(payload) {
-        runCatching {
-            val element = payload["content"]
+    // 直接取得 BlockContent
+    val body = payload["content"] as? JsonObject
 
-            if (element == null || element == JsonNull) {
-                null
-            } else {
-                referencePreviewJson.decodeFromJsonElement(
-                    BlockContent.serializer(),
-                    element,
-                )
-            }
+    val blockContent = body?.let { element ->
+        runCatching {
+            val obj = element as? JsonObject
+                ?: error("BlockContent is not an object")
+
+            val normalized = JsonObject(
+                obj + (
+                        "v" to JsonPrimitive(1)
+                        )
+            )
+
+            referencePreviewJson.decodeFromJsonElement(
+                BlockContent.serializer(),
+                normalized,
+            )
+        }.onFailure { error ->
+
         }.getOrNull()
     }
 
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-
-        if (content != null) {
-            RichTextReadingView(
-                content = content,
-            )
-        }
-
-        if (media.isNotEmpty()) {
-            EntityServiceReferenceImages(
-                media = media,
-                onRetry = onRetryMediaPreview,
-            )
-        }
-
-        if (content == null && media.isEmpty()) {
-            Text("暂无可展示内容")
-        }
+    if (blockContent != null) {
+        RichTextReadingView(
+            content = blockContent,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    } else {
+        Text("暂无可展示内容")
     }
 }
 
@@ -377,75 +411,113 @@ private fun ReferenceMediaTile(
 
 /**
  * Doc
+ *
+ * 后端返回 MobileRenderDoc V2 结构：
+ * contents
+ *   ├── version
+ *   ├── blocks
+ *   ├── repairedBlockIds
+ *   └── repairedLeafIds
+ *
+ * 直接复用正常阅读模块的 MobileDocRenderer。
  */
 @Composable
 private fun DocReferenceContent(
     payload: JsonObject,
 ) {
-    val blocks = remember(payload) {
+    val renderDoc = remember(payload) {
         runCatching {
-            val element = payload["contents"] as? JsonArray
+            val element = payload["renderDoc"]
+                ?: error("Doc renderDoc 不存在")
 
-            if (element == null) {
-                emptyList()
-            } else {
-                referencePreviewJson.decodeFromJsonElement(
-                    ListSerializer(MobileRenderBlock.serializer()),
-                    element,
-                )
-            }
-        }.getOrDefault(emptyList())
+            referencePreviewJson.decodeFromJsonElement(
+                MobileRenderDoc.serializer(),
+                element,
+            )
+        }.onFailure { error ->
+
+        }.getOrNull()
     }
 
-    if (blocks.isEmpty()) {
+    val charts = remember(payload) {
+        runCatching {
+            val element = payload["charts"]
+                ?: return@runCatching emptyMap()
+
+            referencePreviewJson.decodeFromJsonElement(
+                MapSerializer(
+                    String.serializer(),
+                    MobileChartRuntime.serializer(),
+                ),
+                element,
+            )
+        }.onFailure { error ->
+
+        }.getOrDefault(emptyMap())
+    }
+
+    if (renderDoc == null) {
+        Text("文档内容解析失败")
+        return
+    }
+
+    if (renderDoc.blocks.isEmpty()) {
         Text("暂无可展示内容")
         return
     }
 
-    Column(
+    MobileDocRenderer(
+        renderDoc = renderDoc,
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        blocks.forEach { block ->
-            MobileRenderBlockView(
-                block = block,
-            )
-        }
-    }
+        charts = charts,
+    )
 }
 
 /**
  * Slide
  */
+
 @Composable
 private fun SlideReferenceContent(
     payload: JsonObject,
 ) {
-    val slide = remember(payload) {
-        MobileSlideSummary(
-            slideId = payload.stringValue("id").orEmpty(),
-            title = payload.stringValue("title").orEmpty(),
-            description = payload.stringValue("description"),
-            canvasW = payload.doubleValue("canvasW") ?: 1920.0,
-            canvasH = payload.doubleValue("canvasH") ?: 1080.0,
-        )
-    }
-
-    val pages = remember(payload) {
+    val slideData = remember(payload) {
         runCatching {
-            val element = payload["cards"]
-                    as? JsonArray
+            val slide = MobileSlideSummary(
+                slideId = payload["id"]!!
+                    .jsonPrimitive.content,
+                title = payload["title"]!!
+                    .jsonPrimitive.content,
+                description = payload["description"]
+                    ?.jsonPrimitive
+                    ?.contentOrNull,
+                canvasW = payload["canvasW"]!!
+                    .jsonPrimitive.double,
+                canvasH = payload["canvasH"]!!
+                    .jsonPrimitive.double,
+            )
 
-            if (element == null) {
-                emptyList()
-            } else {
-                referencePreviewJson.decodeFromJsonElement(
-                    ListSerializer(MobileSlidePage.serializer()),
-                    element,
+            val pages = referencePreviewJson
+                .decodeFromJsonElement(
+                    ListSerializer(
+                        MobileSlidePage.serializer()
+                    ),
+                    payload["cards"]
+                        ?: error("Slide cards 不存在"),
                 )
-            }
-        }.getOrDefault(emptyList())
+
+            slide to pages
+        }.onFailure { error ->
+
+        }.getOrNull()
     }
+
+    if (slideData == null) {
+        Text("演示文稿解析失败")
+        return
+    }
+
+    val (slide, pages) = slideData
 
     if (pages.isEmpty()) {
         Text("暂无可展示页面")
@@ -454,7 +526,7 @@ private fun SlideReferenceContent(
 
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         pages.forEach { page ->
             SlidePageCanvas(
@@ -469,41 +541,104 @@ private fun SlideReferenceContent(
 /**
  * PDF
  *
- * 第一阶段使用后端签名 URL 打开。
+ * 通过后端 Action 获取临时授权 URL，
+ * 使用原始 assetId 进入原生 PDF 阅读器。
  */
 @Composable
 private fun PdfReferenceContent(
     payload: JsonObject,
+    isLoading: Boolean,
+    delivery: AssetDeliveryResult?,
+    errorMessage: String?,
+    onRetry: (String) -> Unit,
+    onOpenPdf: (String, String, String) -> Unit,
 ) {
-    val uriHandler = LocalUriHandler.current
+    val assetId = payload.stringValue("id")
+        .orEmpty()
 
     val title = payload.stringValue("title")
         ?: "PDF 文件"
-
-    val url = payload.stringValue("url")
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,
         )
 
-        Spacer(Modifier.height(16.dp))
+        Text(
+            text = payload.stringValue("mime")
+                ?: "PDF 文档",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
-        Button(
-            enabled = !url.isNullOrBlank(),
-            onClick = {
-                url?.let {
-                    uriHandler.openUri(it)
+        when {
+            isLoading -> {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(28.dp),
+                )
+
+                Text(
+                    text = "正在获取 PDF 访问权限",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+
+            errorMessage != null -> {
+                Text(
+                    text = errorMessage,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+
+                OutlinedButton(
+                    enabled = assetId.isNotBlank(),
+                    onClick = {
+                        onRetry(assetId)
+                    },
+                ) {
+                    Text("重新获取")
                 }
-            },
-        ) {
-            Text("打开 PDF")
+            }
+
+            delivery != null -> {
+                Button(
+                    enabled =
+                        delivery.assetId == assetId &&
+                                delivery.url.isNotBlank(),
+                    onClick = {
+                        onOpenPdf(
+                            title,
+                            delivery.url,
+                            delivery.assetId,
+                        )
+                    },
+                ) {
+                    Text("打开 PDF")
+                }
+            }
+
+            else -> {
+                Text(
+                    text = "PDF 访问地址暂不可用",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                OutlinedButton(
+                    enabled = assetId.isNotBlank(),
+                    onClick = {
+                        onRetry(assetId)
+                    },
+                ) {
+                    Text("重试")
+                }
+            }
         }
     }
 }

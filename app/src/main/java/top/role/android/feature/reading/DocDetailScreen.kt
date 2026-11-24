@@ -113,9 +113,7 @@ fun DocDetailScreen(
 
                     MobileRenderBlockView(
                         block = block,
-
                         modifier = Modifier.fillMaxWidth(),
-
                         charts = charts,
                     )
                 }

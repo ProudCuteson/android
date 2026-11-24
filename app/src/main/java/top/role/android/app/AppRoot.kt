@@ -30,13 +30,11 @@ import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 import top.role.android.core.auth.AuthState
 import top.role.android.app.navigation.InAppBrowserRoute
-import top.role.android.core.data.note.NoteAdoptionLocalRepository
 import top.role.android.feature.auth.SignInScreen
 import top.role.android.feature.auth.SignInViewModel
 import top.role.android.feature.auth.SignInViewModelFactory
-import top.role.android.feature.banner.BannerRepository
 import top.role.android.feature.main.MainScreen
-import top.role.android.feature.main.navigation.browserNavGraph
+import top.role.android.feature.main.navigation.inAppBrowserNavGraph
 
 @OptIn(FlowPreview::class)
 @Composable
@@ -331,6 +329,8 @@ fun AppRoot(
             entityServiceRepository = appContainer.entityServiceRepository,
             contentPickerRepository = appContainer.contentPickerRepository,
 
+            pdfDocumentLoader = appContainer.pdfDocumentLoader,
+
             // Authentication Actions
             onLogin = {
                 showRemoteSignIn = true
@@ -428,7 +428,7 @@ private fun SignedOutContent(
         }
 
         // 现有 InAppBrowser 导航
-        browserNavGraph(
+        inAppBrowserNavGraph(
             navController = navController,
         )
     }

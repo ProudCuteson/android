@@ -219,12 +219,33 @@ class EntityServiceRepository(
     ): Flow<Result<EntityServiceReferenceContentResponse>> {
 
         return convexClient.subscribe(
-            name = "space/service:getSpaceServiceReferenceContent",
+            name = "mobile/native/content/service:getSpaceServiceReferenceContent",
             args = mapOf(
                 "serviceId" to serviceId,
                 "targetType" to targetType.value,
                 "targetId" to targetId,
                 "source" to source.value,
+            ),
+        )
+    }
+
+    /**
+     * 获取 Space Service PDF 访问地址。
+     *
+     * 使用 Action 获取临时授权 URL。
+     */
+    suspend fun getReferenceAssetDelivery(
+        serviceId: String,
+        assetId: String,
+        source: EntityServiceReferenceSource,
+    ): AssetDeliveryResult {
+        return convexClient.action(
+            name = "mobile/native/content/service:getSpaceServiceAssetDelivery",
+            args = mapOf(
+                "serviceId" to serviceId,
+                "assetId" to assetId,
+                "source" to source.value,
+                "disposition" to "inline",
             ),
         )
     }

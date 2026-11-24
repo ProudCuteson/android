@@ -57,6 +57,7 @@ import top.role.android.feature.membership.MembershipViewModel
 import top.role.android.feature.membership.MembershipViewModelFactory
 import top.role.android.app.navigation.EntityServiceRoute
 import top.role.android.app.navigation.EntityServiceReferencePreviewRoute
+import top.role.android.app.navigation.PdfReaderRoute
 import top.role.android.feature.entity.service.EntityServiceReferencePreviewScreen
 import top.role.android.feature.entity.service.EntityServiceReferencePreviewViewModel
 import top.role.android.feature.entity.service.EntityServiceReferencePreviewViewModelFactory
@@ -565,7 +566,17 @@ fun NavGraphBuilder.discoverNavGraph(
 
             EntityServiceReferencePreviewScreen(
                 state = previewState,
+                onOpenPdf = { title, url, assetId ->
+                    navController.navigate(
+                        PdfReaderRoute.create(
+                            title = title,
+                            url = url,
+                            assetId = assetId,
+                        )
+                    )
+                },
                 onRetry = previewViewModel::retry,
+                onRetryPdfDelivery = previewViewModel::retryPdfDelivery,
                 onRetryMediaPreview =
                     previewViewModel::retryMediaPreview,
                 onBack = {

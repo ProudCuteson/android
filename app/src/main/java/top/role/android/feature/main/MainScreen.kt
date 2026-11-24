@@ -63,6 +63,7 @@ import top.role.android.feature.credit.CreditsRepository
 import top.role.android.feature.market.order.MarketOrderListRepository
 import top.role.android.feature.market.order.detail.MarketOrderDetailRepository
 import top.role.android.feature.banner.BannerRepository
+import top.role.android.feature.browse.pdf.PdfDocumentLoader
 import top.role.android.feature.content.picker.ContentPickerRepository
 import top.role.android.feature.entity.service.EntityServiceRepository
 
@@ -112,6 +113,8 @@ fun MainScreen(
     bannerRepository: BannerRepository,
     entityServiceRepository: EntityServiceRepository,
     contentPickerRepository: ContentPickerRepository,
+
+    pdfDocumentLoader: PdfDocumentLoader,
 
     appearance: AppAppearance,
     weekStart: WeekStart,
@@ -337,6 +340,7 @@ fun MainScreen(
         MainNavGraph(
             navController = navController,
             modifier = Modifier.padding(innerPadding),
+            pdfDocumentLoader = pdfDocumentLoader,
             dependencies = navigationDependencies,
             appearance = appearance,
             weekStart = weekStart,

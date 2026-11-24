@@ -1,4 +1,4 @@
-package top.role.android.feature.browser
+package top.role.android.feature.browse
 
 import android.annotation.SuppressLint
 import android.graphics.Bitmap

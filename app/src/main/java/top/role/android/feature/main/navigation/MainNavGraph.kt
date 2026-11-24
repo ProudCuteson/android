@@ -10,12 +10,14 @@ import top.role.android.app.navigation.MainDestination
 import top.role.android.core.preferences.AppAppearance
 import top.role.android.core.preferences.WeekStart
 import top.role.android.app.navigation.InAppBrowserRoute
+import top.role.android.feature.browse.pdf.PdfDocumentLoader
 
 @Composable
 fun MainNavGraph(
     navController: NavHostController,
     modifier: Modifier = Modifier,
     dependencies: MainNavigationDependencies,
+    pdfDocumentLoader: PdfDocumentLoader,
     appearance: AppAppearance,
     weekStart: WeekStart,
     onAppearanceChange: (AppAppearance) -> Unit,
@@ -100,8 +102,13 @@ fun MainNavGraph(
             },
         )
 
-        browserNavGraph(
+        inAppBrowserNavGraph(
             navController = navController,
+        )
+
+        pdfReaderNavGraph(
+            navController = navController,
+            pdfDocumentLoader = pdfDocumentLoader,
         )
 
     }
