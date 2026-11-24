@@ -26,40 +26,32 @@ import androidx.compose.ui.text.style.BaselineShift
 fun MobileInlineText(
     inlines: List<MobileInline>,
     modifier: Modifier = Modifier,
-    baseStyle: TextStyle =
-        MaterialTheme.typography.bodyLarge,
-    textAlign: TextAlign =
-        TextAlign.Left,
+    baseStyle: TextStyle = MaterialTheme.typography.bodyLarge,
+    textAlign: TextAlign = TextAlign.Left,
+    softWrap: Boolean = true,
 ) {
     val contentColor =
         if (
-            baseStyle.color !=
-            Color.Unspecified
+            baseStyle.color != Color.Unspecified
         ) {
             baseStyle.color
         } else {
             LocalContentColor.current
         }
 
-    val isDark =
-        MaterialTheme.colorScheme
-            .background
-            .luminance() < 0.5f
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
-    val annotatedText =
-        buildMobileAnnotatedString(
-            inlines = inlines,
-            defaultColor = contentColor,
-            isDark = isDark,
-        )
+    val annotatedText = buildMobileAnnotatedString(
+        inlines = inlines,
+        defaultColor = contentColor,
+        isDark = isDark,
+    )
 
     Text(
         text = annotatedText,
         modifier = modifier,
-        style =
-            baseStyle.copy(
-                textAlign = textAlign,
-            ),
+        style = baseStyle.copy(textAlign = textAlign),
+        softWrap = softWrap,
     )
 }
 
@@ -88,13 +80,11 @@ private fun buildMobileAnnotatedString(
             }
 
             addStyle(
-                style =
-                    buildInlineSpanStyle(
-                        inline = inline,
-                        defaultColor =
-                            defaultColor,
-                        isDark = isDark,
-                    ),
+                style = buildInlineSpanStyle(
+                    inline = inline,
+                    defaultColor = defaultColor,
+                    isDark = isDark,
+                ),
                 start = start,
                 end = end,
             )
@@ -130,67 +120,52 @@ private fun buildInlineSpanStyle(
     defaultColor: Color,
     isDark: Boolean,
 ): SpanStyle {
-    val isCode =
-        inline.code == true
+    val isCode = inline.code == true
 
     return SpanStyle(
-        fontWeight =
-            if (inline.bold == true) {
-                FontWeight.Bold
-            } else {
-                FontWeight.Normal
-            },
+        fontWeight = when (inline.bold) {
+            true -> FontWeight.Bold
+            false -> FontWeight.Normal
+            null -> null
+        },
 
-        fontStyle =
-            if (inline.italic == true) {
-                FontStyle.Italic
-            } else {
-                FontStyle.Normal
-            },
+        fontStyle = when (inline.italic) {
+            true -> FontStyle.Italic
+            false -> FontStyle.Normal
+            null -> null
+        },
 
-        fontFamily =
-            if (isCode) {
-                FontFamily.Monospace
-            } else {
-                null
-            },
+        fontFamily = if (isCode) {
+            FontFamily.Monospace
+        } else {
+            null
+        },
 
-        textDecoration =
-            resolveTextDecoration(
-                underline =
-                    inline.underline == true,
-                strikethrough =
-                    inline.strikethrough == true,
-            ),
+        textDecoration = resolveTextDecoration(
+            underline = inline.underline == true,
+            strikethrough = inline.strikethrough == true,
+        ),
 
-        color =
-            resolveInlineColor(
-                raw = inline.color,
-                isDark = isDark,
-            ) ?: defaultColor,
+        color = resolveInlineColor(
+            raw = inline.color,
+            isDark = isDark,
+        ) ?: defaultColor,
 
-        background =
-            resolveInlineBackground(
-                inline = inline,
-                isDark = isDark,
-            ),
+        background = resolveInlineBackground(
+            inline = inline,
+            isDark = isDark,
+        ),
 
-        fontSize =
-            resolveInlineFontSize(
-                size = inline.fontSize,
-                subscript =
-                    inline.subscript == true,
-                superscript =
-                    inline.superscript == true,
-            ),
+        fontSize = resolveInlineFontSize(
+            size = inline.fontSize,
+            subscript = inline.subscript == true,
+            superscript = inline.superscript == true,
+        ),
 
-        baselineShift =
-            resolveBaselineShift(
-                subscript =
-                    inline.subscript == true,
-                superscript =
-                    inline.superscript == true,
-            ),
+        baselineShift = resolveBaselineShift(
+            subscript = inline.subscript == true,
+            superscript = inline.superscript == true,
+        ),
     )
 }
 
@@ -208,22 +183,11 @@ private fun resolveInlineBackground(
         return it
     }
 
-    /*
-     * inline code 没有显式背景时，
-     * 给一个随主题变化的弱背景。
-     *
-     * 对应小程序 .rich-inline.is-code
-     * 的弱背景效果。
-     */
     if (inline.code == true) {
         return if (isDark) {
-            Color.White.copy(
-                alpha = 0.08f
-            )
+            Color.White.copy(alpha = 0.08f)
         } else {
-            Color.Black.copy(
-                alpha = 0.06f
-            )
+            Color.Black.copy(alpha = 0.06f)
         }
     }
 
@@ -234,9 +198,7 @@ private fun resolveTextDecoration(
     underline: Boolean,
     strikethrough: Boolean,
 ): TextDecoration? {
-    return when {
-        underline &&
-                strikethrough -> {
+    return when { underline && strikethrough -> {
             TextDecoration.combine(
                 listOf(
                     TextDecoration.Underline,
@@ -283,24 +245,18 @@ private fun resolveInlineFontSize(
     subscript: Boolean,
     superscript: Boolean,
 ): TextUnit {
-    val hasExplicitSize =
-        size != null &&
-                size > 0
+    val hasExplicitSize = size != null && size > 0
 
     if (hasExplicitSize) {
-        val baseSize =
-            size!!
-                .toFloat()
+        val baseSize = size.toFloat()
 
-        val finalSize =
-            if (
-                subscript ||
-                superscript
-            ) {
-                baseSize * 0.8f
-            } else {
-                baseSize
-            }
+        val finalSize = if (
+            subscript || superscript
+        ) {
+            baseSize * 0.8f
+        } else {
+            baseSize
+        }
 
         return finalSize.sp
     }
@@ -312,10 +268,7 @@ private fun resolveInlineFontSize(
      * 后面如果要完全基于父级 TextStyle
      * 做比例缩放，可以再升级 renderer。
      */
-    if (
-        subscript ||
-        superscript
-    ) {
+    if ( subscript || superscript ) {
         return 12.sp
     }
 
@@ -325,107 +278,45 @@ private fun resolveInlineFontSize(
 private val darkRichColorMap =
     mapOf(
         // text
-        "--toolbar-text-color-1" to
-                Color(0xFFF3F4F6),
-
-        "--toolbar-text-color-2" to
-                Color(0xFF9CA3AF),
-
-        "--toolbar-text-color-3" to
-                Color(0xFFF87171),
-
-        "--toolbar-text-color-4" to
-                Color(0xFFFB923C),
-
-        "--toolbar-text-color-5" to
-                Color(0xFFFACC15),
-
-        "--toolbar-text-color-6" to
-                Color(0xFF4ADE80),
-
-        "--toolbar-text-color-7" to
-                Color(0xFF60A5FA),
-
-        "--toolbar-text-color-8" to
-                Color(0xFFA78BFA),
-
+        "--toolbar-text-color-1" to Color(0xFFF3F4F6),
+        "--toolbar-text-color-2" to Color(0xFF9CA3AF),
+        "--toolbar-text-color-3" to Color(0xFFF87171),
+        "--toolbar-text-color-4" to Color(0xFFFB923C),
+        "--toolbar-text-color-5" to Color(0xFFFACC15),
+        "--toolbar-text-color-6" to Color(0xFF4ADE80),
+        "--toolbar-text-color-7" to Color(0xFF60A5FA),
+        "--toolbar-text-color-8" to Color(0xFFA78BFA),
         // background
-        "--toolbar-bg-color-1" to
-                Color(0xFF374151),
-
-        "--toolbar-bg-color-2" to
-                Color(0xFF7F1D1D),
-
-        "--toolbar-bg-color-3" to
-                Color(0xFF7C2D12),
-
-        "--toolbar-bg-color-4" to
-                Color(0xFF713F12),
-
-        "--toolbar-bg-color-5" to
-                Color(0xFF14532D),
-
-        "--toolbar-bg-color-6" to
-                Color(0xFF1E3A8A),
-
-        "--toolbar-bg-color-7" to
-                Color(0xFF4C1D95),
-
-        "--toolbar-bg-color-8" to
-                Color(0xFF831843),
+        "--toolbar-bg-color-1" to Color(0xFF374151),
+        "--toolbar-bg-color-2" to Color(0xFF7F1D1D),
+        "--toolbar-bg-color-3" to Color(0xFF7C2D12),
+        "--toolbar-bg-color-4" to Color(0xFF713F12),
+        "--toolbar-bg-color-5" to Color(0xFF14532D),
+        "--toolbar-bg-color-6" to Color(0xFF1E3A8A),
+        "--toolbar-bg-color-7" to Color(0xFF4C1D95),
+        "--toolbar-bg-color-8" to Color(0xFF831843),
     )
 
 private val lightRichColorMap =
     mapOf(
         // text
-        "--toolbar-text-color-1" to
-                Color(0xFF111827),
-
-        "--toolbar-text-color-2" to
-                Color(0xFF6B7280),
-
-        "--toolbar-text-color-3" to
-                Color(0xFFDC2626),
-
-        "--toolbar-text-color-4" to
-                Color(0xFFEA580C),
-
-        "--toolbar-text-color-5" to
-                Color(0xFFCA8A04),
-
-        "--toolbar-text-color-6" to
-                Color(0xFF16A34A),
-
-        "--toolbar-text-color-7" to
-                Color(0xFF2563EB),
-
-        "--toolbar-text-color-8" to
-                Color(0xFF7C3AED),
-
+        "--toolbar-text-color-1" to Color(0xFF111827),
+        "--toolbar-text-color-2" to Color(0xFF6B7280),
+        "--toolbar-text-color-3" to Color(0xFFDC2626),
+        "--toolbar-text-color-4" to Color(0xFFEA580C),
+        "--toolbar-text-color-5" to Color(0xFFCA8A04),
+        "--toolbar-text-color-6" to Color(0xFF16A34A),
+        "--toolbar-text-color-7" to Color(0xFF2563EB),
+        "--toolbar-text-color-8" to Color(0xFF7C3AED),
         // background
-        "--toolbar-bg-color-1" to
-                Color(0xFFF3F4F6),
-
-        "--toolbar-bg-color-2" to
-                Color(0xFFFEE2E2),
-
-        "--toolbar-bg-color-3" to
-                Color(0xFFFFEDD5),
-
-        "--toolbar-bg-color-4" to
-                Color(0xFFFEF3C7),
-
-        "--toolbar-bg-color-5" to
-                Color(0xFFDCFCE7),
-
-        "--toolbar-bg-color-6" to
-                Color(0xFFDBEAFE),
-
-        "--toolbar-bg-color-7" to
-                Color(0xFFEDE9FE),
-
-        "--toolbar-bg-color-8" to
-                Color(0xFFFCE7F3),
+        "--toolbar-bg-color-1" to Color(0xFFF3F4F6),
+        "--toolbar-bg-color-2" to Color(0xFFFEE2E2),
+        "--toolbar-bg-color-3" to Color(0xFFFFEDD5),
+        "--toolbar-bg-color-4" to Color(0xFFFEF3C7),
+        "--toolbar-bg-color-5" to Color(0xFFDCFCE7),
+        "--toolbar-bg-color-6" to Color(0xFFDBEAFE),
+        "--toolbar-bg-color-7" to Color(0xFFEDE9FE),
+        "--toolbar-bg-color-8" to Color(0xFFFCE7F3),
     )
 
 private val cssVariableRegex =

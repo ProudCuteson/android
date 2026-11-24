@@ -6,13 +6,10 @@ fun resolveMobileTextAlign(
     align: String?,
 ): TextAlign {
     return when (align) {
-        "center" ->
-            TextAlign.Center
-
-        "right" ->
-            TextAlign.Right
-
-        else ->
-            TextAlign.Left
+        "left" -> TextAlign.Left
+        "center" -> TextAlign.Center
+        "right" -> TextAlign.Right
+        "justify" -> TextAlign.Justify
+        else -> TextAlign.Left
     }
 }

@@ -24,9 +24,7 @@ class DocDetailViewModel(
 ) : ViewModel() {
 
     private val _uiState =
-        MutableStateFlow(
-            DocDetailUiState()
-        )
+        MutableStateFlow(DocDetailUiState())
 
     val uiState: StateFlow<DocDetailUiState> =
         _uiState.asStateFlow()
@@ -38,25 +36,19 @@ class DocDetailViewModel(
     private fun observeDoc() {
         viewModelScope.launch {
 
-            println(
-                "DocDetail subscribe: docId=$docId topicId=$topicId"
-            )
-
             repository
                 .observeDocDetail(
                     docId = docId,
                     topicId = topicId,
                 )
                 .catch { error ->
-                    println(
-                        "DocDetail flow error: ${error.message}"
-                    )
 
                     error.printStackTrace()
 
                     _uiState.update {
                         it.copy(
                             isLoading = false,
+                            detail = null,
                             errorMessage =
                                 error.message
                                     ?: "加载文档失败",
@@ -65,17 +57,27 @@ class DocDetailViewModel(
                 }
                 .collect { result ->
 
-                    println(
-                        "DocDetail result received"
-                    )
-
                     result
                         .onSuccess { detail ->
 
+                            if (detail == null) {
+                                _uiState.update {
+                                    it.copy(
+                                        isLoading = false,
+                                        detail = null,
+                                        errorMessage =
+                                            "文档不存在或暂不可访问",
+                                    )
+                                }
+                                return@onSuccess
+                            }
+
                             println(
                                 "DocDetail success: " +
-                                        "doc=${detail.doc?.id} " +
-                                        "blocks=${detail.renderDoc?.blocks?.size}"
+                                        "doc=${detail.doc.id} " +
+                                        "version=${detail.renderDoc.version} " +
+                                        "blocks=${detail.renderDoc.blocks.size} " +
+                                        "charts=${detail.charts.size}"
                             )
 
                             _uiState.update {
@@ -88,15 +90,12 @@ class DocDetailViewModel(
                         }
                         .onFailure { error ->
 
-                            println(
-                                "DocDetail result error: ${error.message}"
-                            )
-
                             error.printStackTrace()
 
                             _uiState.update {
                                 it.copy(
                                     isLoading = false,
+                                    detail = null,
                                     errorMessage =
                                         error.message
                                             ?: "加载文档失败",

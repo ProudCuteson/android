@@ -37,8 +37,6 @@ import top.role.android.feature.note.editor.richtext.RichTextReadingView
 import top.role.android.feature.reading.components.MobileRenderBlockView
 import top.role.android.feature.slide.render.SlidePageCanvas
 
-// PreviewableImage 使用 NoteImageReading 中现有组件的 import。
-
 private val referencePreviewJson = Json {
     ignoreUnknownKeys = true
     coerceInputValues = true
@@ -386,8 +384,7 @@ private fun DocReferenceContent(
 ) {
     val blocks = remember(payload) {
         runCatching {
-            val element = payload["contents"]
-                    as? JsonArray
+            val element = payload["contents"] as? JsonArray
 
             if (element == null) {
                 emptyList()

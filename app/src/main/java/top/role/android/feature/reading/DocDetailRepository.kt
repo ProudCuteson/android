@@ -11,27 +11,18 @@ class DocDetailRepository(
     fun observeDocDetail(
         docId: String,
         topicId: String? = null,
-    ): Flow<Result<MobileDocDetailResponse>> {
+    ): Flow<Result<MobileDocDetailResponse?>> {
 
-        val args =
-            buildMap<String, Any?> {
-                put(
-                    "docId",
-                    docId,
-                )
+        val args = buildMap<String, Any?> {
+            put("docId", docId)
 
-                if (!topicId.isNullOrBlank()) {
-                    put(
-                        "topicId",
-                        topicId,
-                    )
-                }
+            if (!topicId.isNullOrBlank()) {
+                put("topicId", topicId)
             }
+        }
 
         return convexClient.subscribe(
-            name =
-                "mobile/native/doc/index:getDocDetail",
-
+            name = "mobile/native/doc/detail:getDocDetail",
             args = args,
         )
     }

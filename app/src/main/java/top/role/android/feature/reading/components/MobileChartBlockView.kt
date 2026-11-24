@@ -1,71 +1,119 @@
 package top.role.android.feature.reading.components
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+
+import top.role.android.core.model.chart.MobileChartRuntime
 import top.role.android.core.model.content.MobileChartBlock
+
+import top.role.android.ui.chart.MobileChart
+import top.role.android.ui.chart.MobileChartDisplay
+import top.role.android.ui.chart.UnsupportedChartContent
 
 @Composable
 fun MobileChartBlockView(
     block: MobileChartBlock,
+    runtime: MobileChartRuntime?,
     modifier: Modifier = Modifier,
 ) {
+    val chartHeight =
+        block.height
+            ?.takeIf {
+                it.isFinite() && it > 0
+            }
+            ?.coerceIn(240.0, 480.0)
+            ?.dp
+            ?: 300.dp
+
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(
-                color =
-                    MaterialTheme.colorScheme
-                        .surfaceContainerLow,
-                shape =
-                    RoundedCornerShape(12.dp),
-            )
-            .padding(16.dp),
+        modifier = modifier.fillMaxWidth(),
     ) {
-        Text(
-            text =
-                block.title
-                    ?.takeIf { it.isNotBlank() }
-                    ?: "图表",
-            style =
-                MaterialTheme.typography.titleMedium,
-        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(chartHeight),
+        ) {
+
+            if (runtime == null) {
+
+                UnsupportedChartContent(
+                    title = "图表不可用",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(chartHeight),
+                )
+
+            } else {
+
+                val chart =
+                    block.title
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { title ->
+                            runtime.copy(
+                                title = title,
+                            )
+                        }
+                        ?: runtime
+
+                MobileChart(
+                    chart = chart,
+
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(chartHeight),
+
+                    display = MobileChartDisplay(
+                        showTitle = true,
+
+                        showDescription = false,
+
+                        showLegend = true,
+
+                        compact = false,
+
+                        scale = 1.0,
+
+                        backgroundMode = "transparent",
+                    ),
+                )
+            }
+        }
 
         block.caption
             ?.takeIf { it.isNotBlank() }
             ?.let { caption ->
+
                 Text(
                     text = caption,
-                    modifier =
-                        Modifier.padding(
-                            top = 6.dp,
+
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            top = 8.dp,
+                            start = 4.dp,
+                            end = 4.dp,
                         ),
-                    style =
-                        MaterialTheme.typography.bodySmall,
+
+                    style = readingCaptionStyle(),
+
+                    textAlign =
+                        resolveMobileTextAlign(
+                            block.align
+                        ),
+
                     color =
                         MaterialTheme.colorScheme
                             .onSurfaceVariant,
                 )
             }
-
-        Text(
-            text = "Chart · ${block.chartId}",
-            modifier =
-                Modifier.padding(
-                    top = 12.dp,
-                ),
-            style =
-                MaterialTheme.typography.labelSmall,
-            color =
-                MaterialTheme.colorScheme
-                    .onSurfaceVariant,
-        )
     }
 }

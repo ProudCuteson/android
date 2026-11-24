@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -42,16 +44,19 @@ fun TopicDetailScreen(
 
         else -> {
             val detail = state.detail
-            val topic = detail.topic!!
+            val topic = detail.topic
 
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
+                    .navigationBarsPadding()
                     .padding(
                         horizontal = 16.dp,
                     ),
-                verticalArrangement =
-                    Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(
+                    bottom = 16.dp,
+                ),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 item(
                     key = "topic-header",
