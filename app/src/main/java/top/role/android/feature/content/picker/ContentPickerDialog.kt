@@ -1,4 +1,3 @@
-
 package top.role.android.feature.content.picker
 
 import androidx.compose.foundation.layout.*
@@ -11,25 +10,41 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
+import top.role.android.core.asset.AssetUploadService
+
 @Composable
 fun ContentPickerDialog(
     repository: ContentPickerRepository,
+    assetUploadService: AssetUploadService,
     multiple: Boolean,
     initialSelected: List<ContentSelection> = emptyList(),
     onDismiss: () -> Unit,
     onConfirm: (List<ContentSelection>) -> Unit,
 ) {
-    // 弹窗内只修改草稿，点击确定才提交给外层
+
+    // 弹窗内只修改草稿，
+    // 点击确定才提交给外层。
     var draft by remember {
         mutableStateOf(initialSelected)
     }
 
+    var uploadBusy by remember {
+        mutableStateOf(false)
+    }
+
     Dialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = {
+            if (!uploadBusy) {
+                onDismiss()
+            }
+        },
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
+            dismissOnBackPress = !uploadBusy,
+            dismissOnClickOutside = !uploadBusy,
         ),
     ) {
+
         Surface(
             modifier = Modifier
                 .fillMaxWidth(0.94f)
@@ -37,11 +52,13 @@ fun ContentPickerDialog(
                 .imePadding(),
             shape = MaterialTheme.shapes.extraLarge,
         ) {
+
             Column(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement =
                     Arrangement.spacedBy(12.dp),
             ) {
+
                 Text(
                     text = if (multiple) {
                         "添加参考内容"
@@ -54,13 +71,24 @@ fun ContentPickerDialog(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .verticalScroll(rememberScrollState()),
+                        .verticalScroll(
+                            rememberScrollState()
+                        ),
                 ) {
+
                     ContentPickerPanel(
                         repository = repository,
+                        assetUploadService = assetUploadService,
                         multiple = multiple,
                         selected = draft,
-                        onSelectionChange = { draft = it },
+
+                        onSelectionChange = {
+                            draft = it
+                        },
+
+                        onUploadBusyChange = {
+                            uploadBusy = it
+                        },
                     )
                 }
 
@@ -71,12 +99,18 @@ fun ContentPickerDialog(
                     horizontalArrangement =
                         Arrangement.End,
                 ) {
-                    TextButton(onClick = onDismiss) {
+
+                    TextButton(
+                        onClick = onDismiss,
+                        enabled = !uploadBusy,
+                    ) {
                         Text("取消")
                     }
 
                     Button(
-                        enabled = multiple || draft.size == 1,
+                        enabled = !uploadBusy &&
+                                (multiple || draft.size == 1),
+
                         onClick = {
                             onConfirm(draft)
                         },

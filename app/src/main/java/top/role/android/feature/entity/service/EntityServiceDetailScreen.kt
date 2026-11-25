@@ -25,13 +25,16 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.material.icons.filled.Person
 import coil3.compose.AsyncImage
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.activity.compose.BackHandler
 import top.role.android.feature.content.picker.ContentSelection
+import top.role.android.core.asset.AssetUploadService
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EntityServiceDetailScreen(
     state: EntityServiceUiState,
     pickerRepository: ContentPickerRepository,
+    assetUploadService: AssetUploadService,
     onOpenReference: (
         reference: EntityServiceReference,
         source: EntityServiceReferenceSource,
@@ -58,6 +61,10 @@ fun EntityServiceDetailScreen(
         mutableStateOf<ContentSelection?>(null)
     }
 
+    var uploadBusy by remember(service?.id) {
+        mutableStateOf(false)
+    }
+
     val canManage = state.mode == "managed" &&
             service != null
 
@@ -71,6 +78,10 @@ fun EntityServiceDetailScreen(
         service?.isRequester == true &&
         EntityServiceStatuses.canWithdraw(service.status)
 
+    BackHandler(enabled = uploadBusy) {
+        // 暂不响应系统返回操作
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -78,7 +89,7 @@ fun EntityServiceDetailScreen(
                 navigationIcon = {
                     IconButton(
                         onClick = onBack,
-                        enabled = !state.isActionRunning,
+                        enabled = !state.isActionRunning && !uploadBusy,
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -147,8 +158,7 @@ fun EntityServiceDetailScreen(
                                         replyNote.trim(),
                                     )
                                 },
-                                enabled =
-                                    !state.isActionRunning && hasReply,
+                                enabled = !state.isActionRunning && !uploadBusy && hasReply,
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Text(
@@ -240,6 +250,7 @@ fun EntityServiceDetailScreen(
 
                             EntityServiceReplyPanel(
                                 repository = pickerRepository,
+                                assetUploadService = assetUploadService,
                                 responseNote = replyNote,
                                 onResponseNoteChange = {
                                     replyNote = it
@@ -249,6 +260,9 @@ fun EntityServiceDetailScreen(
                                     selectedResult = it
                                 },
                                 enabled = !state.isActionRunning,
+                                onUploadBusyChange = {
+                                    uploadBusy = it
+                                },
                             )
                         }
                     },
@@ -421,18 +435,13 @@ private fun EntityServiceDetailContent(
                             text = ref.label
                                 ?.takeIf { it.isNotBlank() }
                                 ?: "未命名内容",
-                            style =
-                                MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.bodyMedium,
                         )
 
                         Text(
-                            text = referenceTypeLabel(
-                                ref.targetType
-                            ),
-                            style =
-                                MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme
-                                .colorScheme.onSurfaceVariant,
+                            text = referenceTypeLabel(ref.targetType),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -533,8 +542,7 @@ private fun EntityServiceDetailContent(
             Text(
                 text = "处理时间：${formatServiceTime(timestamp)}",
                 style = MaterialTheme.typography.bodySmall,
-                color =
-                    MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 

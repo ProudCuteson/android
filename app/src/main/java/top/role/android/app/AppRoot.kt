@@ -328,6 +328,7 @@ fun AppRoot(
             bannerRepository = appContainer.bannerRepository,
             entityServiceRepository = appContainer.entityServiceRepository,
             contentPickerRepository = appContainer.contentPickerRepository,
+            assetUploadService = appContainer.assetUploadService,
 
             pdfDocumentLoader = appContainer.pdfDocumentLoader,
 

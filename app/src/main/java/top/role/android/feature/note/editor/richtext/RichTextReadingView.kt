@@ -170,15 +170,7 @@ private fun readingLineStyle(
     }
 
     // 尊重 BlockLine 中用户明确设置的行高倍率。
-    val customHeight = line.lineHeight
-        ?.takeIf { it > 0 }
-        ?.let { (style.fontSize.value * it.toFloat()).sp }
-
-    return if (customHeight != null) {
-        style.copy(lineHeight = customHeight)
-    } else {
-        style
-    }
+    return style
 }
 
 private fun readingAnnotatedText(line: BlockLine): AnnotatedString {

@@ -1,7 +1,6 @@
 package top.role.android.feature.content.picker
 
 import kotlinx.serialization.Serializable
-import top.role.android.feature.entity.service.EntityServiceReference
 
 @Serializable
 data class ContentPickerItem(

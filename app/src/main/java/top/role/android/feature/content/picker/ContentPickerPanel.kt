@@ -15,6 +15,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+import top.role.android.core.asset.AssetUploadService
+
 private val contentTypes = listOf(
     "note" to "Note",
     "doc" to "Doc",
@@ -25,13 +27,39 @@ private val contentTypes = listOf(
 @Composable
 fun ContentPickerPanel(
     repository: ContentPickerRepository,
+    assetUploadService: AssetUploadService,
     multiple: Boolean,
     selected: List<ContentSelection>,
     onSelectionChange: (List<ContentSelection>) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    onUploadBusyChange: (Boolean) -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
+
+    val uploadSession = remember(assetUploadService) {
+        assetUploadService.createSession()
+    }
+
+    val uploadState by uploadSession.state.collectAsState()
+
+    val uploadBusy = uploadState.busy
+
+    val interactionEnabled = enabled && !uploadBusy
+
+    val currentOnUploadBusyChange by rememberUpdatedState(
+        onUploadBusyChange
+    )
+
+    LaunchedEffect(uploadBusy) {
+        currentOnUploadBusyChange(uploadBusy)
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            currentOnUploadBusyChange(false)
+        }
+    }
 
     var type by rememberSaveable {
         mutableStateOf("note")
@@ -124,7 +152,7 @@ fun ContentPickerPanel(
     }
 
     fun toggle(item: ContentPickerItem) {
-        if (!enabled) return
+        if (!interactionEnabled) return
 
         // 正式交付的 Note 必须有标题
         if (
@@ -175,7 +203,7 @@ fun ContentPickerPanel(
                 FilterChip(
                     selected = type == value,
                     onClick = { type = value },
-                    enabled = enabled,
+                    enabled = interactionEnabled,
                     label = { Text(label) },
                 )
             }
@@ -186,11 +214,33 @@ fun ContentPickerPanel(
             onValueChange = {
                 search = it.take(100)
             },
-            label = { Text("搜索标题") },
+            label = {
+                Text(
+                    if (type == "fileAsset") {
+                        "搜索文件名"
+                    } else {
+                        "搜索标题"
+                    }
+                )
+            },
             singleLine = true,
-            enabled = enabled,
+            enabled = interactionEnabled,
             modifier = Modifier.fillMaxWidth(),
         )
+
+        if (type == "fileAsset") {
+
+            ContentPickerUploadSection(
+                session = uploadSession,
+                enabled = enabled,
+                onUploaded = {
+
+                    search = ""
+
+                    reloadKey++
+                },
+            )
+        }
 
         // 已选内容独立显示，切换分类不丢失
         if (selected.isNotEmpty()) {
@@ -227,7 +277,7 @@ fun ContentPickerPanel(
                                     }
                                 )
                             },
-                            enabled = enabled,
+                            enabled = interactionEnabled,
                         ) {
                             Text("移除")
                         }
@@ -236,7 +286,7 @@ fun ContentPickerPanel(
             }
         }
 
-        if (!multiple) {
+        if (!multiple && type == "note") {
             Text(
                 text = "无标题 Note 不能作为正式交付内容",
                 style = MaterialTheme.typography.bodySmall,
@@ -263,7 +313,7 @@ fun ContentPickerPanel(
 
                 TextButton(
                     onClick = { reloadKey++ },
-                    enabled = enabled,
+                    enabled = interactionEnabled,
                 ) {
                     Text("重试")
                 }
@@ -283,7 +333,7 @@ fun ContentPickerPanel(
                 it.type == item.type && it.id == item.id
             }
 
-            val selectable = enabled && (
+            val selectable = interactionEnabled && (
                     multiple ||
                             item.type != "note" ||
                             item.title.isNotBlank()
@@ -345,7 +395,7 @@ fun ContentPickerPanel(
 
         if (!firstLoading && !isDone && cursor != null) {
             TextButton(
-                enabled = enabled && !moreLoading,
+                enabled = interactionEnabled && !moreLoading,
                 onClick = {
                     if (moreLoading) return@TextButton
 

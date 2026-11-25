@@ -20,12 +20,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 import top.role.android.feature.content.picker.ContentPickerRepository
+import top.role.android.core.asset.AssetUploadService
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EntityServiceScreen(
     state: EntityServiceUiState,
     pickerRepository: ContentPickerRepository,
+    assetUploadService: AssetUploadService,
     onOpenReference: (
         EntityServiceReference,
         EntityServiceReferenceSource,
@@ -79,6 +81,7 @@ fun EntityServiceScreen(
     if (showCreate) {
         EntityServiceCreateScreen(
             pickerRepository = pickerRepository,
+            assetUploadService = assetUploadService,
             isSubmitting = state.isSubmitting,
             errorMessage = state.submitError,
             onSubmit = onSubmit,
@@ -100,6 +103,7 @@ fun EntityServiceScreen(
         EntityServiceDetailScreen(
             state = state,
             pickerRepository = pickerRepository,
+            assetUploadService = assetUploadService,
             onOpenReference = onOpenReference,
             onRetry = onRetryDetail,
             onWithdraw = onWithdraw,

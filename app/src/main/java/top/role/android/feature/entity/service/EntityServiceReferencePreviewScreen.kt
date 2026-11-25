@@ -47,6 +47,7 @@ import top.role.android.feature.reading.components.MobileDocRenderer
 
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import top.role.android.core.model.note.content.NoteContentCodec
 
 private val referencePreviewJson = Json {
     ignoreUnknownKeys = true
@@ -246,32 +247,16 @@ private fun ReferenceContentBody(
  * - 正文：BlockContent → RichTextReadingView
  * - 图片：media → 后续接入 NoteImageReading
  */
-
 @Composable
 private fun NoteReferenceContent(
     payload: JsonObject,
 ) {
-    // 直接取得 BlockContent
-    val body = payload["content"] as? JsonObject
-
-    val blockContent = body?.let { element ->
-        runCatching {
-            val obj = element as? JsonObject
-                ?: error("BlockContent is not an object")
-
-            val normalized = JsonObject(
-                obj + (
-                        "v" to JsonPrimitive(1)
-                        )
-            )
-
-            referencePreviewJson.decodeFromJsonElement(
-                BlockContent.serializer(),
-                normalized,
-            )
-        }.onFailure { error ->
-
-        }.getOrNull()
+    val blockContent = remember(payload) {
+        payload["content"]?.let { element ->
+            runCatching {
+                NoteContentCodec.readModel(element)
+            }.getOrNull()
+        }
     }
 
     if (blockContent != null) {

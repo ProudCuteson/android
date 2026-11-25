@@ -19,10 +19,14 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
+import kotlin.math.max
+
+import top.role.android.ui.typography.BlockTypography
+import top.role.android.ui.typography.BlockTypographyProfile
+import top.role.android.ui.typography.LocalSlideCanvasWidth
 import top.role.android.core.model.slide.MobileSlideElement
 import top.role.android.core.model.slide.MobileSlideTextLine
 import top.role.android.core.model.slide.MobileSlideTextRun
-import kotlin.math.max
 
 @Composable
 fun SlideTextElement(
@@ -30,32 +34,9 @@ fun SlideTextElement(
     scale: Double,
     modifier: Modifier = Modifier,
 ) {
-    val content =
-        element.content
-            ?: return
+    val content = element.content ?: return
+    val density = LocalDensity.current
 
-    val density =
-        LocalDensity.current
-
-    /*
-     * Slide 的 scale 是：
-     *
-     *   实际 Canvas 宽度 px / 原始 canvasW
-     *
-     * fontSize 来自 Slide 设计坐标。
-     *
-     * 我们希望：
-     *
-     *   fontSize × scale
-     *
-     * 最终直接对应屏幕像素大小。
-     *
-     * Compose 的 sp 还会再乘：
-     *
-     *   density × fontScale
-     *
-     * 所以需要提前除掉这两个系数。
-     */
     val textScale =
         scale /
                 density.density.toDouble() /
@@ -81,41 +62,40 @@ private fun SlideTextLine(
     lineIndex: Int,
     textScale: Double,
 ) {
-    val prefix =
-        buildListPrefix(
-            line = line,
-            lineIndex = lineIndex,
-        )
+    val prefix = buildListPrefix(
+        line = line,
+        lineIndex = lineIndex,
+    )
 
-    val text =
-        buildLineText(
-            prefix = prefix,
-            runs = line.runs,
-            textScale = textScale,
-        )
+    val text = buildLineText(
+        prefix = prefix,
+        runs = line.runs,
+        textScale = textScale,
+    )
 
-    val lineHeight =
-        resolveLineHeight(
-            line = line,
-            textScale = textScale,
-        )
+    val lineHeight = resolveLineHeight(
+        line = line,
+        textScale = textScale,
+    )
+
+    val canvasWidth = LocalSlideCanvasWidth.current
+
+    val typography = BlockTypography.resolve(
+        profile = BlockTypographyProfile.Slide,
+        variant = line.variant,
+        canvasWidth = canvasWidth,
+    )
+
+    val baseFontSize = (typography.fontSize * textScale).toFloat().sp
 
     Text(
         text = text,
-
-        modifier =
-            Modifier.fillMaxWidth(),
-
-        style =
-            TextStyle(
-                textAlign =
-                    resolveTextAlign(
-                        line.align
-                    ),
-
-                lineHeight =
-                    lineHeight,
-            ),
+        modifier = Modifier.fillMaxWidth(),
+        style = TextStyle(
+            fontSize = baseFontSize,
+            textAlign = resolveTextAlign(line.align),
+            lineHeight = lineHeight,
+        ),
     )
 }
 

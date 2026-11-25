@@ -15,17 +15,21 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.compose.foundation.border
+import androidx.compose.material3.MaterialTheme
+import android.graphics.Color as AndroidColor
+
+import kotlin.math.abs
+import kotlin.math.roundToInt
+
+import top.role.android.ui.theme.LocalTopRoleDarkTheme
+import androidx.compose.runtime.CompositionLocalProvider
+import top.role.android.ui.typography.LocalSlideCanvasWidth
 import top.role.android.core.model.slide.MobileSlideElement
 import top.role.android.core.model.slide.MobileSlidePage
 import top.role.android.core.model.slide.MobileSlideRect
 import top.role.android.core.model.slide.MobileSlideSummary
 import top.role.android.core.model.slide.MobileSlideElementKind
-import androidx.compose.foundation.border
-import androidx.compose.material3.MaterialTheme
-import top.role.android.ui.theme.LocalTopRoleDarkTheme
-import kotlin.math.abs
-import kotlin.math.roundToInt
-import android.graphics.Color as AndroidColor
 
 data class SlideResolvedRect(
     val left: Double,
@@ -104,37 +108,42 @@ fun SlidePageCanvas(
             .roundToInt()
             .coerceAtLeast(1)
 
-        SlideCanvasLayout(
-            widthPx = canvasWidthPx,
-            heightPx = canvasHeightPx,
-            modifier = Modifier
-                .fillMaxWidth()
-                .requiredSize(
-                    width = maxWidth,
-                    height = with(androidx.compose.ui.platform.LocalDensity.current) {
-                            canvasHeightPx.toDp()
-                    },
-                ),
+        CompositionLocalProvider(
+            LocalSlideCanvasWidth provides canvasWidth,
         ) {
 
-            SlidePageBackground(
-                page = page,
-                modifier = Modifier.fillMaxSize(),
-            )
+            SlideCanvasLayout(
+                widthPx = canvasWidthPx,
+                heightPx = canvasHeightPx,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .requiredSize(
+                        width = maxWidth,
+                        height = with(androidx.compose.ui.platform.LocalDensity.current) {
+                            canvasHeightPx.toDp()
+                        },
+                    ),
+            ) {
 
-            page.elements
-                .forEach { element ->
-                    SlidePositionedElement(
-                        element = element,
-                        scale = scale,
-                        allowVerticalOverflow = element.type == MobileSlideElementKind.Text,
-                    ) {
-                        SlideElementRenderer(
+                SlidePageBackground(
+                    page = page,
+                    modifier = Modifier.fillMaxSize(),
+                )
+
+                page.elements
+                    .forEach { element ->
+                        SlidePositionedElement(
                             element = element,
                             scale = scale,
-                        )
+                            allowVerticalOverflow = element.type == MobileSlideElementKind.Text,
+                        ) {
+                            SlideElementRenderer(
+                                element = element,
+                                scale = scale,
+                            )
+                        }
                     }
-                }
+            }
         }
     }
 }

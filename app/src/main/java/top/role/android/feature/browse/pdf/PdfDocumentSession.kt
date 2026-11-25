@@ -1,43 +1,42 @@
 package top.role.android.feature.browse.pdf
 
 import android.graphics.Bitmap
+import android.graphics.Color
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
 import java.io.Closeable
 import java.io.File
+import kotlin.math.roundToInt
 
 /**
  * 一个 PDF 文档对应一个 Renderer。
  *
- * PdfRenderer 不支持并发操作，因此所有渲染和关闭
- * 操作统一同步保护。
+ * - PdfRenderer 接管文件描述符的所有权
+ * - 页面渲染与文档关闭统一同步保护
+ * - 限制 Bitmap 尺寸，避免异常内存占用
  */
 class PdfDocumentSession private constructor(
-    private val descriptor: ParcelFileDescriptor,
     private val renderer: PdfRenderer,
 ) : Closeable {
 
     private var closed = false
 
-    val pageCount: Int
-        @Synchronized
-        get() {
-            check(!closed) {
-                "PDF 文档已经关闭"
-            }
-            return renderer.pageCount
-        }
+    /**
+     * 文档页数在 Session 创建时确定。
+     */
+    val pageCount: Int = renderer.pageCount
 
     @Synchronized
     fun renderPage(
         index: Int,
         targetWidth: Int,
     ): Bitmap {
+
         check(!closed) {
             "PDF 文档已经关闭"
         }
 
-        require(index in 0 until renderer.pageCount) {
+        require(index in 0 until pageCount) {
             "PDF 页面索引无效：$index"
         }
 
@@ -48,12 +47,30 @@ class PdfDocumentSession private constructor(
         val page = renderer.openPage(index)
 
         try {
-            val width = targetWidth
+            val pageWidth = page.width
+            val pageHeight = page.height
 
-            val height = (
-                    page.height.toFloat() *
-                            width / page.width
-                    ).toInt().coerceAtLeast(1)
+            require(pageWidth > 0 && pageHeight > 0) {
+                "PDF 页面尺寸无效"
+            }
+
+            /**
+             * 保持原始页面比例，
+             * 同时限制最大宽度与高度。
+             */
+            val scale = minOf(
+                targetWidth.toDouble() / pageWidth,
+                MAX_RENDER_WIDTH.toDouble() / pageWidth,
+                MAX_RENDER_HEIGHT.toDouble() / pageHeight,
+            )
+
+            val width = (pageWidth * scale)
+                .roundToInt()
+                .coerceAtLeast(1)
+
+            val height = (pageHeight * scale)
+                .roundToInt()
+                .coerceAtLeast(1)
 
             val bitmap = Bitmap.createBitmap(
                 width,
@@ -61,34 +78,46 @@ class PdfDocumentSession private constructor(
                 Bitmap.Config.ARGB_8888,
             )
 
-            page.render(
-                bitmap,
-                null,
-                null,
-                PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY,
-            )
+            try {
+                bitmap.eraseColor(Color.WHITE)
 
-            return bitmap
+                page.render(
+                    bitmap,
+                    null,
+                    null,
+                    PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY,
+                )
+
+                return bitmap
+
+            } catch (error: Throwable) {
+                bitmap.recycle()
+                throw error
+            }
+
         } finally {
             page.close()
         }
     }
 
+    /**
+     * PdfRenderer 负责关闭其持有的文件描述符。
+     */
     @Synchronized
     override fun close() {
         if (closed) return
 
+        renderer.close()
         closed = true
-
-        try {
-            renderer.close()
-        } finally {
-            descriptor.close()
-        }
     }
 
     companion object {
+
+        private const val MAX_RENDER_WIDTH = 2048
+        private const val MAX_RENDER_HEIGHT = 3072
+
         fun open(file: File): PdfDocumentSession {
+
             require(file.exists() && file.isFile) {
                 "PDF 文件不存在"
             }
@@ -98,15 +127,21 @@ class PdfDocumentSession private constructor(
                 ParcelFileDescriptor.MODE_READ_ONLY,
             )
 
-            return try {
-                val renderer = PdfRenderer(descriptor)
+            val renderer = try {
+                PdfRenderer(descriptor)
+            } catch (error: Throwable) {
+                runCatching {
+                    descriptor.close()
+                }
+                throw error
+            }
 
-                PdfDocumentSession(
-                    descriptor = descriptor,
-                    renderer = renderer,
-                )
-            } catch (error: Exception) {
-                descriptor.close()
+            return try {
+                PdfDocumentSession(renderer)
+            } catch (error: Throwable) {
+                runCatching {
+                    renderer.close()
+                }
                 throw error
             }
         }

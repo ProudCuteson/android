@@ -1,25 +1,10 @@
 package top.role.android.feature.credit
 
 import java.util.Locale
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -29,13 +14,16 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
+import top.role.android.core.auth.AuthState
 import top.role.android.core.model.account.MobileCreditPurchaseOption
 import top.role.android.core.model.account.MobileCustomCreditPurchaseOption
 import top.role.android.core.model.account.MobileRecentCreditPurchase
-import top.role.android.core.payment.temp.MobilePaymentNotice
-import top.role.android.core.payment.temp.WebPurchaseConfig
-import top.role.android.core.auth.AuthState
+import top.role.android.core.payment.wechatPayDisplayMessage
 import top.role.android.ui.auth.AuthStatusContent
+
+// ============================================================
+// Screen
+// ============================================================
 
 @Composable
 fun CreditsScreen(
@@ -45,8 +33,7 @@ fun CreditsScreen(
     onRetryAuth: () -> Unit,
     onReSignIn: () -> Unit,
 ) {
-    val uiState by viewModel.uiState
-        .collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     AuthStatusContent(
         authState = authState,
@@ -54,7 +41,7 @@ fun CreditsScreen(
         onRetry = onRetryAuth,
         onReSignIn = onReSignIn,
         modifier = Modifier.fillMaxSize(),
-    ) { userId ->
+    ) {
         CreditsScreenContent(
             state = uiState,
             onCustomAmountChange = viewModel::updateCustomAmount,
@@ -74,1051 +61,507 @@ private fun CreditsScreenContent(
     onContinuePurchase: (MobileRecentCreditPurchase) -> Unit,
 ) {
     when {
-        state.loading -> {
-            CreditsLoadingState()
+        state.loading -> CreditsLoadingState()
+
+        state.errorMessage != null && state.packs.isEmpty() -> {
+            CreditsErrorState(message = state.errorMessage)
         }
 
-        state.errorMessage != null &&
-                state.packs.isEmpty() -> {
-
-            CreditsErrorState(
-                message =
-                    state.errorMessage,
-            )
-        }
-
-        else -> {
-            CreditsContent(
-                state = state,
-                onCustomAmountChange = onCustomAmountChange,
-                onPurchasePack = onPurchasePack,
-                onPurchaseCustom = onPurchaseCustom,
-                onContinuePurchase = onContinuePurchase,
-            )
-        }
+        else -> CreditsContent(
+            state = state,
+            onCustomAmountChange = onCustomAmountChange,
+            onPurchasePack = onPurchasePack,
+            onPurchaseCustom = onPurchaseCustom,
+            onContinuePurchase = onContinuePurchase,
+        )
     }
 }
+
+// ============================================================
+// Loading / Error
+// ============================================================
 
 @Composable
 private fun CreditsLoadingState() {
     Column(
-        modifier =
-            Modifier.fillMaxSize(),
-
-        verticalArrangement =
-            Arrangement.Center,
-
-        horizontalAlignment =
-            Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         CircularProgressIndicator()
 
-        Spacer(
-            modifier =
-                Modifier.height(16.dp)
-        )
+        Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text =
-                "正在加载 Credits…",
-
-            style =
-                MaterialTheme
-                    .typography
-                    .bodyMedium,
-
-            color =
-                MaterialTheme
-                    .colorScheme
-                    .onSurfaceVariant,
+            text = "正在加载 Credits…",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
-
 
 @Composable
-private fun CreditsErrorState(
-    message: String,
-) {
+private fun CreditsErrorState(message: String) {
     Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-
-        verticalArrangement =
-            Arrangement.Center,
-
-        horizontalAlignment =
-            Alignment.CenterHorizontally,
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text =
-                "无法加载 Credits",
-
-            style =
-                MaterialTheme
-                    .typography
-                    .titleMedium,
-
-            fontWeight =
-                FontWeight.SemiBold,
+            text = "无法加载 Credits",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
         )
 
-        Spacer(
-            modifier =
-                Modifier.height(8.dp)
-        )
+        Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text =
-                message,
-
-            style =
-                MaterialTheme
-                    .typography
-                    .bodyMedium,
-
-            color =
-                MaterialTheme
-                    .colorScheme
-                    .onSurfaceVariant,
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
 
+// ============================================================
+// Main Content
+// ============================================================
 
 @Composable
 private fun CreditsContent(
     state: CreditsUiState,
-
-    onCustomAmountChange:
-        (String) -> Unit,
-
-    onPurchasePack:
-        (MobileCreditPurchaseOption) -> Unit,
-
-    onPurchaseCustom:
-        () -> Unit,
-
-    onContinuePurchase:
-        (MobileRecentCreditPurchase) -> Unit,
+    onCustomAmountChange: (String) -> Unit,
+    onPurchasePack: (MobileCreditPurchaseOption) -> Unit,
+    onPurchaseCustom: () -> Unit,
+    onContinuePurchase: (MobileRecentCreditPurchase) -> Unit,
 ) {
+    val purchaseInProgress = state.purchasingPackKey != null
 
-    val purchaseInProgress =
-        state.purchasingPackKey != null
-
-    LazyColumn(
-        modifier =
-            Modifier.fillMaxSize(),
-
-        contentPadding =
-            PaddingValues(
-                horizontal = 20.dp,
-                vertical = 20.dp,
-            ),
-
-        verticalArrangement =
-            Arrangement.spacedBy(
-                24.dp
-            ),
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .navigationBarsPadding(),
     ) {
 
-
-        item {
-            MobilePaymentNotice(
-                webUrl =
-                    WebPurchaseConfig.CREDITS_URL,
-            )
-        }
-
-        /*
-         * 固定 Credits 档位
-         */
-        item {
-            Column(
-                verticalArrangement =
-                    Arrangement.spacedBy(
-                        12.dp
+        // 固定支付提示，不随购买列表滚动。
+        state.purchaseErrorMessage
+            ?.takeIf { it.isNotBlank() }
+            ?.let { message ->
+                Box(
+                    modifier = Modifier.padding(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 12.dp,
                     ),
-            ) {
-                Text(
-                    text =
-                        "充值档位",
+                ) {
+                    CreditPurchaseNotice(message = message)
+                }
+            }
 
-                    style =
-                        MaterialTheme
-                            .typography
-                            .labelLarge,
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            contentPadding = PaddingValues(
+                horizontal = 16.dp,
+                vertical = 16.dp,
+            ),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
 
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .onSurfaceVariant,
-                )
+            // 固定充值档位
+            item(key = "credit_packs") {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    CreditSectionTitle("充值档位")
 
-                state.packs
-                    .forEach { pack ->
-
+                    state.packs.forEach { pack ->
                         CreditPackItem(
-                            pack =
-                                pack,
-
-                            isPurchasing =
-                                state.purchasingPackKey ==
-                                        pack.packKey,
-
-                            purchaseEnabled =
-                                !purchaseInProgress,
-
-                            onPurchase = {
-                                onPurchasePack(
-                                    pack
-                                )
-                            },
+                            pack = pack,
+                            isPurchasing = state.purchasingPackKey == pack.packKey,
+                            purchaseEnabled = !purchaseInProgress,
+                            onPurchase = { onPurchasePack(pack) },
                         )
                     }
-            }
-        }
-
-
-        /*
-         * 自定义 Credits
-         */
-        state.custom
-            ?.takeIf {
-                it.enabled
-            }
-            ?.let { custom ->
-
-                item {
-                    CustomCreditSection(
-                        config =
-                            custom,
-
-                        amountText =
-                            state.customAmountText,
-
-                        isPurchasing =
-                            state.purchasingPackKey ==
-                                    "custom",
-
-                        purchaseEnabled =
-                            !purchaseInProgress,
-
-                        onAmountChange =
-                            onCustomAmountChange,
-
-                        onPurchase =
-                            onPurchaseCustom,
-                    )
                 }
             }
 
+            // 自定义充值
+            state.custom
+                ?.takeIf { it.enabled }
+                ?.let { custom ->
+                    item(key = "credit_custom") {
+                        CustomCreditSection(
+                            config = custom,
+                            amountText = state.customAmountText,
+                            isPurchasing = state.purchasingPackKey == "custom",
+                            purchaseEnabled = !purchaseInProgress,
+                            onAmountChange = onCustomAmountChange,
+                            onPurchase = onPurchaseCustom,
+                        )
+                    }
+                }
 
-        /*
-         * 创建订单时的错误。
-         *
-         * 不影响整个 Credits 页面。
-         */
-        state.purchaseErrorMessage
-            ?.takeIf {
-                it.isNotBlank()
-            }
-            ?.let { message ->
+            // 最近购买
+            item(key = "credit_recent") {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    CreditSectionTitle("最近购买")
 
-                item {
-                    Text(
-                        text =
-                            message,
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .bodyMedium,
-
-                        color =
-                            MaterialTheme
-                                .colorScheme
-                                .error,
+                    RecentCreditPurchasesSection(
+                        loading = state.recentLoading,
+                        purchases = state.recentPurchases,
+                        purchasingKey = state.purchasingPackKey,
+                        onContinuePurchase = onContinuePurchase,
                     )
                 }
-            }
-
-
-        /*
-         * 最近 Credits 购买
-         */
-        item {
-            Column {
-                Text(
-                    text =
-                        "最近购买",
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .labelLarge,
-
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .onSurfaceVariant,
-                )
-
-                Spacer(
-                    modifier =
-                        Modifier.height(8.dp)
-                )
-
-                RecentCreditPurchasesSection(
-                    loading =
-                        state.recentLoading,
-
-                    purchases =
-                        state.recentPurchases,
-
-                    purchasingKey =
-                        state.purchasingPackKey,
-
-                    onContinuePurchase =
-                        onContinuePurchase,
-                )
-
             }
         }
     }
 }
 
+// ============================================================
+// Shared UI
+// ============================================================
+
+@Composable
+private fun CreditSectionTitle(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.Medium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
+private fun CreditPurchaseNotice(message: String) {
+    val isConfirming =
+        message == "CREDIT_PAYMENT_CONFIRMING" ||
+                message == "支付结果正在确认，请稍后查看购买记录。"
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        color = if (isConfirming) {
+            MaterialTheme.colorScheme.surfaceVariant
+        } else {
+            MaterialTheme.colorScheme.errorContainer
+        },
+    ) {
+        Text(
+            text = wechatPayDisplayMessage(message),
+            modifier = Modifier.padding(12.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (isConfirming) {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                MaterialTheme.colorScheme.onErrorContainer
+            },
+        )
+    }
+}
+
+@Composable
+private fun CreditPurchaseButton(
+    text: String,
+    isPurchasing: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Button(
+        modifier = Modifier.fillMaxWidth(),
+        enabled = enabled,
+        onClick = onClick,
+    ) {
+        if (isPurchasing) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(18.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Text("正在处理…")
+        } else {
+            Text(text)
+        }
+    }
+}
+
+@Composable
+private fun RecommendedLabel() {
+    Surface(
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+    ) {
+        Text(
+            text = "推荐",
+            modifier = Modifier.padding(
+                horizontal = 8.dp,
+                vertical = 3.dp,
+            ),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+        )
+    }
+}
+
+// ============================================================
+// Fixed Credit Pack
+// ============================================================
 
 @Composable
 private fun CreditPackItem(
-    pack:
-    MobileCreditPurchaseOption,
-
-    isPurchasing:
-    Boolean,
-
-    purchaseEnabled:
-    Boolean,
-
-    onPurchase:
-        () -> Unit,
+    pack: MobileCreditPurchaseOption,
+    isPurchasing: Boolean,
+    purchaseEnabled: Boolean,
+    onPurchase: () -> Unit,
 ) {
     Surface(
-        modifier =
-            Modifier.fillMaxWidth(),
-
-        shape =
-            MaterialTheme
-                .shapes
-                .large,
-
-        tonalElevation =
-            1.dp,
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        tonalElevation = 1.dp,
     ) {
         Column(
-            modifier =
-                Modifier.padding(
-                    16.dp
-                ),
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-
             Row(
-                modifier =
-                    Modifier.fillMaxWidth(),
-
-                verticalAlignment =
-                    Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-
                 Column(
-                    modifier =
-                        Modifier.weight(1f),
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-
                     Row(
-                        verticalAlignment =
-                            Alignment.CenterVertically,
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-
                         Text(
-                            text =
-                                pack.title,
-
-                            style =
-                                MaterialTheme
-                                    .typography
-                                    .titleMedium,
-
-                            fontWeight =
-                                FontWeight.SemiBold,
+                            text = pack.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
                         )
 
-                        if (
-                            pack.recommended
-                        ) {
-                            Spacer(
-                                modifier =
-                                    Modifier.width(
-                                        8.dp
-                                    )
-                            )
-
-                            Surface(
-                                shape =
-                                    MaterialTheme
-                                        .shapes
-                                        .small,
-
-                                color =
-                                    MaterialTheme
-                                        .colorScheme
-                                        .secondaryContainer,
-                            ) {
-                                Text(
-                                    text =
-                                        "推荐",
-
-                                    modifier =
-                                        Modifier.padding(
-                                            horizontal =
-                                                8.dp,
-
-                                            vertical =
-                                                3.dp,
-                                        ),
-
-                                    style =
-                                        MaterialTheme
-                                            .typography
-                                            .labelSmall,
-
-                                    color =
-                                        MaterialTheme
-                                            .colorScheme
-                                            .onSecondaryContainer,
-                                )
-                            }
+                        if (pack.recommended) {
+                            RecommendedLabel()
                         }
                     }
 
-                    Spacer(
-                        modifier =
-                            Modifier.height(
-                                4.dp
-                            )
-                    )
-
                     Text(
-                        text =
-                            "${formatCredits(pack.credits)} Credits",
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .bodyLarge,
-
-                        fontWeight =
-                            FontWeight.Medium,
+                        text = "${formatCredits(pack.credits)} Credits",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
                     )
                 }
 
-
                 Text(
-                    text =
-                        pack.amountText,
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .titleMedium,
-
-                    fontWeight =
-                        FontWeight.SemiBold,
+                    text = pack.amountText,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
                 )
             }
 
-
-            if (
-                !pack.desc
-                    .isNullOrBlank()
-            ) {
-                Spacer(
-                    modifier =
-                        Modifier.height(
-                            8.dp
-                        )
-                )
-
-                Text(
-                    text =
-                        pack.desc,
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .bodySmall,
-
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .onSurfaceVariant,
-                )
-            }
-
-
-            Spacer(
-                modifier =
-                    Modifier.height(
-                        14.dp
+            pack.desc
+                ?.takeIf { it.isNotBlank() }
+                ?.let { description ->
+                    Text(
+                        text = description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+
+            CreditPurchaseButton(
+                text = "购买 ${pack.amountText}",
+                isPurchasing = isPurchasing,
+                enabled = purchaseEnabled,
+                onClick = onPurchase,
             )
-
-
-            Button(
-                modifier =
-                    Modifier.fillMaxWidth(),
-
-                enabled =
-                    purchaseEnabled,
-
-                onClick =
-                    onPurchase,
-            ) {
-
-                if (
-                    isPurchasing
-                ) {
-                    CircularProgressIndicator(
-                        modifier =
-                            Modifier
-                                .width(18.dp)
-                                .height(18.dp),
-
-                        strokeWidth =
-                            2.dp,
-                    )
-
-                    Spacer(
-                        modifier =
-                            Modifier.width(8.dp)
-                    )
-
-                    Text(
-                        text =
-                            "正在创建订单…"
-                    )
-
-                } else {
-
-                    Text(
-                        text =
-                            "购买 ${pack.amountText}",
-                    )
-                }
-            }
         }
     }
 }
 
+// ============================================================
+// Custom Credit Purchase
+// ============================================================
 
 @Composable
 private fun CustomCreditSection(
-    config:
-    MobileCustomCreditPurchaseOption,
-
-    amountText:
-    String,
-
-    isPurchasing:
-    Boolean,
-
-    purchaseEnabled:
-    Boolean,
-
-    onAmountChange:
-        (String) -> Unit,
-
-    onPurchase:
-        () -> Unit,
+    config: MobileCustomCreditPurchaseOption,
+    amountText: String,
+    isPurchasing: Boolean,
+    purchaseEnabled: Boolean,
+    onAmountChange: (String) -> Unit,
+    onPurchase: () -> Unit,
 ) {
-    val amountMinor =
-        parseAmountMinor(
-            amountText
-        )
+    val amountMinor = parseAmountMinor(amountText)
 
-    /*
-     * 与后端 getMobileCreditPurchaseOptions
-     * 返回的 min/max 完全对齐。
-     */
-    val validAmountMinor =
-        amountMinor
-            ?.takeIf {
-                it >=
-                        config.minAmountMinor &&
-                        it <=
-                        config.maxAmountMinor
-            }
+    val validAmountMinor = amountMinor?.takeIf {
+        it >= config.minAmountMinor &&
+                it <= config.maxAmountMinor
+    }
 
-    val estimatedCredits =
-        validAmountMinor
-            ?.let {
-                estimateCustomCredits(
-                    amountMinor =
-                        it
-                )
-            }
+    val estimatedCredits = validAmountMinor?.let {
+        estimateCustomCredits(it)
+    }
 
     Column(
-        verticalArrangement =
-            Arrangement.spacedBy(
-                12.dp
-            ),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        CreditSectionTitle(config.title)
 
-        /*
-         * 与固定档位的 section 标题层级一致。
-         */
-        Text(
-            text =
-                config.title,
-
-            style =
-                MaterialTheme
-                    .typography
-                    .labelLarge,
-
-            color =
-                MaterialTheme
-                    .colorScheme
-                    .onSurfaceVariant,
-        )
-
-
-        /*
-         * 与 fixed pack 使用相同 Surface。
-         */
         Surface(
-            modifier =
-                Modifier.fillMaxWidth(),
-
-            shape =
-                MaterialTheme
-                    .shapes
-                    .large,
-
-            tonalElevation =
-                1.dp,
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.large,
+            tonalElevation = 1.dp,
         ) {
             Column(
-                modifier =
-                    Modifier.padding(
-                        16.dp
-                    ),
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-
-                Row(
-                    modifier =
-                        Modifier.fillMaxWidth(),
-
-                    verticalAlignment =
-                        Alignment.CenterVertically,
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-
-                    Column(
-                        modifier =
-                            Modifier.weight(1f),
-                    ) {
-                        Text(
-                            text =
-                                "自定义金额",
-
-                            style =
-                                MaterialTheme
-                                    .typography
-                                    .titleMedium,
-
-                            fontWeight =
-                                FontWeight.SemiBold,
-                        )
-
-                        Spacer(
-                            modifier =
-                                Modifier.height(4.dp)
-                        )
-
-                        Text(
-                            text =
-                                config.baseRateText,
-
-                            style =
-                                MaterialTheme
-                                    .typography
-                                    .bodySmall,
-
-                            color =
-                                MaterialTheme
-                                    .colorScheme
-                                    .onSurfaceVariant,
-                        )
-                    }
-                }
-
-
-                Spacer(
-                    modifier =
-                        Modifier.height(
-                            14.dp
-                        )
-                )
-
-
-                OutlinedTextField(
-                    modifier =
-                        Modifier.fillMaxWidth(),
-
-                    value =
-                        amountText,
-
-                    onValueChange = { value ->
-
-                        onAmountChange(
-                            sanitizeAmountInput(
-                                value
-                            )
-                        )
-                    },
-
-                    singleLine =
-                        true,
-
-                    enabled =
-                        !isPurchasing,
-
-                    label = {
-                        Text(
-                            text =
-                                "充值金额（元）",
-                        )
-                    },
-
-                    prefix = {
-                        Text(
-                            text =
-                                "¥",
-                        )
-                    },
-
-                    keyboardOptions =
-                        KeyboardOptions(
-                            keyboardType =
-                                KeyboardType.Decimal,
-                        ),
-                )
-
-
-                Spacer(
-                    modifier =
-                        Modifier.height(
-                            10.dp
-                        )
-                )
-
-
-                Text(
-                    text =
-                        "支持 ¥${formatYuan(config.minAmountMinor)} ～ " +
-                                "¥${formatYuan(config.maxAmountMinor)}",
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .bodySmall,
-
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .onSurfaceVariant,
-                )
-
-
-                if (
-                    !config.desc
-                        .isNullOrBlank()
-                ) {
-                    Spacer(
-                        modifier =
-                            Modifier.height(
-                                4.dp
-                            )
+                    Text(
+                        text = "自定义金额",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
                     )
 
                     Text(
-                        text =
-                            config.desc,
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .bodySmall,
-
-                        color =
-                            MaterialTheme
-                                .colorScheme
-                                .onSurfaceVariant,
+                        text = config.baseRateText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
-
-                if (
-                    estimatedCredits != null
-                ) {
-                    Spacer(
-                        modifier =
-                            Modifier.height(
-                                14.dp
-                            )
-                    )
-
-                    HorizontalDivider()
-
-                    Spacer(
-                        modifier =
-                            Modifier.height(
-                                14.dp
-                            )
-                    )
-
-                    Row(
-                        modifier =
-                            Modifier.fillMaxWidth(),
-
-                        verticalAlignment =
-                            Alignment.CenterVertically,
-                    ) {
-
-                        Text(
-                            text =
-                                "预计获得",
-
-                            style =
-                                MaterialTheme
-                                    .typography
-                                    .bodyMedium,
-                        )
-
-                        Spacer(
-                            modifier =
-                                Modifier.weight(1f)
-                        )
-
-                        Text(
-                            text =
-                                "${formatCredits(estimatedCredits)} Credits",
-
-                            style =
-                                MaterialTheme
-                                    .typography
-                                    .bodyLarge,
-
-                            fontWeight =
-                                FontWeight.SemiBold,
-                        )
-                    }
-                }
-
-
-                Spacer(
-                    modifier =
-                        Modifier.height(
-                            14.dp
-                        )
+                OutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
+                    value = amountText,
+                    onValueChange = {
+                        onAmountChange(sanitizeAmountInput(it))
+                    },
+                    singleLine = true,
+                    enabled = !isPurchasing,
+                    label = { Text("充值金额（元）") },
+                    prefix = { Text("¥") },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal,
+                    ),
                 )
 
-
-                Button(
-                    modifier =
-                        Modifier.fillMaxWidth(),
-
-                    enabled =
-                        validAmountMinor != null &&
-                                purchaseEnabled,
-
-                    onClick =
-                        onPurchase,
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
+                    Text(
+                        text = "支持 ¥${formatYuan(config.minAmountMinor)} ～ " +
+                                "¥${formatYuan(config.maxAmountMinor)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
 
-                    if (
-                        isPurchasing
+                    config.desc
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { description ->
+                            Text(
+                                text = description,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                }
+
+                if (estimatedCredits != null) {
+                    HorizontalDivider()
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        CircularProgressIndicator(
-                            modifier =
-                                Modifier
-                                    .width(18.dp)
-                                    .height(18.dp),
-
-                            strokeWidth =
-                                2.dp,
-                        )
-
-                        Spacer(
-                            modifier =
-                                Modifier.width(8.dp)
+                        Text(
+                            text = "预计获得",
+                            style = MaterialTheme.typography.bodyMedium,
                         )
 
                         Text(
-                            text =
-                                "正在创建订单…"
-                        )
-
-                    } else {
-
-                        Text(
-                            text =
-                                if (
-                                    amountText
-                                        .isNotBlank()
-                                ) {
-                                    "充值 ¥$amountText"
-                                } else {
-                                    "自定义充值"
-                                },
+                            text = "${formatCredits(estimatedCredits)} Credits",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.SemiBold,
                         )
                     }
                 }
+
+                CreditPurchaseButton(
+                    text = if (amountText.isNotBlank()) {
+                        "充值 ¥$amountText"
+                    } else {
+                        "自定义充值"
+                    },
+                    isPurchasing = isPurchasing,
+                    enabled = validAmountMinor != null && purchaseEnabled,
+                    onClick = onPurchase,
+                )
             }
         }
     }
 }
 
+// ============================================================
+// Amount Helpers
+// ============================================================
 
-private fun sanitizeAmountInput(
-    value:
-    String,
-): String {
+private fun sanitizeAmountInput(value: String): String {
+    val filtered = value.filter { it.isDigit() || it == '.' }
+    val firstDot = filtered.indexOf('.')
 
-    val filtered =
-        value.filter {
-            it.isDigit() ||
-                    it == '.'
-        }
+    if (firstDot < 0) return filtered
 
-    val firstDot =
-        filtered.indexOf('.')
+    val integerPart = filtered.substring(0, firstDot)
 
-    if (
-        firstDot < 0
-    ) {
-        return filtered
-    }
+    val decimalPart = filtered
+        .substring(firstDot + 1)
+        .filter { it.isDigit() }
+        .take(2)
 
-    val integerPart =
-        filtered.substring(
-            0,
-            firstDot,
-        )
-
-    val decimalPart =
-        filtered
-            .substring(
-                firstDot + 1
-            )
-            .filter {
-                it.isDigit()
-            }
-            .take(2)
-
-    return buildString {
-        append(
-            integerPart
-        )
-
-        append('.')
-
-        append(
-            decimalPart
-        )
-    }
+    return "$integerPart.$decimalPart"
 }
 
+private fun parseAmountMinor(amountText: String): Double? {
+    val yuan = amountText.trim().toDoubleOrNull() ?: return null
 
-private fun parseAmountMinor(
-    amountText:
-    String,
-): Double? {
+    if (!yuan.isFinite() || yuan <= 0.0) return null
 
-    val yuan =
-        amountText
-            .trim()
-            .toDoubleOrNull()
-            ?: return null
-
-    if (
-        !yuan.isFinite() ||
-        yuan <= 0.0
-    ) {
-        return null
-    }
-
-    return kotlin.math.round(
-        yuan * 100.0
-    )
+    return kotlin.math.round(yuan * 100.0)
 }
 
-
-private fun estimateCustomCredits(
-    amountMinor:
-    Double,
-): Double {
-
-    return kotlin.math.floor(
-        amountMinor *
-                618.0 /
-                10_000.0
-    )
+private fun estimateCustomCredits(amountMinor: Double): Double {
+    return kotlin.math.floor(amountMinor * 618.0 / 10_000.0)
 }
 
-
-private fun formatCredits(
-    value:
-    Double,
-): String {
-
-    return if (
-        value % 1.0 ==
-        0.0
-    ) {
-        value
-            .toLong()
-            .toString()
+private fun formatCredits(value: Double): String {
+    return if (value % 1.0 == 0.0) {
+        value.toLong().toString()
     } else {
         value.toString()
     }
 }
 
+private fun formatYuan(amountMinor: Double): String {
+    val yuan = amountMinor / 100.0
 
-private fun formatYuan(
-    amountMinor:
-    Double,
-): String {
-
-    val yuan =
-        amountMinor /
-                100.0
-
-    return if (
-        yuan % 1.0 ==
-        0.0
-    ) {
-        yuan
-            .toLong()
-            .toString()
+    return if (yuan % 1.0 == 0.0) {
+        yuan.toLong().toString()
     } else {
-        String.format(
-            Locale.US,
-            "%.2f",
-            yuan,
-        )
+        String.format(Locale.US, "%.2f", yuan)
     }
 }

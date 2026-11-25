@@ -18,11 +18,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 
 import top.role.android.feature.content.picker.*
+import top.role.android.core.asset.AssetUploadService
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EntityServiceCreateScreen(
     pickerRepository: ContentPickerRepository,
+    assetUploadService: AssetUploadService,
     isSubmitting: Boolean,
     errorMessage: String?,
     onSubmit: (
@@ -316,6 +318,7 @@ fun EntityServiceCreateScreen(
             if (showReferencePicker) {
                 ContentPickerDialog(
                     repository = pickerRepository,
+                    assetUploadService = assetUploadService,
                     multiple = true,
                     initialSelected = selectedReferences.toList(),
                     onDismiss = {

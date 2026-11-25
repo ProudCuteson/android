@@ -1,53 +1,31 @@
 package top.role.android.feature.market.detail
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
-import androidx.compose.runtime.remember
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
-
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
-import top.role.android.core.auth.AuthState
-import top.role.android.ui.auth.AuthStatusContent
-import top.role.android.ui.components.RemoteMessageState
+import coil3.compose.AsyncImage
 
+import top.role.android.core.auth.AuthState
+import top.role.android.core.model.market.MobileMarketDetail
 import top.role.android.core.model.region.ChinaRegionNode
 import top.role.android.core.model.region.MarketRegionSelection
-import top.role.android.core.payment.temp.MobilePaymentNotice
-import top.role.android.core.payment.temp.WebPurchaseConfig
+import top.role.android.core.payment.wechatPayDisplayMessage
 import top.role.android.core.region.ChinaRegionRepository
 import top.role.android.feature.market.detail.components.MarketPurchaseSection
 import top.role.android.feature.market.detail.components.MarketRegionPicker
+import top.role.android.ui.auth.AuthStatusContent
+import top.role.android.ui.components.RemoteMessageState
 
 @Composable
 fun MarketDetailScreen(
@@ -57,7 +35,6 @@ fun MarketDetailScreen(
     onLogin: () -> Unit,
     onRetryAuth: () -> Unit,
     onReSignIn: () -> Unit,
-
     onRetry: () -> Unit,
     onDecreaseQuantity: () -> Unit,
     onIncreaseQuantity: () -> Unit,
@@ -97,8 +74,7 @@ fun MarketDetailScreen(
         onLogin = onLogin,
         onRetry = onRetryAuth,
         onReSignIn = onReSignIn,
-    ) { _ ->
-
+    ) {
         when {
             !remoteOnline -> {
                 RemoteMessageState(
@@ -138,11 +114,7 @@ fun MarketDetailScreen(
             }
         }
 
-        /*
-         * ------------------------------------------------
-         * Region Picker
-         * ------------------------------------------------
-         */
+        // 行政区划选择
         if (
             remoteOnline &&
             state.listing != null &&
@@ -151,9 +123,7 @@ fun MarketDetailScreen(
         ) {
             MarketRegionPicker(
                 regions = regions,
-                onDismiss = {
-                    showRegionPicker = false
-                },
+                onDismiss = { showRegionPicker = false },
                 onSelected = { region ->
                     onRegionSelected(region)
                     showRegionPicker = false
@@ -163,813 +133,437 @@ fun MarketDetailScreen(
     }
 }
 
+// Main Content
+
 @Composable
 private fun MarketDetailContent(
-    state:
-    MarketDetailUiState,
-
-    onDecreaseQuantity:
-        () -> Unit,
-
-    onIncreaseQuantity:
-        () -> Unit,
-
-    onRegionClick:
-        () -> Unit,
-
-    onReceiverNameChange:
-        (String) -> Unit,
-
-    onReceiverPhoneChange:
-        (String) -> Unit,
-
-    onAddressLine1Change:
-        (String) -> Unit,
-
-    onPostalCodeChange:
-        (String) -> Unit,
-
-    onBuyerNoteChange:
-        (String) -> Unit,
-
-    onBuy:
-        () -> Unit,
+    state: MarketDetailUiState,
+    onDecreaseQuantity: () -> Unit,
+    onIncreaseQuantity: () -> Unit,
+    onRegionClick: () -> Unit,
+    onReceiverNameChange: (String) -> Unit,
+    onReceiverPhoneChange: (String) -> Unit,
+    onAddressLine1Change: (String) -> Unit,
+    onPostalCodeChange: (String) -> Unit,
+    onBuyerNoteChange: (String) -> Unit,
+    onBuy: () -> Unit,
 ) {
+    val listing = state.listing ?: return
 
-    val listing =
-        state.listing
-            ?: return
+    val purchaseInProgress = state.paying || state.confirming
 
+    val purchaseEnabled =
+        !purchaseInProgress && marketCanPurchase(state)
 
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .verticalScroll(
-                    rememberScrollState()
-                ),
+    Column(modifier = Modifier.fillMaxSize()) {
 
-        verticalArrangement =
-            Arrangement.spacedBy(
-                16.dp
-            ),
-    ) {
-
-        MobilePaymentNotice(
-            webUrl =
-                WebPurchaseConfig.MARKET_URL,
-        )
-
-        /*
-         * ------------------------------------------------
-         * Cover
-         * ------------------------------------------------
-         */
-
-        if (
-            listing.cover
-                .isNotBlank()
-        ) {
-
-            AsyncImage(
-                model =
-                    listing.cover,
-
-                contentDescription =
-                    listing.title,
-
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(
-                            16f / 10f
-                        ),
-
-                contentScale =
-                    ContentScale.Crop,
-            )
-        }
-
-
+        // 商品详情及购买信息滚动区域。
         Column(
-            modifier =
-                Modifier.padding(
-                    horizontal =
-                        16.dp,
-                ),
-
-            verticalArrangement =
-                Arrangement.spacedBy(
-                    12.dp
-                ),
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
         ) {
-
-            /*
-             * ------------------------------------------------
-             * Product
-             * ------------------------------------------------
-             */
-
-            Text(
-                text =
-                    listing.title,
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .headlineSmall,
-
-                fontWeight =
-                    FontWeight.SemiBold,
-            )
-
-
-            if (
-                listing.subtitle
-                    .isNotBlank()
-            ) {
-
-                Text(
-                    text =
-                        listing.subtitle,
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .bodyLarge,
-
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .onSurfaceVariant,
+            // 商品封面
+            if (listing.cover.isNotBlank()) {
+                AsyncImage(
+                    model = listing.cover,
+                    contentDescription = listing.title,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(16f / 10f),
+                    contentScale = ContentScale.Crop,
                 )
             }
 
-
-            Text(
-                text =
-                    listing.price,
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .headlineSmall,
-
-                fontWeight =
-                    FontWeight.Bold,
-
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .primary,
-            )
-
-
-            if (
-                listing.feeEnabled &&
-                listing.feeText
-                    .isNotBlank()
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
+                MarketProductInfo(listing)
 
-                Text(
-                    text =
-                        listing.feeText,
+                if (listing.description.isNotBlank()) {
+                    HorizontalDivider()
 
-                    style =
-                        MaterialTheme
-                            .typography
-                            .bodySmall,
-
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .onSurfaceVariant,
-                )
-            }
-
-
-            Row(
-                horizontalArrangement =
-                    Arrangement.spacedBy(
-                        12.dp
-                    ),
-            ) {
-
-                Text(
-                    text =
-                        listing.kindLabel,
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .labelMedium,
-                )
-
-
-                Text(
-                    text =
-                        marketStockLabel(
-                            listing =
-                                listing,
-                        ),
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .labelMedium,
-
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .onSurfaceVariant,
-                )
-            }
-
-
-            /*
-             * ------------------------------------------------
-             * Description
-             * ------------------------------------------------
-             */
-
-            if (
-                listing.description
-                    .isNotBlank()
-            ) {
+                    MarketProductDescription(
+                        description = listing.description,
+                    )
+                }
 
                 HorizontalDivider()
 
-
-                Text(
-                    text =
-                        "商品说明",
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .titleMedium,
-
-                    fontWeight =
-                        FontWeight.Medium,
+                // 购买数量、收货信息及买家备注。
+                MarketPurchaseSection(
+                    listing = listing,
+                    quantity = state.quantity,
+                    selectedRegion = state.selectedRegion,
+                    receiverName = state.receiverName,
+                    receiverPhone = state.receiverPhone,
+                    addressLine1 = state.addressLine1,
+                    postalCode = state.postalCode,
+                    buyerNote = state.buyerNote,
+                    enabled = !purchaseInProgress,
+                    onDecreaseQuantity = onDecreaseQuantity,
+                    onIncreaseQuantity = onIncreaseQuantity,
+                    onRegionClick = onRegionClick,
+                    onReceiverNameChange = onReceiverNameChange,
+                    onReceiverPhoneChange = onReceiverPhoneChange,
+                    onAddressLine1Change = onAddressLine1Change,
+                    onPostalCodeChange = onPostalCodeChange,
+                    onBuyerNoteChange = onBuyerNoteChange,
                 )
 
+                HorizontalDivider()
 
-                Text(
-                    text =
-                        listing.description,
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .bodyMedium,
-                )
+                MarketSellerInfo(listing)
             }
+        }
 
+        // 固定底部购买区域。
+        MarketPurchaseBar(
+            state = state,
+            purchaseEnabled = purchaseEnabled,
+            onBuy = onBuy,
+        )
+    }
+}
 
-            /*
-             * ------------------------------------------------
-             * Purchase
-             * ------------------------------------------------
-             */
+// Product Information
 
-            HorizontalDivider()
+@Composable
+private fun MarketProductInfo(listing: MobileMarketDetail) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            text = listing.title,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.SemiBold,
+        )
 
-
-            MarketPurchaseSection(
-                listing =
-                    listing,
-
-                quantity =
-                    state.quantity,
-
-                selectedRegion =
-                    state.selectedRegion,
-
-                receiverName =
-                    state.receiverName,
-
-                receiverPhone =
-                    state.receiverPhone,
-
-                addressLine1 =
-                    state.addressLine1,
-
-                postalCode =
-                    state.postalCode,
-
-                buyerNote =
-                    state.buyerNote,
-
-                enabled =
-                    !state.paying &&
-                            !state.confirming,
-
-                onDecreaseQuantity =
-                    onDecreaseQuantity,
-
-                onIncreaseQuantity =
-                    onIncreaseQuantity,
-
-                onRegionClick =
-                    onRegionClick,
-
-                onReceiverNameChange =
-                    onReceiverNameChange,
-
-                onReceiverPhoneChange =
-                    onReceiverPhoneChange,
-
-                onAddressLine1Change =
-                    onAddressLine1Change,
-
-                onPostalCodeChange =
-                    onPostalCodeChange,
-
-                onBuyerNoteChange =
-                    onBuyerNoteChange,
-            )
-
-
-            /*
-             * ------------------------------------------------
-             * Seller
-             * ------------------------------------------------
-             */
-
-            HorizontalDivider()
-
-
+        if (listing.subtitle.isNotBlank()) {
             Text(
-                text =
-                    "卖家空间",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleMedium,
-
-                fontWeight =
-                    FontWeight.Medium,
+                text = listing.subtitle,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
 
+        Text(
+            text = listing.price,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+        )
 
+        if (listing.feeEnabled && listing.feeText.isNotBlank()) {
             Text(
-                text =
-                    listing
-                        .sellerSpace
-                        .name,
+                text = listing.feeText,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
 
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleSmall,
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            MarketProductLabel(
+                text = listing.kindLabel,
             )
 
-
-            listing
-                .sellerSpace
-                .description
-                ?.takeIf {
-                    it.isNotBlank()
-                }
-                ?.let { description ->
-
-                    Text(
-                        text =
-                            description,
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .bodyMedium,
-
-                        color =
-                            MaterialTheme
-                                .colorScheme
-                                .onSurfaceVariant,
-                    )
-                }
-
-
-            /*
-             * ------------------------------------------------
-             * Payment message
-             * ------------------------------------------------
-             */
-
-            state.paymentError
-                ?.let { error ->
-
-                    Text(
-                        text =
-                            resolveMarketPaymentError(
-                                error
-                            ),
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .bodySmall,
-
-                        color =
-                            if (
-                                error ==
-                                "MARKET_PAYMENT_CONFIRMING"
-                            ) {
-                                MaterialTheme
-                                    .colorScheme
-                                    .onSurfaceVariant
-                            } else {
-                                MaterialTheme
-                                    .colorScheme
-                                    .error
-                            },
-                    )
-                }
-
-
-            /*
-             * ------------------------------------------------
-             * Buy
-             * ------------------------------------------------
-             */
-
-            Button(
-                modifier =
-                    Modifier.fillMaxWidth(),
-
-                enabled =
-                    !state.paying &&
-                            !state.confirming &&
-                            marketCanPurchase(
-                                state =
-                                    state,
-                            ),
-
-                onClick =
-                    onBuy,
-            ) {
-
-                if (
-                    state.paying ||
-                    state.confirming
-                ) {
-
-                    CircularProgressIndicator(
-                        modifier =
-                            Modifier
-                                .padding(
-                                    end =
-                                        8.dp,
-                                )
-                                .size(
-                                    18.dp
-                                ),
-
-                        strokeWidth =
-                            2.dp,
-                    )
-                }
-
-
-                Text(
-                    text =
-                        when {
-
-                            state.paying ->
-                                "正在发起支付"
-
-
-                            state.confirming ->
-                                "正在确认支付"
-
-
-                            else ->
-                                "购买"
-                        }
-                )
-            }
-
-            Spacer(
-                modifier =
-                    Modifier.height(
-                        48.dp
-                    )
+            MarketProductLabel(
+                text = marketStockLabel(listing),
             )
-
         }
     }
 }
 
-
-/*
- * ------------------------------------------------
- * Buy validation
- * ------------------------------------------------
- */
-
-private fun marketCanPurchase(
-    state:
-    MarketDetailUiState,
-): Boolean {
-
-    val listing =
-        state.listing
-            ?: return false
-
-
-    /*
-     * Sold out
-     */
-
-    if (
-        listing.stockMode !=
-        "unlimited"
+@Composable
+private fun MarketProductLabel(text: String) {
+    Surface(
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.surfaceVariant,
     ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(
+                horizontal = 10.dp,
+                vertical = 5.dp,
+            ),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
 
-        val stockCount =
-            listing.stockCount
-                ?: 0.0
+@Composable
+private fun MarketProductDescription(description: String) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = "商品说明",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
 
-        if (
-            stockCount <=
-            0.0
+        Text(
+            text = description,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    }
+}
+
+// Seller Information
+
+@Composable
+private fun MarketSellerInfo(listing: MobileMarketDetail) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            text = "卖家空间",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.large,
+            tonalElevation = 1.dp,
         ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    text = listing.sellerSpace.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium,
+                )
+
+                listing.sellerSpace.description
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { description ->
+                        Text(
+                            text = description,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+            }
+        }
+    }
+}
+
+// Purchase Bar
+
+@Composable
+private fun MarketPurchaseBar(
+    state: MarketDetailUiState,
+    purchaseEnabled: Boolean,
+    onBuy: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        tonalElevation = 2.dp,
+    ) {
+        Column(
+            modifier = Modifier
+                .navigationBarsPadding()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            state.paymentError
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+                ?.let { error ->
+                    MarketPaymentNotice(error)
+                }
+
+            Button(
+                modifier = Modifier.fillMaxWidth(),
+                enabled = purchaseEnabled,
+                onClick = onBuy,
+            ) {
+                if (state.paying || state.confirming) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+
+                Text(
+                    text = when {
+                        state.confirming -> "正在确认支付…"
+                        state.paying -> "正在发起支付…"
+                        else -> "购买"
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MarketPaymentNotice(error: String) {
+    val isConfirming = error == "MARKET_PAYMENT_CONFIRMING"
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        color = if (isConfirming) {
+            MaterialTheme.colorScheme.surfaceVariant
+        } else {
+            MaterialTheme.colorScheme.errorContainer
+        },
+    ) {
+        Text(
+            text = resolveMarketPaymentError(error),
+            modifier = Modifier.padding(12.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (isConfirming) {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                MaterialTheme.colorScheme.onErrorContainer
+            },
+        )
+    }
+}
+
+// Purchase Validation
+
+private fun marketCanPurchase(state: MarketDetailUiState): Boolean {
+    val listing = state.listing ?: return false
+
+    // 库存限制
+    if (listing.stockMode != "unlimited") {
+        val stockCount = listing.stockCount ?: 0.0
+
+        if (stockCount <= 0.0) return false
+    }
+
+    // 购买数量
+    if (state.quantity < 1.0) return false
+
+    if (listing.stockMode != "unlimited") {
+        val stockCount = listing.stockCount
+
+        if (stockCount != null && state.quantity > stockCount) {
             return false
         }
     }
 
-
-    /*
-     * Quantity
-     */
-
-    if (
-        state.quantity <
-        1.0
-    ) {
-        return false
+    // 实物商品收货信息
+    if (listing.needsShippingAddress) {
+        if (state.receiverName.isBlank()) return false
+        if (state.receiverPhone.isBlank()) return false
+        if (state.selectedRegion == null) return false
+        if (state.addressLine1.isBlank()) return false
     }
-
-
-    if (
-        listing.stockMode !=
-        "unlimited"
-    ) {
-
-        val stockCount =
-            listing.stockCount
-
-        if (
-            stockCount !=
-            null &&
-            state.quantity >
-            stockCount
-        ) {
-            return false
-        }
-    }
-
-
-    /*
-     * Shipping
-     */
-
-    if (
-        listing.needsShippingAddress
-    ) {
-
-        if (
-            state.receiverName
-                .isBlank()
-        ) {
-            return false
-        }
-
-
-        if (
-            state.receiverPhone
-                .isBlank()
-        ) {
-            return false
-        }
-
-
-        if (
-            state.selectedRegion ==
-            null
-        ) {
-            return false
-        }
-
-
-        if (
-            state.addressLine1
-                .isBlank()
-        ) {
-            return false
-        }
-    }
-
 
     return true
 }
 
-
-/*
- * ------------------------------------------------
- * Stock
- * ------------------------------------------------
- */
-
-private fun marketStockLabel(
-    listing:
-    top.role.android.core.model.market.MobileMarketDetail,
-): String {
-
-    if (
-        listing.stockMode ==
-        "unlimited"
-    ) {
+private fun marketStockLabel(listing: MobileMarketDetail): String {
+    if (listing.stockMode == "unlimited") {
         return "库存充足"
     }
 
+    val count = listing.stockCount ?: 0.0
 
-    val count =
-        listing.stockCount
-            ?: 0.0
-
-
-    return if (
-        count <=
-        0.0
-    ) {
+    return if (count <= 0.0) {
         "已售罄"
     } else {
         "库存 ${count.toInt()}"
     }
 }
 
-
-/*
- * ------------------------------------------------
- * Loading
- * ------------------------------------------------
- */
+// Loading / Error
 
 @Composable
 private fun MarketDetailLoading() {
-
     Column(
-        modifier =
-            Modifier.fillMaxSize(),
-
-        horizontalAlignment =
-            Alignment.CenterHorizontally,
-
-        verticalArrangement =
-            Arrangement.Center,
-    ) {
-
-        CircularProgressIndicator()
-    }
-}
-
-
-/*
- * ------------------------------------------------
- * Center Message
- * ------------------------------------------------
- */
-
-@Composable
-private fun MarketDetailCenterMessage(
-    text:
-    String,
-) {
-
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(
-                    24.dp
-                ),
-
-        horizontalAlignment =
-            Alignment.CenterHorizontally,
-
-        verticalArrangement =
-            Arrangement.Center,
-    ) {
-
-        Text(
-            text =
-                text,
-        )
-    }
-}
-
-
-/*
- * ------------------------------------------------
- * Error
- * ------------------------------------------------
- */
-
-@Composable
-private fun MarketDetailError(
-    message:
-    String,
-    onRetry: () -> Unit,
-) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
+        modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
+        CircularProgressIndicator()
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text =
-                message,
+            text = "正在加载商品信息…",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
 
-            color =
-                MaterialTheme
-                    .colorScheme
-                    .error,
+@Composable
+private fun MarketDetailError(
+    message: String,
+    onRetry: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(
+            12.dp,
+            Alignment.CenterVertically,
+        ),
+    ) {
+        Text(
+            text = "暂时无法加载商品",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
         )
 
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
-        Button(
-            modifier =
-                Modifier.padding(
-                    top =
-                        16.dp,
-                ),
-
-            onClick =
-                onRetry,
-        ) {
-
-            Text(
-                text =
-                    "重试",
-            )
+        OutlinedButton(onClick = onRetry) {
+            Text("重试")
         }
     }
 }
 
+// Payment Error Messages
 
-/*
- * ------------------------------------------------
- * Payment error
- * ------------------------------------------------
- */
-
-private fun resolveMarketPaymentError(
-    code:
-    String,
-): String {
-    return when (
-        code
-    ) {
+private fun resolveMarketPaymentError(code: String): String {
+    return when (code.trim()) {
         "SHIPPING_ADDRESS_REQUIRED" ->
-            "请完整填写收货信息"
-
+            "请完整填写收货信息。"
 
         "INVALID_MARKET_QUANTITY" ->
-            "购买数量不正确"
-
+            "购买数量不正确。"
 
         "MARKET_STOCK_NOT_ENOUGH" ->
-            "商品库存不足"
-
+            "商品库存不足。"
 
         "MARKET_PAYMENT_CONFIRMING" ->
-            "支付结果正在确认，可稍后在“我的购买”中查看订单状态"
-
-
-        "WECHAT_PAY_LAUNCH_FAILED" ->
-            "无法拉起微信支付"
-
-
-        "WECHAT_PAY_FAILED" ->
-            "微信支付未完成"
-
+            "支付结果正在确认，可稍后在「我的购买」中查看订单状态。"
 
         "CREATE_MARKET_PURCHASE_FAILED" ->
-            "创建订单失败"
-
+            "暂时无法创建订单，请稍后重试。"
 
         "MARKET_ORDER_CANCELLED" ->
-            "订单已取消"
-
+            "该订单已取消。"
 
         "MARKET_ORDER_REFUNDED" ->
-            "订单已退款"
+            "该订单已退款。"
 
-
-        else ->
-            code
+        else -> wechatPayDisplayMessage(code)
     }
 }

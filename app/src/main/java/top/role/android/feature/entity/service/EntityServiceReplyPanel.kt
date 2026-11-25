@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
+import top.role.android.core.asset.AssetUploadService
 import top.role.android.feature.content.picker.ContentPickerPanel
 import top.role.android.feature.content.picker.ContentPickerRepository
 import top.role.android.feature.content.picker.ContentSelection
@@ -13,11 +14,13 @@ import top.role.android.feature.content.picker.ContentSelection
 @Composable
 fun EntityServiceReplyPanel(
     repository: ContentPickerRepository,
+    assetUploadService: AssetUploadService,
     responseNote: String,
     onResponseNoteChange: (String) -> Unit,
     selectedResult: ContentSelection?,
     onSelectedResultChange: (ContentSelection?) -> Unit,
     enabled: Boolean,
+    onUploadBusyChange: (Boolean) -> Unit = {},
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -31,7 +34,9 @@ fun EntityServiceReplyPanel(
         OutlinedTextField(
             value = responseNote,
             onValueChange = onResponseNoteChange,
-            label = { Text("回复说明（可选）") },
+            label = {
+                Text("回复说明（可选）")
+            },
             placeholder = {
                 Text("说明处理意见、交付结果或需要注意的事项")
             },
@@ -50,6 +55,7 @@ fun EntityServiceReplyPanel(
 
         ContentPickerPanel(
             repository = repository,
+            assetUploadService = assetUploadService,
             multiple = false,
             selected = listOfNotNull(selectedResult),
             onSelectionChange = { selected ->
@@ -58,6 +64,7 @@ fun EntityServiceReplyPanel(
                 )
             },
             enabled = enabled,
+            onUploadBusyChange = onUploadBusyChange,
         )
 
         Text(

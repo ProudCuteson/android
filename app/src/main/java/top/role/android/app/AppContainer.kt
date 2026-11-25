@@ -64,6 +64,9 @@ import top.role.android.feature.banner.BannerRepository
 import top.role.android.feature.entity.service.EntityServiceRepository
 import top.role.android.feature.content.picker.ContentPickerRepository
 import top.role.android.feature.browse.pdf.PdfDocumentLoader
+import top.role.android.core.asset.AssetUploadRepository
+import top.role.android.core.asset.AssetUploadFileResolver
+import top.role.android.core.asset.AssetUploadService
 
 class AppContainer(
     context: Context,
@@ -96,6 +99,20 @@ class AppContainer(
 
     val pdfDocumentLoader = PdfDocumentLoader(
         context = appContext,
+        client = httpClient,
+    )
+
+    private val assetUploadRepository = AssetUploadRepository(
+        convexClient = convexClient,
+    )
+
+    private val assetUploadFileResolver = AssetUploadFileResolver(
+        context = appContext,
+    )
+
+    val assetUploadService = AssetUploadService(
+        repository = assetUploadRepository,
+        fileResolver = assetUploadFileResolver,
         client = httpClient,
     )
 

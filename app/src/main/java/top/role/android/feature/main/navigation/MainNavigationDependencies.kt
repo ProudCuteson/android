@@ -36,6 +36,7 @@ import top.role.android.feature.market.order.detail.MarketOrderDetailRepository
 import top.role.android.feature.membership.MembershipRepository
 import top.role.android.feature.credit.CreditsRepository
 import top.role.android.feature.entity.service.EntityServiceRepository
+import top.role.android.core.asset.AssetUploadService
 
 data class MainNavigationDependencies(
     val localOwnerUserId: String,
@@ -76,4 +77,5 @@ data class MainNavigationDependencies(
     val bannerRepository: BannerRepository,
     val entityServiceRepository: EntityServiceRepository,
     val contentPickerRepository: ContentPickerRepository,
+    val assetUploadService: AssetUploadService,
 )

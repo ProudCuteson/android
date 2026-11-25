@@ -1,5 +1,7 @@
 package top.role.android.feature.browse.pdf
 
+import android.graphics.Bitmap
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -16,7 +18,10 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -41,24 +46,62 @@ fun PdfReaderScreen(
 
     BackHandler(onBack = onBack)
 
+    /**
+     * Session 的完整生命周期由同一个 Effect 管理。
+     *
+     * 页面退出或文件变化时，
+     * Effect 被取消，并负责释放自己的 Session。
+     */
     LaunchedEffect(file) {
+
+        var openedSession: PdfDocumentSession? = null
+
+        session = null
         loading = true
         error = null
 
         try {
-            session = withContext(Dispatchers.IO) {
-                PdfDocumentSession.open(file)
+            withContext(Dispatchers.IO) {
+                openedSession = PdfDocumentSession.open(file)
             }
-        } catch (e: Exception) {
-            error = e.message ?: "PDF 打开失败"
-        } finally {
-            loading = false
-        }
-    }
 
-    DisposableEffect(session) {
-        onDispose {
-            session?.close()
+            session = openedSession
+            loading = false
+
+            // 保持 Session 有效，直到页面退出或文件变化。
+            awaitCancellation()
+
+        } catch (e: CancellationException) {
+            throw e
+
+        } catch (e: Exception) {
+            Log.e(
+                "PdfReaderScreen",
+                "PDF 打开失败",
+                e,
+            )
+
+            error = "PDF 打开失败"
+            loading = false
+
+        } finally {
+            val closingSession = openedSession
+
+            if (closingSession != null) {
+                withContext(
+                    NonCancellable + Dispatchers.IO
+                ) {
+                    runCatching {
+                        closingSession.close()
+                    }.onFailure {
+                        Log.e(
+                            "PdfReaderScreen",
+                            "PDF Session 关闭失败",
+                            it,
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -92,13 +135,14 @@ fun PdfReaderScreen(
                     MaterialTheme.colorScheme.surfaceVariant
                 ),
         ) {
+            val currentSession = session
 
             when {
                 loading -> {
                     CircularProgressIndicator(
                         modifier = Modifier.align(
                             Alignment.Center
-                        )
+                        ),
                     )
                 }
 
@@ -106,14 +150,13 @@ fun PdfReaderScreen(
                     Text(
                         text = error.orEmpty(),
                         color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.align(
-                            Alignment.Center
-                        ),
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(16.dp),
                     )
                 }
 
-                session != null -> {
-                    val currentSession = session!!
+                currentSession != null -> {
 
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
@@ -128,6 +171,7 @@ fun PdfReaderScreen(
                             count = currentSession.pageCount,
                             key = { index -> index },
                         ) { index ->
+
                             PdfPageItem(
                                 session = currentSession,
                                 index = index,
@@ -140,6 +184,9 @@ fun PdfReaderScreen(
     }
 }
 
+/**
+ * 单个 PDF 页面的渲染与展示。
+ */
 @Composable
 private fun PdfPageItem(
     session: PdfDocumentSession,
@@ -154,14 +201,14 @@ private fun PdfPageItem(
 
         val targetWidth = with(density) {
             maxWidth.roundToPx()
-        }
+        }.coerceAtLeast(1)
 
         var bitmap by remember(
             session,
             index,
             targetWidth,
         ) {
-            mutableStateOf<android.graphics.Bitmap?>(null)
+            mutableStateOf<Bitmap?>(null)
         }
 
         var error by remember(
@@ -177,17 +224,41 @@ private fun PdfPageItem(
             index,
             targetWidth,
         ) {
+            var renderedBitmap: Bitmap? = null
+            var published = false
+
             try {
-                bitmap = withContext(Dispatchers.IO) {
-                    session.renderPage(
+                withContext(Dispatchers.IO) {
+                    renderedBitmap = session.renderPage(
                         index = index,
                         targetWidth = targetWidth,
                     )
                 }
+
+                bitmap = renderedBitmap
+                published = true
+
+            } catch (e: CancellationException) {
+                throw e
+
             } catch (e: Exception) {
+                Log.e(
+                    "PdfPageItem",
+                    "PDF 第 ${index + 1} 页渲染失败",
+                    e,
+                )
+
                 error = true
+
+            } finally {
+                // 仅释放尚未交给 UI 的 Bitmap。
+                if (!published) {
+                    renderedBitmap?.recycle()
+                }
             }
         }
+
+        val currentBitmap = bitmap
 
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -195,9 +266,9 @@ private fun PdfPageItem(
             shadowElevation = 2.dp,
         ) {
             when {
-                bitmap != null -> {
+                currentBitmap != null -> {
                     Image(
-                        bitmap = bitmap!!.asImageBitmap(),
+                        bitmap = currentBitmap.asImageBitmap(),
                         contentDescription = "PDF 第 ${index + 1} 页",
                         modifier = Modifier.fillMaxWidth(),
                         contentScale = ContentScale.FillWidth,

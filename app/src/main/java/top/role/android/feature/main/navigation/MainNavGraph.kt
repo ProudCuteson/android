@@ -47,6 +47,11 @@ fun MainNavGraph(
             onReSignIn = onReSignIn,
         )
 
+        entityServiceNavGraph(
+            navController = navController,
+            dependencies = dependencies,
+        )
+
         chatNavGraph(
             navController = navController,
             dependencies = dependencies,

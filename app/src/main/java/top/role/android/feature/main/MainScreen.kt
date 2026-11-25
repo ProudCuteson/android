@@ -65,6 +65,7 @@ import top.role.android.feature.market.order.detail.MarketOrderDetailRepository
 import top.role.android.feature.banner.BannerRepository
 import top.role.android.feature.browse.pdf.PdfDocumentLoader
 import top.role.android.feature.content.picker.ContentPickerRepository
+import top.role.android.core.asset.AssetUploadService
 import top.role.android.feature.entity.service.EntityServiceRepository
 
 @Composable
@@ -113,7 +114,7 @@ fun MainScreen(
     bannerRepository: BannerRepository,
     entityServiceRepository: EntityServiceRepository,
     contentPickerRepository: ContentPickerRepository,
-
+    assetUploadService: AssetUploadService,
     pdfDocumentLoader: PdfDocumentLoader,
 
     appearance: AppAppearance,
@@ -215,6 +216,7 @@ fun MainScreen(
 
             entityServiceRepository,
             contentPickerRepository,
+            assetUploadService,
 
         ) {
             MainNavigationDependencies(
@@ -263,6 +265,8 @@ fun MainScreen(
                 bannerRepository = bannerRepository,
                 entityServiceRepository = entityServiceRepository,
                 contentPickerRepository = contentPickerRepository,
+                assetUploadService = assetUploadService,
+
             )
         }
 
