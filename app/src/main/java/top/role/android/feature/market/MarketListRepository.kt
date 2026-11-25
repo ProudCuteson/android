@@ -13,14 +13,9 @@ class MarketListRepository(
 ) {
 
     fun observePage(
-        mode:
-        MobileMarketListMode,
-
-        cursor:
-        String? = null,
-
-        numItems:
-        Double = 12.0,
+        mode: MobileMarketListMode,
+        cursor: String? = null,
+        numItems: Double = 12.0,
     ): Flow<Result<MobileMarketPage>> {
 
         return convexClient.subscribe(

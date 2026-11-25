@@ -15,14 +15,10 @@ class MarketOrderDetailRepository(
     ): Flow<Result<MobileMarketOrderDetailResponse>> {
 
         return convexClient.subscribe(
-            name =
-                "mobile/native/purchase/market:getMyMarketOrderDetail",
-
-            args =
-                mapOf(
-                    "orderId" to
-                            orderId,
-                ),
+            name = "mobile/native/purchase/market:getMyMarketOrderDetail",
+            args = mapOf(
+                "orderId" to orderId,
+            ),
         )
     }
 }

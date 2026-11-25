@@ -14,38 +14,24 @@ class ChinaRegionRepository(
     context: Context,
 ) {
 
-    private val appContext =
-        context.applicationContext
+    private val appContext = context.applicationContext
 
-    private val json =
-        Json {
-            ignoreUnknownKeys = true
-        }
+    private val json = Json { ignoreUnknownKeys = true }
 
     @Volatile
-    private var cachedRegions:
-            List<ChinaRegionNode>? = null
+    private var cachedRegions: List<ChinaRegionNode>? = null
 
+    suspend fun getRegions(): List<ChinaRegionNode> {
 
-    suspend fun getRegions():
-            List<ChinaRegionNode> {
-
-        cachedRegions
-            ?.let {
-                return it
-            }
+        cachedRegions ?.let { return it }
 
         return withContext(
             Dispatchers.IO
         ) {
 
-            cachedRegions
-                ?.let {
-                    return@withContext it
-                }
+            cachedRegions ?.let { return@withContext it }
 
-            val content =
-                appContext
+            val content = appContext
                     .assets
                     .open("pca.json")
                     .bufferedReader()
@@ -53,15 +39,9 @@ class ChinaRegionRepository(
                         it.readText()
                     }
 
-            val result =
-                json.decodeFromString<
-                        List<ChinaRegionNode>
-                        >(
-                    content
-                )
+            val result = json.decodeFromString<List<ChinaRegionNode>>(content)
 
-            cachedRegions =
-                result
+            cachedRegions = result
 
             result
         }
